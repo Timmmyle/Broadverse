@@ -1,0 +1,65 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String?  @unique
+  username          String
+  isGuest           Boolean  @default(true)
+  isPremium         Boolean  @default(false)         // Trạng thái tài khoản Premium
+  premiumUntil      DateTime?                         // Thời hạn Premium (null = vĩnh viễn)
+  coins             Int      @default(100)
+  level             Int      @default(1)
+  exp               Int      @default(0)
+  avatarUrl         String?
+  createdAt         DateTime @default(now())
+
+  // Trang trí
+  avatarFrame       String   @default("default")     // ID khung avatar đang dùng
+  selectedSymbolX   String   @default("X")           // Symbol tùy chỉnh thay thế cho X
+  selectedSymbolO   String   @default("O")           // Symbol tùy chỉnh thay thế cho O
+  purchasedItems    String[] @default([])            // Danh sách ID vật phẩm đã mua
+  
+  gamesAsX          GameRoom[] @relation("PlayerX")
+  gamesAsO          GameRoom[] @relation("PlayerO")
+}
+
+model MatchmakingQueue {
+  id        String   @id @default(uuid())
+  playerId  String   @unique
+  gameType  String   // "TIC_TAC_TOE" hoặc "CARO"
+  level     Int
+  wager     Int      @default(0)                     // Mức cược Coin mong muốn
+  createdAt DateTime @default(now())
+
+  @@index([playerId])
+  @@index([gameType, level, wager])
+}
+
+model GameRoom {
+  id           String   @id @default(uuid())
+  gameType     String   // "TIC_TAC_TOE" hoặc "CARO"
+  status       String   // "WAITING", "PLAYING", "FINISHED"
+  playerXId    String
+  playerOId    String?
+  turnPlayerId String?
+  board        String   // Chuỗi JSON mã hóa bàn cờ, ví dụ: '{"0":"X", "5":"O"}'
+  wager        Int      @default(0)                     // Số coin đặt cược của mỗi người chơi
+  winnerId     String?
+  draw         Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  playerX      User     @relation("PlayerX", fields: [playerXId], references: [id])
+  playerO      User?    @relation("PlayerO", fields: [playerOId], references: [id])
+
+  @@index([status])
+  @@index([playerXId])
+  @@index([playerOId])
+}

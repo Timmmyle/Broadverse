@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+@theme {
+  --font-quicksand: var(--font-quicksand), system-ui, sans-serif;
+  
+  --color-pixel-yellow: #facc15; /* Sáng màu hơn, hiện đại hơn */
+  --color-pixel-red: #ef4444;
+  --color-pixel-blue: #3b82f6;
+  --color-pixel-green: #10b981;
+  --color-pixel-purple: #8b5cf6;
+  --color-pixel-black: #0f172a;
+  --color-pixel-gray-dark: #09090b;
+  --color-pixel-gray-medium: #18181b;
+  --color-pixel-gray-light: #27272a;
+  --color-pixel-white: #ffffff;
+}
+
+:root {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+}
+
+body {
+  font-family: var(--font-quicksand);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Modern Rounded Gaming UI Utilities (Thay thế cho style Pixel Art cũ) */
+.pixel-box {
+  background-color: rgba(24, 24, 35, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.25rem; /* rounded-2xl */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.pixel-box-nested {
+  background-color: #0c0c11;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem; /* rounded-xl */
+}
+
+.pixel-btn {
+  background-color: #10b981;
+  color: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pixel-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+  filter: brightness(1.1);
+}
+
+.pixel-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.pixel-btn-red {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+.pixel-btn-red:hover {
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+}
+
+.pixel-btn-blue {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+.pixel-btn-blue:hover {
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
+
+.pixel-btn-yellow {
+  background-color: #facc15;
+  color: #0f172a;
+}
+.pixel-btn-yellow:hover {
+  box-shadow: 0 10px 15px -3px rgba(250, 204, 21, 0.3);
+}
+
+.pixel-btn-gray {
+  background-color: #3f3f46;
+  color: #ffffff;
+}
+.pixel-btn-gray:hover {
+  box-shadow: 0 10px 15px -3px rgba(63, 63, 70, 0.3);
+}
+
+.pixel-input {
+  background-color: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem; /* rounded-xl */
+  padding: 12px 16px;
+  font-family: var(--font-quicksand);
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.pixel-input:focus {
+  border-color: #facc15;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.15);
+}
+
+.pixel-text-shadow {
+  text-shadow: none; /* Loại bỏ bóng đổ chữ thô của pixel art */
+}
+
+/* Scrollbar mượt mà hơn */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #facc15;
+}
+
+/* Loại bỏ hoàn toàn scanlines, thay bằng hiệu ứng phát sáng neon tinh tế */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 80%);
+  z-index: 10;
+  pointer-events: none;
+}

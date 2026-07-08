@@ -1,0 +1,815 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "./providers/AuthProvider";
+import { createClient } from "@/lib/supabase/client";
+import { checkTicTacToeWin, checkCaroWin } from "@/lib/gameLogic";
+import { getTicTacToeBotMove, getCaroBotMove } from "@/lib/botAi";
+import { SHOP_ITEMS } from "@/lib/shopItems";
+import { 
+  ArrowLeft, Swords, Award, AlertTriangle, Clock, RefreshCw, Copy, Check, Coins
+} from "lucide-react";
+import confetti from "canvas-confetti";
+import { QRCodeSVG } from "qrcode.react";
+
+interface GameRoomViewProps {
+  gameType: "TIC_TAC_TOE" | "CARO";
+  mode: "BOT" | "FRIEND" | "RANDOM";
+  details: {
+    roomId?: string;
+    isCreator?: boolean;
+    difficulty?: "RANDOM" | "EASY" | "HARD";
+  };
+  onBack: () => void;
+}
+
+export default function GameRoomView({ gameType, mode, details, onBack }: GameRoomViewProps) {
+  const { profile, refreshProfile } = useAuth();
+  const supabase = createClient();
+
+  if (!profile) return null;
+
+  const [roomId, setRoomId] = useState<string | undefined>(details.roomId);
+  const [room, setRoom] = useState<any | null>(null);
+  
+  // Board state cho chế độ chơi Offline (Bot)
+  const [localBoard, setLocalBoard] = useState<string[]>([]);
+  const [localTurn, setLocalTurn] = useState<"X" | "O">("X");
+  const [localStatus, setLocalStatus] = useState<"PLAYING" | "FINISHED">("PLAYING");
+  const [localWinner, setLocalWinner] = useState<string | null>(null); // "PLAYER", "BOT", "DRAW"
+  
+  const [loading, setLoading] = useState(mode !== "BOT");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Trạng thái Optimistic Update để triệt tiêu độ trễ mạng khi click
+  const [optimisticBoard, setOptimisticBoard] = useState<string[] | null>(null);
+  const [optimisticTurnId, setOptimisticTurnId] = useState<string | null>(null);
+
+  // Game End overlay state
+  const [gameResult, setGameResult] = useState<{
+    finished: boolean;
+    outcome?: "WIN" | "LOSE" | "DRAW";
+    coinsGained?: number;
+    expGained?: number;
+    levelUp?: boolean;
+  } | null>(null);
+
+  // AFK Countdown & Timeout
+  const [afkTimeLeft, setAfkTimeLeft] = useState<number>(60);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ref lưu trạng thái room hiện tại để tránh stale closure trong callback realtime
+  const roomRef = useRef<any>(null);
+
+  // Clipboard copy state
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Board Theme
+  const [boardThemeClass, setBoardThemeClass] = useState("bg-[#1e1e22]");
+
+  const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
+  const size1D = gameType === "TIC_TAC_TOE" ? 3 : 12;
+
+  // 1. Tải theme bàn cờ từ LocalStorage
+  useEffect(() => {
+    const savedThemeId = localStorage.getItem("board_theme") || "theme_classic";
+    const savedTheme = SHOP_ITEMS.find(i => i.id === savedThemeId);
+    if (savedTheme?.visuals?.className) {
+      setBoardThemeClass(savedTheme.visuals.className);
+    }
+  }, []);
+
+  // Đồng bộ ref của room
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+
+  // 2. Khởi tạo game cờ với Bot (Offline)
+  useEffect(() => {
+    if (mode === "BOT") {
+      setLocalBoard(Array(boardSize).fill(""));
+      setLocalTurn("X"); // Player là X đi trước
+      setLocalStatus("PLAYING");
+      setLocalWinner(null);
+      setGameResult(null);
+    }
+  }, [mode, gameType]);
+
+  // 3. Tải và lắng nghe GameRoom nếu đấu Online (Friend / Random)
+  useEffect(() => {
+    if (mode === "BOT" || !roomId) return;
+
+    const fetchRoom = async () => {
+      try {
+        setLoading(true);
+        // Lấy phòng cờ và nạp thông tin hai người chơi
+        const { data, error } = await supabase
+          .from("GameRoom")
+          .select(`
+            *,
+            playerX:User!GameRoom_playerXId_fkey(*),
+            playerO:User!GameRoom_playerOId_fkey(*)
+          `)
+          .eq("id", roomId)
+          .single();
+
+        if (error || !data) {
+          setErrorMsg("Không tìm thấy phòng game này hoặc lỗi kết nối.");
+        } else {
+          setRoom(data);
+          setOptimisticBoard(null);
+          setOptimisticTurnId(null);
+          
+          // Nếu đã kết thúc khi vào, hiển thị kết quả
+          if (data.status === "FINISHED") {
+            showOnlineResult(data);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoom();
+
+    // Đăng ký realtime lắng nghe thay đổi của GameRoom
+    const channel = supabase
+      .channel(`room_${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "GameRoom",
+          filter: `id=eq.${roomId}`,
+        },
+        (payload) => {
+          const updatedRoom = payload.new;
+          if (updatedRoom) {
+            // Nếu có đối thủ vừa mới tham gia (playerOId đổi từ null/undefined sang có ID)
+            // Ta cần gọi fetchRoom để lấy đầy đủ object profile đối thủ từ DB
+            const currentRoom = roomRef.current;
+            const opponentJoined = updatedRoom.playerOId && (!currentRoom || !currentRoom.playerOId);
+            
+            if (opponentJoined) {
+              fetchRoom();
+              return;
+            }
+
+            setRoom((prevRoom: any) => {
+              if (!prevRoom) return null;
+              
+              // Ghép dữ liệu cập nhật thời gian thực vào state hiện tại
+              const newRoom = {
+                ...prevRoom,
+                ...updatedRoom,
+                playerX: prevRoom.playerX,
+                playerO: prevRoom.playerO
+              };
+              
+              if (newRoom.status === "FINISHED" && prevRoom.status !== "FINISHED") {
+                setTimeout(() => showOnlineResult(newRoom), 0);
+              }
+              
+              return newRoom;
+            });
+
+            // Đồng bộ xong -> xóa bỏ trạng thái optimistic tạm thời
+            setOptimisticBoard(null);
+            setOptimisticTurnId(null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId, mode]);
+
+  // 4. Lắng nghe và đếm ngược AFK (Timeout 60s)
+  useEffect(() => {
+    if (mode === "BOT" || !room || room.status !== "PLAYING") {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
+    // Tính thời gian trôi qua từ lần cập nhật cuối
+    const calculateTimeLeft = () => {
+      const lastUpdate = new Date(room.updatedAt).getTime();
+      const elapsedSeconds = Math.floor((Date.now() - lastUpdate) / 1000);
+      const remaining = Math.max(0, 60 - elapsedSeconds);
+      setAfkTimeLeft(remaining);
+
+      // Nếu đếm ngược về 0 và mình đang đến lượt đi -> Không làm gì cả
+      // Nếu đếm ngược về 0 và ĐỐI THỦ đang đến lượt đi -> Hiện nút xử thắng (Claim timeout)
+    };
+
+    calculateTimeLeft();
+    if (timerRef.current) clearInterval(timerRef.current);
+    
+    timerRef.current = setInterval(calculateTimeLeft, 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [room, mode]);
+
+  // Hiển thị kết quả game đấu Online
+  const showOnlineResult = (finishedRoom: any) => {
+    if (!profile) return;
+    
+    let outcome: "WIN" | "LOSE" | "DRAW" = "DRAW";
+    if (finishedRoom.winnerId === profile.id) {
+      outcome = "WIN";
+      // Bắn confetti chúc mừng
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    } else if (finishedRoom.winnerId) {
+      outcome = "LOSE";
+    }
+
+    // Ước tính phần thưởng nhận được (sẽ được sync lại sau khi fetch profile mới)
+    const level = profile.level;
+    let coins = 0;
+    let exp = 0;
+    
+    if (outcome === "WIN") {
+      coins = 10 + 2 * level + finishedRoom.wager * 2;
+      exp = 5 + Math.round(level * 0.2);
+    } else if (outcome === "LOSE") {
+      coins = Math.round(5 + 1.5 * level);
+      exp = 2;
+    } else {
+      // DRAW
+      coins = Math.round(5 + 1.5 * level) + finishedRoom.wager;
+      exp = 2;
+    }
+
+    setGameResult({
+      finished: true,
+      outcome,
+      coinsGained: coins,
+      expGained: exp,
+      levelUp: profile.exp + exp >= 100 + profile.level * 5
+    });
+
+    refreshProfile();
+  };
+
+  // 5. CLICK ĐÁNH CỜ
+  const handleCellClick = async (index: number) => {
+    if (!profile) return;
+
+    // A. CHẾ ĐỘ BOT (OFFLINE)
+    if (mode === "BOT") {
+      if (localStatus !== "PLAYING" || localTurn !== "X" || localBoard[index] !== "") return;
+
+      // Người đánh cờ (X)
+      const nextBoard = [...localBoard];
+      nextBoard[index] = "X";
+      setLocalBoard(nextBoard);
+
+      // Kiểm tra thắng thua
+      let won = false;
+      if (gameType === "TIC_TAC_TOE") {
+        won = checkTicTacToeWin(nextBoard);
+      } else {
+        won = checkCaroWin(nextBoard, index, "X");
+      }
+
+      const draw = !won && nextBoard.every(c => c !== "");
+
+      if (won) {
+        setLocalStatus("FINISHED");
+        setLocalWinner("PLAYER");
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        await handleEndBotMatch("WIN");
+        return;
+      }
+
+      if (draw) {
+        setLocalStatus("FINISHED");
+        setLocalWinner("DRAW");
+        await handleEndBotMatch("DRAW");
+        return;
+      }
+
+      // Đổi lượt sang Bot
+      setLocalTurn("O");
+
+      // Cho Bot suy nghĩ trong 500ms
+      setTimeout(() => {
+        setLocalBoard(currBoard => {
+          const botBoard = [...currBoard];
+          let botMove = -1;
+
+          if (gameType === "TIC_TAC_TOE") {
+            botMove = getTicTacToeBotMove(botBoard, details.difficulty || "EASY", "O", "X");
+          } else {
+            botMove = getCaroBotMove(botBoard, "O", "X");
+          }
+
+          if (botMove !== -1) {
+            botBoard[botMove] = "O";
+
+            // Kiểm tra thắng của Bot
+            let botWon = false;
+            if (gameType === "TIC_TAC_TOE") {
+              botWon = checkTicTacToeWin(botBoard);
+            } else {
+              botWon = checkCaroWin(botBoard, botMove, "O");
+            }
+
+            const botDraw = !botWon && botBoard.every(c => c !== "");
+
+            if (botWon) {
+              setLocalStatus("FINISHED");
+              setLocalWinner("BOT");
+              handleEndBotMatch("LOSE");
+            } else if (botDraw) {
+              setLocalStatus("FINISHED");
+              setLocalWinner("DRAW");
+              handleEndBotMatch("DRAW");
+            } else {
+              setLocalTurn("X");
+            }
+          }
+          return botBoard;
+        });
+      }, 500);
+
+      return;
+    }
+
+    // B. CHẾ ĐỘ ONLINE (FRIEND / RANDOM)
+    if (!room || room.status !== "PLAYING" || room.turnPlayerId !== profile.id) return;
+    if (optimisticBoard && optimisticBoard[index] !== "") return; // Chống click đúp khi đang truyền mạng
+
+    // Lấy trạng thái bàn cờ hiện tại
+    const currentBoard = optimisticBoard || JSON.parse(room.board);
+    if (currentBoard[index] !== "") return;
+
+    // Nạp nước đi hiển thị ngay lập tức lên màn hình (<1ms)
+    const nextBoard = [...currentBoard];
+    nextBoard[index] = mySymbol;
+    setOptimisticBoard(nextBoard);
+
+    // Đổi lượt tạm thời trên Client để khóa người chơi, không cho click đúp liên tục
+    const opponentId = isOnlineCreator ? room.playerOId : room.playerXId;
+    setOptimisticTurnId(opponentId);
+
+    try {
+      const res = await fetch("/api/match/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: room.id, position: index }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Nước đi không hợp lệ!");
+        // Rollback lại trạng thái cũ
+        setOptimisticBoard(null);
+        setOptimisticTurnId(null);
+      }
+    } catch (err) {
+      console.error(err);
+      // Rollback lại trạng thái cũ
+      setOptimisticBoard(null);
+      setOptimisticTurnId(null);
+    }
+  };
+
+  // Đồng bộ điểm khi đấu bot kết thúc
+  const handleEndBotMatch = async (outcome: "WIN" | "LOSE" | "DRAW") => {
+    try {
+      const res = await fetch("/api/match/bot-end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outcome }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGameResult({
+          finished: true,
+          outcome,
+          coinsGained: data.rewards.coins,
+          expGained: data.rewards.exp,
+          levelUp: data.profile.level > profile!.level,
+        });
+        refreshProfile();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Đầu hàng (Surrender) hoặc Yêu cầu xử thắng do hết giờ (Claim AFK)
+  const handleForfeit = async (action: "SURRENDER" | "CLAIM_TIMEOUT") => {
+    if (!roomId) return;
+    const confirmMsg = action === "SURRENDER" 
+      ? "Bạn có chắc chắn muốn đầu hàng cờ không? (Bạn sẽ thua cuộc và mất tiền cược)" 
+      : "Đối thủ đã hết thời gian lượt đi cờ, bạn muốn xử thắng?";
+    
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch("/api/match/forfeit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, action }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "Không thể thực hiện hành động!");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Copy mã mời / link phòng
+  const handleCopyLink = () => {
+    if (typeof window === "undefined" || !roomId) return;
+    const inviteLink = `${window.location.origin}?joinRoom=${roomId}`;
+    navigator.clipboard.writeText(inviteLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  // Chơi lại đối với Bot
+  const handleRestartBotMatch = () => {
+    setLocalBoard(Array(boardSize).fill(""));
+    setLocalTurn("X");
+    setLocalStatus("PLAYING");
+    setLocalWinner(null);
+    setGameResult(null);
+  };
+
+  // Biến lấy visual cờ
+  const getSymbolVisual = (symbol: string, playerProfile: any) => {
+    if (symbol === "") return "";
+    const symbolItem = SHOP_ITEMS.find(
+      (i) => i.id === (symbol === "X" ? playerProfile?.selectedSymbolX : playerProfile?.selectedSymbolO)
+    );
+    if (symbol === "X") {
+      return symbolItem?.visuals?.symbolX || "X";
+    } else {
+      return symbolItem?.visuals?.symbolO || "O";
+    }
+  };
+
+  // Xác định người chơi Online
+  const isOnlineCreator = room?.playerXId === profile?.id;
+  const mySymbol = isOnlineCreator ? "X" : "O";
+  const myTurn = mode === "BOT" 
+    ? (localTurn === "X") 
+    : (optimisticTurnId ? (optimisticTurnId === profile?.id) : (room?.turnPlayerId === profile?.id));
+
+  const displayBoard = mode === "BOT" 
+    ? localBoard 
+    : (optimisticBoard || (room ? JSON.parse(room.board) : Array(boardSize).fill("")));
+
+  const currentTurnPlayer = mode === "BOT" 
+    ? (localTurn === "X" ? "BẠN" : "BOT") 
+    : ((optimisticTurnId || room?.turnPlayerId) === room?.playerXId ? room?.playerX?.username : room?.playerO?.username);
+
+  // Mảng visual đối thủ
+  const opponentProfile = mode === "BOT" 
+    ? { username: `BOT [${details.difficulty}]`, level: 1, avatarFrame: "frame_default" } 
+    : (isOnlineCreator ? room?.playerO : room?.playerX);
+
+  return (
+    <div className="min-h-screen w-full flex flex-col bg-[#0f0f13] select-none text-white scanlines pb-10">
+      
+      {/* Top Navigation */}
+      <header className="w-full bg-[#16161c]/90 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between">
+        <button onClick={onBack} className="pixel-btn pixel-btn-red py-2 px-3 text-[9px] flex items-center gap-2">
+          <ArrowLeft className="w-3 h-3" />
+          Rời Phòng
+        </button>
+        
+        <div className="text-center font-bold">
+          <span className="block text-[8px] text-pixel-blue uppercase tracking-widest">
+            {gameType === "TIC_TAC_TOE" ? "Tic-Tac-Toe 3x3" : "Caro 12x12"}
+          </span>
+          <span className="text-[10px] text-pixel-yellow uppercase mt-1">
+            {mode === "BOT" ? "Luyện tập Bot" : `Đấu cược (${room?.wager || 0} Coin)`}
+          </span>
+        </div>
+
+        <div className="w-20"></div> {/* Spacer */}
+      </header>
+
+      {/* MOCK AD TOP BANNER IN GAMEROOM */}
+      {profile && !profile.isPremium && (
+        <div className="w-full bg-gradient-to-r from-red-950/20 via-black/85 to-red-950/20 border-b border-red-500/10 text-center py-1.5 px-4 relative overflow-hidden group">
+          <span className="absolute top-0.5 left-2 text-[4.5px] text-gray-600 uppercase font-mono">Sponsored Ad</span>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <span className="text-[7.5px] text-gray-400 font-medium">Bị làm phiền bởi quảng cáo? Nâng cấp Premium ngay để ẩn quảng cáo và nhận các đặc quyền đi kèm!</span>
+            <span className="text-[7.5px] text-pixel-yellow font-bold uppercase animate-pulse border border-pixel-yellow/30 px-1.5 py-0.5 rounded bg-pixel-yellow/5 select-none">
+              GIẢM GIÁ 20% CỬA HÀNG 👑
+            </span>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex-grow flex flex-col items-center justify-center space-y-4">
+          <RefreshCw className="w-8 h-8 text-pixel-yellow animate-spin" />
+          <p className="text-[10px] text-pixel-yellow uppercase tracking-widest animate-pulse">Đang nạp bàn cờ...</p>
+        </div>
+      ) : errorMsg ? (
+        <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-4">
+          <AlertTriangle className="w-10 h-10 text-pixel-red" />
+          <p className="text-center text-xs text-pixel-red font-mono bg-pixel-red/10 border-2 border-pixel-red p-4 max-w-md">[ERROR]: {errorMsg}</p>
+          <button onClick={onBack} className="pixel-btn pixel-btn-yellow py-2 px-6 uppercase text-[9px]">Quay lại sảnh</button>
+        </div>
+      ) : room?.status === "WAITING" ? (
+        /* CHỜ BẠN BÈ JOIN PHÒNG (FRIEND MODE WAITING) */
+        <div className="flex-grow max-w-md w-full mx-auto px-4 mt-8 flex flex-col items-center justify-center space-y-6">
+          <div className="pixel-box bg-[#16161c] p-6 w-full text-center space-y-6">
+            <h2 className="text-xs text-pixel-yellow uppercase tracking-wider border-b border-black pb-3">Phòng Đấu Bạn Bè</h2>
+            
+            <p className="text-[9px] text-gray-400 leading-relaxed uppercase">
+              Hãy gửi link mời bên dưới cho bạn bè để cùng tham gia đấu cờ cược {room.wager} Coin.
+            </p>
+
+            <div className="pixel-box-nested p-4 flex flex-col items-center justify-center bg-black">
+              {/* QR Code */}
+              <div className="bg-white p-2 border-4 border-black mb-4">
+                <QRCodeSVG value={typeof window !== "undefined" ? `${window.location.origin}?joinRoom=${room.id}` : room.id} size={128} />
+              </div>
+              <span className="text-[8px] text-gray-500 font-mono select-all">ID: {room.id}</span>
+            </div>
+
+            <div className="space-y-2">
+              <button 
+                onClick={handleCopyLink} 
+                className="w-full pixel-btn pixel-btn-blue py-3 text-[10px] uppercase font-bold flex items-center justify-center gap-2"
+              >
+                {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copiedLink ? "Đã copy link mời!" : "Copy Link Mời Trực Tiếp"}
+              </button>
+            </div>
+            
+            <div className="text-[8px] text-pixel-blue animate-pulse uppercase tracking-wider">
+              === Đang chờ bạn bè kết nối ===
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* GAME BOARD SCREEN (PLAYING & FINISHED) */
+        <div className="flex-grow max-w-4xl w-full mx-auto px-4 mt-6 flex flex-col items-center space-y-6">
+          
+          {/* Active players dashboard */}
+          <div className="w-full grid grid-cols-2 gap-4 max-w-lg">
+            
+            {/* Player X / Left Side */}
+            <div className={`pixel-box p-3 bg-[#16161c] relative flex items-center gap-3 transition-all duration-300 ${
+              mode === "BOT" 
+                ? (localTurn === "X" ? "border-pixel-yellow shadow-lg shadow-pixel-yellow/10 -translate-y-0.5" : "border-white/10")
+                : (room.turnPlayerId === room.playerXId ? "border-pixel-yellow shadow-lg shadow-pixel-yellow/10 -translate-y-0.5" : "border-white/10")
+            }`}>
+              <div className={`w-10 h-10 bg-pixel-gray-light border border-white/10 rounded-xl flex items-center justify-center shrink-0 ${
+                SHOP_ITEMS.find(i => i.id === (mode === "BOT" ? profile.avatarFrame : room.playerX.avatarFrame))?.visuals?.className || ""
+              }`}>
+                <span className="text-sm font-bold text-pixel-yellow font-press-start">
+                  {getSymbolVisual("X", room?.playerX || profile)}
+                </span>
+              </div>
+              <div className="overflow-hidden">
+                <span className="block text-[9px] font-bold text-pixel-yellow truncate uppercase tracking-wider">
+                  {mode === "BOT" ? profile.username : room.playerX.username}
+                </span>
+                <span className="text-[7px] text-gray-400 font-mono">Lv.{mode === "BOT" ? profile.level : room.playerX.level}</span>
+              </div>
+              {((mode === "BOT" && localTurn === "X") || (mode !== "BOT" && room.turnPlayerId === room.playerXId)) && (
+                <span className="absolute -top-2 left-2 bg-pixel-yellow text-black text-[8px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">
+                  Lượt đi
+                </span>
+              )}
+            </div>
+
+            {/* Player O / Right Side */}
+            <div className={`pixel-box p-3 bg-[#16161c] relative flex items-center gap-3 transition-all duration-300 ${
+              mode === "BOT" 
+                ? (localTurn === "O" ? "border-pixel-blue shadow-lg shadow-pixel-blue/10 -translate-y-0.5" : "border-white/10")
+                : (room.turnPlayerId === room.playerOId ? "border-pixel-blue shadow-lg shadow-pixel-blue/10 -translate-y-0.5" : "border-white/10")
+            }`}>
+              <div className={`w-10 h-10 bg-pixel-gray-light border border-white/10 rounded-xl flex items-center justify-center shrink-0 ${
+                SHOP_ITEMS.find(i => i.id === (mode === "BOT" ? opponentProfile?.avatarFrame : room?.playerO?.avatarFrame))?.visuals?.className || ""
+              }`}>
+                <span className="text-sm font-bold text-pixel-blue font-press-start">
+                  {mode === "BOT" ? "O" : getSymbolVisual("O", room?.playerO)}
+                </span>
+              </div>
+              <div className="overflow-hidden">
+                <span className="block text-[9px] font-bold text-pixel-blue truncate uppercase tracking-wider">
+                  {mode === "BOT" ? opponentProfile?.username : room?.playerO?.username}
+                </span>
+                <span className="text-[7px] text-gray-400 font-mono">Lv.{mode === "BOT" ? opponentProfile?.level : room?.playerO?.level}</span>
+              </div>
+              {((mode === "BOT" && localTurn === "O") || (mode !== "BOT" && room.turnPlayerId === room.playerOId)) && (
+                <span className="absolute -top-2 left-2 bg-pixel-blue text-white text-[8px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">
+                  Lượt đi
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* TURN INDICATOR TEXT */}
+          <div className="h-6 flex items-center justify-center">
+            {room?.status === "PLAYING" || localStatus === "PLAYING" ? (
+              <span className="text-[8px] text-pixel-yellow font-bold uppercase tracking-wider animate-pulse flex items-center gap-2">
+                <Clock className="w-3 h-3 text-pixel-yellow" />
+                Lượt của: {currentTurnPlayer} {mode !== "BOT" && `(${afkTimeLeft}s)`}
+              </span>
+            ) : null}
+          </div>
+
+          {/* GAME BOARD (TIC-TAC-TOE & CARO) */}
+          <div className="relative w-full max-w-[320px] sm:max-w-[384px] aspect-square mx-auto">
+            {/* Board Background container based on theme */}
+            <div 
+              className={`p-3 ${boardThemeClass} border border-white/10 rounded-2xl shadow-2xl grid gap-1.5 aspect-square w-full h-full relative z-10`}
+              style={{
+                gridTemplateColumns: `repeat(${size1D}, minmax(0, 1fr))`,
+              }}
+            >
+              {displayBoard.map((cell: string, idx: number) => {
+                const isX = cell === "X";
+                const isO = cell === "O";
+                
+                // Trả về visual quân cờ đúng
+                const visual = isX 
+                  ? getSymbolVisual("X", room?.playerX || profile) 
+                  : (isO ? getSymbolVisual("O", room?.playerO || opponentProfile) : "");
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleCellClick(idx)}
+                    disabled={(mode === "BOT" ? localStatus !== "PLAYING" : room.status !== "PLAYING") || cell !== "" || !myTurn}
+                    className={`pixel-box-nested aspect-square flex items-center justify-center font-bold transition-all duration-75 cursor-pointer select-none text-black ${
+                      cell === "" 
+                        ? (myTurn ? "hover:bg-white/10" : "cursor-not-allowed") 
+                        : ""
+                    } ${
+                      gameType === "TIC_TAC_TOE" ? "text-3xl" : "text-sm"
+                    }`}
+                    style={{
+                      backgroundColor: cell === "" ? "rgba(0,0,0,0.4)" : "#fff",
+                      boxShadow: cell === "" ? "inset 2px 2px 0px 0px rgba(255,255,255,0.05)" : "inset -2px -2px 0px 2px rgba(0,0,0,0.1)",
+                      border: "1px solid rgba(255,255,255,0.08)"
+                    }}
+                  >
+                    {isX ? (
+                      <span className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">{visual}</span>
+                    ) : isO ? (
+                      <span className="text-blue-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">{visual}</span>
+                    ) : (
+                      ""
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ONLINE BOTTOM ACTIONS (SURRENDER & TIMEOUT CLAIM) */}
+          {mode !== "BOT" && room.status === "PLAYING" && (
+            <div className="w-full max-w-xs flex gap-3">
+              <button 
+                onClick={() => handleForfeit("SURRENDER")} 
+                className="flex-grow pixel-btn pixel-btn-red py-2 px-3 text-[9px] uppercase font-bold"
+              >
+                Đầu hàng cờ
+              </button>
+
+              {/* Hiện nút xử thắng nếu đối thủ AFK quá 55 giây và đó là lượt của đối thủ */}
+              {room.turnPlayerId !== profile.id && afkTimeLeft === 0 && (
+                <button
+                  onClick={() => handleForfeit("CLAIM_TIMEOUT")}
+                  className="flex-grow pixel-btn pixel-btn-yellow py-2 px-3 text-[9px] uppercase font-bold animate-[pulse_1s_infinite]"
+                >
+                  Xử thắng đối thủ
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* PRACTICE BOT RESTART BUTTON */}
+          {mode === "BOT" && localStatus === "FINISHED" && (
+            <button 
+              onClick={handleRestartBotMatch} 
+              className="pixel-btn pixel-btn-yellow py-3 px-8 text-xs uppercase font-bold flex items-center gap-2 mb-4"
+            >
+              <RefreshCw className="w-4 h-4" /> Chơi Lại Với Bot
+            </button>
+          )}
+
+          {/* ADS BANNER PLACEHOLDER (Only show if NOT premium) */}
+          {!profile.isPremium && (
+            <div className="w-full max-w-xs bg-[#111116] border border-red-500/10 rounded-2xl p-3 mt-4 text-center relative overflow-hidden group">
+              <span className="absolute top-0.5 left-2 text-[5px] text-gray-500 uppercase tracking-widest">Sponsored Ad</span>
+              <div className="flex items-center gap-3 pt-2">
+                {/* SVG avatar frame mockup */}
+                <div className="w-12 h-12 bg-black/40 border-2 border-red-500/30 rounded-lg flex items-center justify-center shrink-0 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-red-600/20 to-orange-600/20 animate-pulse"></div>
+                  <Award className="w-5 h-5 text-red-500" />
+                </div>
+                <div className="text-left flex-grow">
+                  <span className="block text-[8px] text-pixel-yellow uppercase font-bold tracking-wide">KHUNG RỒNG LỬA CHỈ 50 COIN</span>
+                  <p className="text-[7px] text-gray-400 leading-tight mt-0.5">Vào Cửa Hàng mua ngay khung avatar rực cháy huyền thoại!</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* GAME END OVERLAY PANEL */}
+      {gameResult?.finished && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 animate-fade-in">
+          <div className="pixel-box bg-[#16161c] max-w-sm w-full p-6 text-center space-y-6 relative border-4 border-black">
+            
+            {/* Title Result */}
+            <div>
+              {gameResult.outcome === "WIN" ? (
+                <h1 className="text-2xl font-bold text-pixel-yellow uppercase tracking-widest pixel-text-shadow animate-bounce">
+                  🏆 Chiến Thắng! 🏆
+                </h1>
+              ) : gameResult.outcome === "LOSE" ? (
+                <h1 className="text-2xl font-bold text-pixel-red uppercase tracking-widest pixel-text-shadow">
+                  💀 Thất Bại! 💀
+                </h1>
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-400 uppercase tracking-widest pixel-text-shadow">
+                  🤝 Trận Hòa! 🤝
+                </h1>
+              )}
+              
+              <p className="text-[8px] text-gray-500 mt-2 uppercase font-mono tracking-widest">
+                Trận đấu đã khép lại
+              </p>
+            </div>
+
+            {/* Rewards Card */}
+            <div className="pixel-box-nested p-4 bg-black/60 space-y-3">
+              <span className="block text-[8px] text-pixel-blue uppercase tracking-widest border-b border-black pb-1 mb-2">
+                Phần thưởng nhận được
+              </span>
+              
+              <div className="flex items-center justify-around">
+                <div className="flex flex-col items-center">
+                  <span className="text-[8px] text-gray-400 uppercase">Coin thưởng</span>
+                  <span className="text-sm font-bold text-pixel-yellow mt-1 flex items-center gap-1">
+                    +{gameResult.coinsGained} <Coins className="w-3.5 h-3.5 fill-pixel-yellow text-pixel-yellow" />
+                  </span>
+                </div>
+                <div className="h-6 w-[2px] bg-black"></div>
+                <div className="flex flex-col items-center">
+                  <span className="text-[8px] text-gray-400 uppercase">Kinh nghiệm</span>
+                  <span className="text-sm font-bold text-pixel-blue mt-1 flex items-center gap-1">
+                    +{gameResult.expGained} <Award className="w-3.5 h-3.5 text-pixel-blue" />
+                  </span>
+                </div>
+              </div>
+
+              {gameResult.levelUp && (
+                <div className="bg-pixel-yellow/20 border border-pixel-yellow p-2 mt-3 animate-pulse">
+                  <span className="text-[9px] text-pixel-yellow uppercase font-bold tracking-widest">
+                    ⭐ Đã Tăng Cấp Level! ⭐
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              {mode === "BOT" && (
+                <button
+                  onClick={handleRestartBotMatch}
+                  className="w-full pixel-btn pixel-btn-blue py-3 text-[10px] uppercase font-bold"
+                >
+                  Đấu lại Bot
+                </button>
+              )}
+              <button
+                onClick={onBack}
+                className="w-full pixel-btn pixel-btn-yellow py-3 text-[10px] uppercase font-bold"
+              >
+                Quay lại sảnh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -33,6 +33,47 @@ const DEFAULT_SHIPS: BattleshipShip[] = [
   { id: "patrol", name: "Tàu tuần tra", size: 2, x: 0, y: 8, vertical: false }
 ];
 
+const getShipColorClasses = (shipId: string, isSunk: boolean) => {
+  if (isSunk) {
+    return {
+      cellBg: "bg-red-950 bg-opacity-35 border-red-800 text-red-500",
+      shipBadge: "border-red-600 bg-red-650 bg-opacity-25 text-red-400"
+    };
+  }
+  switch (shipId) {
+    case "carrier": // Tàu sân bay - Purple
+      return {
+        cellBg: "bg-purple-950 bg-opacity-35 border-purple-800 text-purple-400",
+        shipBadge: "border-purple-500 bg-purple-600 bg-opacity-25 text-purple-300"
+      };
+    case "battleship": // Thiết giáp hạm - Amber/Orange
+      return {
+        cellBg: "bg-amber-950 bg-opacity-35 border-amber-800 text-amber-400",
+        shipBadge: "border-amber-500 bg-amber-600 bg-opacity-25 text-amber-300"
+      };
+    case "destroyer": // Tàu khu trục - Cyan/Teal
+      return {
+        cellBg: "bg-teal-950 bg-opacity-35 border-teal-800 text-teal-400",
+        shipBadge: "border-teal-500 bg-teal-600 bg-opacity-25 text-teal-300"
+      };
+    case "submarine": // Tàu ngầm - Green
+      return {
+        cellBg: "bg-emerald-950 bg-opacity-35 border-emerald-800 text-emerald-400",
+        shipBadge: "border-emerald-500 bg-emerald-600 bg-opacity-25 text-emerald-300"
+      };
+    case "patrol": // Tàu tuần tra - Rose/Pink
+      return {
+        cellBg: "bg-rose-950 bg-opacity-35 border-rose-800 text-rose-400",
+        shipBadge: "border-rose-500 bg-rose-600 bg-opacity-25 text-rose-300"
+      };
+    default:
+      return {
+        cellBg: "bg-blue-950 bg-opacity-35 border-blue-800 text-blue-400",
+        shipBadge: "border-blue-500 bg-blue-600 bg-opacity-25 text-blue-300"
+      };
+  }
+};
+
 export default function BattleshipView({ mode, details, profile, onBack, refreshProfile }: BattleshipViewProps) {
   const supabase = createClient();
   const roomId = details.roomId;
@@ -593,9 +634,9 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         setGameResult({
           finished: true,
           outcome,
-          coinsGained: data.coinsGained,
-          expGained: data.expGained,
-          levelUp: data.levelUp
+          coinsGained: data.rewards.coins,
+          expGained: data.rewards.exp,
+          levelUp: data.profile.level > profile.level
         });
 
         if (outcome === "WIN") {
@@ -785,6 +826,8 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
     // Màu sắc ô cờ nền
     let cellBg = "bg-opacity-20 bg-slate-900 border-slate-800";
+    let shipBadgeClass = "";
+
     if (isHoveredPlacement) {
       // Validate xem hover có hợp lệ không
       const shipConfig = BATTLESHIP_SHIPS_CONFIG.find(s => s.id === selectedShipId);
@@ -794,9 +837,9 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     } else if (ship) {
       // Đã đặt tàu
       const isSunk = currentSunkMy.includes(ship.id);
-      cellBg = isSunk 
-        ? "bg-red-800 bg-opacity-40 border-red-700 text-red-500" 
-        : "bg-blue-600 bg-opacity-30 border-blue-500 text-blue-400";
+      const colors = getShipColorClasses(ship.id, isSunk);
+      cellBg = colors.cellBg;
+      shipBadgeClass = colors.shipBadge;
     }
 
     return (
@@ -807,7 +850,11 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         onMouseLeave={() => setHoverCell(null)}
         className={`w-full aspect-square border text-[7px] font-mono flex items-center justify-center cursor-pointer relative transition-all duration-150 ${cellBg}`}
       >
-        {ship && <div className="absolute inset-1 border border-blue-400 rounded-sm bg-blue-500 bg-opacity-25 flex items-center justify-center text-[7px] uppercase font-bold tracking-tighter">{ship.name[0]}</div>}
+        {ship && (
+          <div className={`absolute inset-1 border rounded-sm flex items-center justify-center text-[7px] uppercase font-bold tracking-tighter ${shipBadgeClass}`}>
+            {ship.name[0]}
+          </div>
+        )}
         {shot && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             {shot.hit ? (
@@ -835,12 +882,22 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     const isHovered = isHoveredByWeapon(x, y);
 
     let cellBg = "bg-opacity-20 bg-slate-900 border-slate-800 hover:bg-slate-800";
+    let shipBadgeClass = "";
+
     if (isHovered) {
       cellBg = activeWeapon === "RADAR" ? "bg-cyan-500 bg-opacity-40 border-cyan-400" : "bg-yellow-500 bg-opacity-40 border-yellow-400";
     } else if (shot) {
-      cellBg = shot.hit 
-        ? (shot.sunk ? "bg-red-900 bg-opacity-50 border-red-700" : "bg-red-500 bg-opacity-20 border-red-800") 
-        : "bg-blue-900 bg-opacity-20 border-slate-800";
+      if (shot.hit) {
+        if (shot.sunk && shot.shipId) {
+          const colors = getShipColorClasses(shot.shipId, true);
+          cellBg = colors.cellBg;
+          shipBadgeClass = colors.shipBadge;
+        } else {
+          cellBg = "bg-red-500 bg-opacity-20 border-red-800";
+        }
+      } else {
+        cellBg = "bg-blue-900 bg-opacity-20 border-slate-800";
+      }
     } else if (radar) {
       // Nếu có rada quét qua
       cellBg = "bg-cyan-900 bg-opacity-10 border-cyan-950";
@@ -857,10 +914,15 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         onMouseLeave={() => setHoverCell(null)}
         className={`w-full aspect-square border text-[7px] font-mono flex items-center justify-center cursor-pointer relative transition-all duration-150 ${cellBg}`}
       >
-        {shot && (
+        {shot && shot.hit && shot.sunk && shot.shipId && (
+          <div className={`absolute inset-1 border rounded-sm flex items-center justify-center text-[7px] uppercase font-bold tracking-tighter ${shipBadgeClass}`}>
+            {BATTLESHIP_SHIPS_CONFIG.find(c => c.id === shot.shipId)?.name[0]}
+          </div>
+        )}
+        {shot && !(shot.hit && shot.sunk) && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             {shot.hit ? (
-              <span className={`w-2 h-2 flex items-center justify-center font-bold text-[10px] ${shot.sunk ? "text-red-500" : "text-red-600"}`}>X</span>
+              <span className="w-2 h-2 flex items-center justify-center font-bold text-[10px] text-red-600">X</span>
             ) : (
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-40" />
             )}

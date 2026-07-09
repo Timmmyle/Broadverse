@@ -19,10 +19,12 @@ model User {
   boxOpenings       Int      @default(0)             // Số lần mở hộp quà sự kiện
   level             Int      @default(1)
   exp               Int      @default(0)
-  avatarUrl         String?
-  lastClaimedDaily  DateTime?                         // Ngày cuối cùng điểm danh nhận quà
-  referredBy        String?                         // Username người giới thiệu
-  createdAt         DateTime @default(now())
+  avatarUrl             String?
+  lastClaimedDaily      DateTime?                         // Ngày cuối cùng điểm danh nhận quà
+  referredBy            String?                         // Username người giới thiệu
+  lastClaimedReferral   DateTime?                         // Thời gian cuối nhận thưởng giới thiệu bạn bè
+  claimedReferralsCount Int      @default(0)             // Số lượng bạn bè đã nhận thưởng giới thiệu thành công
+  createdAt             DateTime @default(now())
 
   // Trang trí
   avatarFrame       String   @default("default")     // ID khung avatar đang dùng

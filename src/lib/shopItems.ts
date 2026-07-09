@@ -1,7 +1,7 @@
 export interface ShopItem {
   id: string;
   name: string;
-  type: "SYMBOL" | "FRAME" | "THEME";
+  type: "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI";
   price: number;
   description: string;
   visuals: {
@@ -12,8 +12,11 @@ export interface ShopItem {
     symbolO?: string;
     className?: string;
     color?: string;
+    sfxType?: "retro" | "laser" | "epic" | "synth"; // Dành cho SFX
+    emoji?: string; // Dành cho Emoji
   };
   isPremiumOnly?: boolean; // Chỉ dành cho Premium mua
+  isEventOnly?: boolean; // Chỉ dành cho Sự kiện đổi (bằng Vỏ sò)
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
@@ -134,7 +137,62 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: "Màu cát sa mạc ấm áp phong cách cờ gỗ xưa.",
     visuals: { className: "bg-[#b88b4a] border-amber-950 text-yellow-900" }
   },
-  // PREMIUM VIP EXCLUSIVE ITEMS
+
+  // SOUND EFFECTS (Hiệu ứng âm thanh nước đi)
+  {
+    id: "sfx_retro",
+    name: "👾 8-Bit Arcade SFX",
+    type: "SFX",
+    price: 120,
+    description: "Âm thanh bíp bíp cổ điển phong cách điện tử xèng.",
+    visuals: { sfxType: "retro" }
+  },
+  {
+    id: "sfx_laser",
+    name: "🚀 Space Laser SFX",
+    type: "SFX",
+    price: 150,
+    description: "Tiếng súng bắn laser công nghệ viễn tưởng cực ngầu.",
+    visuals: { sfxType: "laser" }
+  },
+  {
+    id: "sfx_epic",
+    name: "⚡ Triad Epic SFX (VIP)",
+    type: "SFX",
+    price: 220,
+    description: "Hợp âm hoành tráng biểu thị quyền uy của VIP.",
+    visuals: { sfxType: "epic" },
+    isPremiumOnly: true
+  },
+
+  // EMOJIS (Biểu cảm nhanh)
+  {
+    id: "emoji_cool",
+    name: "😎 Kính Đen Ngầu",
+    type: "EMOJI",
+    price: 80,
+    description: "Gửi biểu cảm cool ngầu trêu chọc đối thủ.",
+    visuals: { emoji: "😎" }
+  },
+  {
+    id: "emoji_rage",
+    name: "😡 Nổi Giận Lôi Đình",
+    type: "EMOJI",
+    price: 80,
+    description: "Gửi biểu cảm giận dữ khi bị đối phương chặn nước đi.",
+    visuals: { emoji: "😡" }
+  },
+  {
+    id: "emoji_celebrate",
+    name: "🎉 Ăn Mừng Chiến Thắng (VIP)",
+    type: "EMOJI",
+    price: 120,
+    description: "Bắn pháo hoa ăn mừng dành riêng cho VIP.",
+    visuals: { emoji: "🎉" },
+    isPremiumOnly: true
+  },
+
+  // PREMIUM VIP EXCLUSIVE ITEMS (Vật phẩm VIP)
   {
     id: "sym_premium_crown",
     name: "👑 Vương Miện vs 💎 Kim Cương (VIP)",
@@ -161,6 +219,35 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: "Bàn cờ hoàng gia viền mạ vàng bóng bẩy dành riêng cho VIP.",
     visuals: { className: "bg-[#2d220a] border-yellow-500 text-yellow-400" },
     isPremiumOnly: true
+  },
+
+  // EVENT EXCLUSIVE ITEMS (Vật phẩm sự kiện - Đổi bằng Vỏ Sò)
+  {
+    id: "sym_summer_melon",
+    name: "🍉 Dưa Hấu vs 🥥 Quả Dừa",
+    type: "SYMBOL",
+    price: 80, // Giá tính bằng Vỏ Sò
+    description: "Quân cờ Mùa Hè độc quyền, chỉ có thể đổi bằng Vỏ Sò trong thời gian sự kiện.",
+    visuals: { symbolX: "🍉", symbolO: "🥥" },
+    isEventOnly: true
+  },
+  {
+    id: "frame_summer_sand",
+    name: "Khung Cát Vàng Bãi Biển",
+    type: "FRAME",
+    price: 100, // Giá tính bằng Vỏ Sò
+    description: "Khung avatar bãi cát vàng biển xanh, chỉ có thể đổi bằng Vỏ Sò.",
+    visuals: { className: "outline-[4px] outline-yellow-200 outline-offset-1 ring-4 ring-orange-300 shadow-[0_0_8px_rgba(253,224,71,0.6)]" },
+    isEventOnly: true
+  },
+  {
+    id: "theme_summer_ocean",
+    name: "Blue Ocean",
+    type: "THEME",
+    price: 150, // Giá tính bằng Vỏ Sò
+    description: "Bàn cờ sóng biển xanh ngọc cực mát mẻ cho ngày hè oi bức.",
+    visuals: { className: "bg-[#0b4d6b] border-cyan-400 text-cyan-200" },
+    isEventOnly: true
   }
 ];
 

@@ -4,19 +4,26 @@ import { NextResponse } from "next/server";
 import { checkTicTacToeWin, checkCaroWin, decryptShips, encryptShips, validateShipPlacement, checkBattleshipShot } from "@/lib/gameLogic";
 
 // Công thức tính thưởng
-function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number) {
+function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPremium: boolean = false) {
+  let coins = 0;
+  let exp = 0;
+
   if (outcome === "WIN") {
-    return {
-      coins: 10 + 2 * level,
-      exp: 5 + Math.round(level * 0.20),
-    };
+    coins = 10 + 2 * level;
+    exp = 5 + Math.round(level * 0.20);
   } else {
     // LOSE hoặc DRAW
-    return {
-      coins: Math.round(5 + 1.5 * level),
-      exp: 2,
-    };
+    coins = Math.round(5 + 1.5 * level);
+    exp = 2;
   }
+
+  // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
+  if (isPremium) {
+    coins = Math.round(coins * 1.5);
+    exp = exp * 2;
+  }
+
+  return { coins, exp };
 }
 
 // Logic nâng cấp độ (Level up)
@@ -301,8 +308,8 @@ export async function POST(req: Request) {
             const winner = isPlayerX ? room.playerX : room.playerO!;
             const loser = isPlayerX ? room.playerO! : room.playerX;
 
-            const winnerRewards = calculateReward("WIN", winner.level);
-            const loserRewards = calculateReward("LOSE", loser.level);
+            const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
+            const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
 
             const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
             const loserCoinsGained = loserRewards.coins;
@@ -421,8 +428,8 @@ export async function POST(req: Request) {
           const loser = playerId === room.playerXId ? room.playerO! : room.playerX;
 
           // Tính toán thưởng
-          const winnerRewards = calculateReward("WIN", winner.level);
-          const loserRewards = calculateReward("LOSE", loser.level);
+          const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
+          const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
 
           // Cộng cược cho người thắng (nhận lại cược của mình + cược đối thủ)
           const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
@@ -479,8 +486,8 @@ export async function POST(req: Request) {
           const playerX = room.playerX;
           const playerO = room.playerO!;
 
-          const rewardsX = calculateReward("DRAW", playerX.level);
-          const rewardsO = calculateReward("DRAW", playerO.level);
+          const rewardsX = calculateReward("DRAW", playerX.level, playerX.isPremium);
+          const rewardsO = calculateReward("DRAW", playerO.level, playerO.isPremium);
 
           // Trả lại cược
           const coinsGainedX = rewardsX.coins + room.wager;

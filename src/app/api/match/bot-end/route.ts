@@ -26,6 +26,14 @@ export async function POST(req: Request) {
 
     const { outcome } = await req.json(); // outcome: "WIN" | "LOSE" | "DRAW"
 
+    const profile = await prisma.user.findUnique({
+      where: { id: user.id },
+    });
+
+    if (!profile) {
+      return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
+    }
+
     // Thưởng luyện tập với Bot nhỏ để tránh cày cuốc (exploit)
     let coinsGained = 0;
     let expGained = 0;
@@ -38,13 +46,13 @@ export async function POST(req: Request) {
       expGained = 1;
     }
 
+    // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
+    if (profile.isPremium) {
+      coinsGained = Math.round(coinsGained * 1.5);
+      expGained = expGained * 2;
+    }
+
     const updatedProfile = await prisma.$transaction(async (tx) => {
-      const profile = await tx.user.findUnique({
-        where: { id: user.id },
-      });
-
-      if (!profile) throw new Error("Không tìm thấy hồ sơ người chơi");
-
       const newStats = addExpAndCalculateLevel(profile.level, profile.exp, expGained);
 
       return await tx.user.update({

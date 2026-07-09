@@ -28,6 +28,57 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   const { profile, refreshProfile } = useAuth();
   const supabase = createClient();
 
+  const playMoveSFX = () => {
+    if (typeof window === "undefined") return;
+    const equippedSfx = localStorage.getItem("equipped_sfx") || "sfx_classic";
+    const item = SHOP_ITEMS.find(i => i.id === equippedSfx);
+    const sfxType = item?.visuals?.sfxType || "default";
+
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (sfxType === "retro") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(300, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } else if (sfxType === "laser") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(1200, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.2);
+      } else if (sfxType === "epic") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.setValueAtTime(554.37, ctx.currentTime + 0.08);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.16);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } else {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(600, ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      }
+    } catch (e) {
+      console.error("Lỗi phát âm thanh:", e);
+    }
+  };
+
   if (!profile) return null;
 
   if (gameType === "BATTLESHIP") {
@@ -174,6 +225,13 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             setRoom((prevRoom: any) => {
               if (!prevRoom) return null;
               
+              if (updatedRoom.board && updatedRoom.board !== prevRoom.board) {
+                const lastMoveByOpponent = updatedRoom.turnPlayerId === profile.id;
+                if (lastMoveByOpponent) {
+                  playMoveSFX();
+                }
+              }
+              
               // Ghép dữ liệu cập nhật thời gian thực vào state hiện tại
               const newRoom = {
                 ...prevRoom,
@@ -249,15 +307,28 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
     let exp = 0;
     
     if (outcome === "WIN") {
-      coins = 10 + 2 * level + finishedRoom.wager * 2;
+      coins = 10 + 2 * level;
       exp = 5 + Math.round(level * 0.2);
     } else if (outcome === "LOSE") {
       coins = Math.round(5 + 1.5 * level);
       exp = 2;
     } else {
       // DRAW
-      coins = Math.round(5 + 1.5 * level) + finishedRoom.wager;
+      coins = Math.round(5 + 1.5 * level);
       exp = 2;
+    }
+
+    // Áp dụng nhân hệ số cho tài khoản Premium (VIP): 2x EXP & 1.5x Coins
+    if (profile.isPremium) {
+      coins = Math.round(coins * 1.5);
+      exp = exp * 2;
+    }
+
+    // Cộng tiền cược thu hồi
+    if (outcome === "WIN") {
+      coins += finishedRoom.wager * 2;
+    } else if (outcome === "DRAW") {
+      coins += finishedRoom.wager;
     }
 
     setGameResult({
@@ -283,6 +354,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       const nextBoard = [...localBoard];
       nextBoard[index] = "X";
       setLocalBoard(nextBoard);
+      playMoveSFX();
 
       // Kiểm tra thắng thua
       let won = false;
@@ -326,6 +398,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
           if (botMove !== -1) {
             botBoard[botMove] = "O";
+            playMoveSFX();
 
             // Kiểm tra thắng của Bot
             let botWon = false;
@@ -368,6 +441,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
     const nextBoard = [...currentBoard];
     nextBoard[index] = mySymbol;
     setOptimisticBoard(nextBoard);
+    playMoveSFX();
 
     // Đổi lượt tạm thời trên Client để khóa người chơi, không cho click đúp liên tục
     const opponentId = isOnlineCreator ? room.playerOId : room.playerXId;

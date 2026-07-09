@@ -3,18 +3,25 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 // Công thức tính thưởng
-function calculateReward(outcome: "WIN" | "LOSE", level: number) {
+function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: boolean = false) {
+  let coins = 0;
+  let exp = 0;
+
   if (outcome === "WIN") {
-    return {
-      coins: 10 + 2 * level,
-      exp: 5 + Math.round(level * 0.20),
-    };
+    coins = 10 + 2 * level;
+    exp = 5 + Math.round(level * 0.20);
   } else {
-    return {
-      coins: Math.round(5 + 1.5 * level),
-      exp: 2,
-    };
+    coins = Math.round(5 + 1.5 * level);
+    exp = 2;
   }
+
+  // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
+  if (isPremium) {
+    coins = Math.round(coins * 1.5);
+    exp = exp * 2;
+  }
+
+  return { coins, exp };
 }
 
 function addExpAndCalculateLevel(currentLevel: number, currentExp: number, expGained: number) {
@@ -90,8 +97,8 @@ export async function POST(req: Request) {
       const loser = loserId === room.playerXId ? room.playerX : room.playerO!;
 
       // Tính thưởng
-      const winnerRewards = calculateReward("WIN", winner.level);
-      const loserRewards = calculateReward("LOSE", loser.level);
+      const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
+      const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
 
       const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
       const loserCoinsGained = loserRewards.coins;

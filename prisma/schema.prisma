@@ -15,9 +15,12 @@ model User {
   isPremium         Boolean  @default(false)         // Trạng thái tài khoản Premium
   premiumUntil      DateTime?                         // Thời hạn Premium (null = vĩnh viễn)
   coins             Int      @default(100)
+  shells            Int      @default(0)             // Điểm vỏ sò sự kiện mùa hè
   level             Int      @default(1)
   exp               Int      @default(0)
   avatarUrl         String?
+  lastClaimedDaily  DateTime?                         // Ngày cuối cùng điểm danh nhận quà
+  referredBy        String?                         // Username người giới thiệu
   createdAt         DateTime @default(now())
 
   // Trang trí

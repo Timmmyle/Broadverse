@@ -15,7 +15,7 @@ function HomeContent() {
   // Trạng thái màn hình hiện tại: "LOBBY" (Dashboard) hoặc "GAME" (Bàn cờ)
   const [screen, setScreen] = useState<"LOBBY" | "GAME">("LOBBY");
   const [gameConfig, setGameConfig] = useState<{
-    gameType: "TIC_TAC_TOE" | "CARO";
+    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
     mode: "BOT" | "FRIEND" | "RANDOM";
     details: any;
   } | null>(null);
@@ -43,7 +43,7 @@ function HomeContent() {
             const room = await res.json();
             // Điều hướng thẳng vào phòng game
             setGameConfig({
-              gameType: room.gameType as "TIC_TAC_TOE" | "CARO",
+              gameType: room.gameType as "TIC_TAC_TOE" | "CARO" | "BATTLESHIP",
               mode: "FRIEND",
               details: { roomId: room.id, isCreator: false },
             });
@@ -81,7 +81,7 @@ function HomeContent() {
           if (data.room) {
             // Khôi phục phòng đấu đang PLAYING
             setGameConfig({
-              gameType: data.room.gameType as "TIC_TAC_TOE" | "CARO",
+              gameType: data.room.gameType as "TIC_TAC_TOE" | "CARO" | "BATTLESHIP",
               mode: data.room.wager > 0 ? "FRIEND" : "RANDOM",
               details: { roomId: data.room.id },
             });
@@ -111,7 +111,7 @@ function HomeContent() {
 
   // Vào phòng game
   const handleSelectGame = (
-    game: "TIC_TAC_TOE" | "CARO",
+    game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP",
     mode: "BOT" | "FRIEND" | "RANDOM",
     details: any
   ) => {

@@ -215,3 +215,113 @@ function evaluateCaroCell(board: string[], row: number, col: number, symbol: str
 
   return totalCellScore;
 }
+
+/**
+ * Battleship Bot Move Calculator
+ * @param board Mảng 1D 100 phần tử ("" | "M" | "H" | "S")
+ * @param difficulty Cấp độ khó ("EASY" | "HARD")
+ */
+export function getBattleshipBotMove(board: string[], difficulty: "EASY" | "HARD"): number {
+  const SIZE = 10;
+  const emptyCells = board
+    .map((val, idx) => (val === "" ? idx : null))
+    .filter((val) => val !== null) as number[];
+
+  if (emptyCells.length === 0) return -1;
+
+  if (difficulty === "EASY") {
+    const randIdx = Math.floor(Math.random() * emptyCells.length);
+    return emptyCells[randIdx];
+  }
+
+  // CẤP ĐỘ KHÓ: SĂN LÙNG THÔNG MINH (HUNT & TARGET)
+  // 1. Tìm tất cả các ô đang bị thương nhưng chưa chìm hoàn toàn ("H")
+  const hits: number[] = [];
+  for (let i = 0; i < board.length; i++) {
+    if (board[i] === "H") {
+      hits.push(i);
+    }
+  }
+
+  // 2. Nếu không có ô nào bị thương, bắn theo chiến thuật bàn cờ (checkerboard pattern) để tăng hiệu suất tìm tàu
+  if (hits.length === 0) {
+    const checkerboardEmpty = emptyCells.filter((idx) => {
+      const r = Math.floor(idx / SIZE);
+      const c = idx % SIZE;
+      return (r + c) % 2 === 0;
+    });
+
+    if (checkerboardEmpty.length > 0) {
+      const randIdx = Math.floor(Math.random() * checkerboardEmpty.length);
+      return checkerboardEmpty[randIdx];
+    }
+
+    const randIdx = Math.floor(Math.random() * emptyCells.length);
+    return emptyCells[randIdx];
+  }
+
+  // 3. Nếu có ô bị thương, cố gắng phát triển các ô bị thương thành đường thẳng (ngang hoặc dọc)
+  for (let i = 0; i < hits.length; i++) {
+    const h1 = hits[i];
+    const r1 = Math.floor(h1 / SIZE);
+    const c1 = h1 % SIZE;
+
+    for (let j = i + 1; j < hits.length; j++) {
+      const h2 = hits[j];
+      const r2 = Math.floor(h2 / SIZE);
+      const c2 = h2 % SIZE;
+
+      // Nếu cùng hàng và gần nhau (hoặc cách nhau bởi các ô hit khác)
+      if (r1 === r2) {
+        const minC = Math.min(c1, c2);
+        const maxC = Math.max(c1, c2);
+
+        // Thử bắn sang trái của vùng hit
+        const leftIdx = r1 * SIZE + (minC - 1);
+        if (minC > 0 && board[leftIdx] === "") return leftIdx;
+
+        // Thử bắn sang phải của vùng hit
+        const rightIdx = r1 * SIZE + (maxC + 1);
+        if (maxC < SIZE - 1 && board[rightIdx] === "") return rightIdx;
+      }
+
+      // Nếu cùng cột và gần nhau
+      if (c1 === c2) {
+        const minR = Math.min(r1, r2);
+        const maxR = Math.max(r1, r2);
+
+        // Thử bắn lên trên của vùng hit
+        const upIdx = (minR - 1) * SIZE + c1;
+        if (minR > 0 && board[upIdx] === "") return upIdx;
+
+        // Thử bắn xuống dưới của vùng hit
+        const downIdx = (maxR + 1) * SIZE + c1;
+        if (maxR < SIZE - 1 && board[downIdx] === "") return downIdx;
+      }
+    }
+  }
+
+  // 4. Nếu không có cặp ô bị thương nào tạo đường thẳng có thể bắn tiếp, bắn các ô liền kề của bất kỳ ô bị thương nào
+  for (const h of hits) {
+    const r = Math.floor(h / SIZE);
+    const c = h % SIZE;
+
+    const neighbors = [
+      { r: r - 1, c: c, idx: h - SIZE }, // Trên
+      { r: r + 1, c: c, idx: h + SIZE }, // Dưới
+      { r: r, c: c - 1, idx: h - 1 },    // Trái
+      { r: r, c: c + 1, idx: h + 1 }     // Phải
+    ];
+
+    for (const n of neighbors) {
+      if (n.r >= 0 && n.r < SIZE && n.c >= 0 && n.c < SIZE && board[n.idx] === "") {
+        return n.idx;
+      }
+    }
+  }
+
+  // Fallback bắn ngẫu nhiên ô trống
+  const randIdx = Math.floor(Math.random() * emptyCells.length);
+  return emptyCells[randIdx];
+}
+

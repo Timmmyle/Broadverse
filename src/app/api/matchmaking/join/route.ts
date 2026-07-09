@@ -12,9 +12,9 @@ export async function POST(req: Request) {
     }
 
     const userId = user.id;
-    const { gameType, wager } = await req.json(); // gameType: "TIC_TAC_TOE" hoặc "CARO", wager: 0, 10, 50, 100
+    const { gameType, wager } = await req.json(); // gameType: "TIC_TAC_TOE", "CARO" hoặc "BATTLESHIP", wager: 0, 10, 50, 100
 
-    if (!["TIC_TAC_TOE", "CARO"].includes(gameType)) {
+    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
     }
 
@@ -91,17 +91,40 @@ export async function POST(req: Request) {
         const playerXId = isXFirst ? opponent.playerId : userId;
         const playerOId = isXFirst ? userId : opponent.playerId;
 
-        const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144; // Caro 12x12 = 144
-        const initialBoard = JSON.stringify(Array(boardSize).fill(""));
+        let initialBoard = "";
+        if (gameType === "BATTLESHIP") {
+          initialBoard = JSON.stringify({
+            phase: "PLACEMENT",
+            shipsX: "",
+            shipsO: "",
+            readyX: false,
+            readyO: false,
+            shotsX: [],
+            shotsO: [],
+            sunkX: [],
+            sunkO: [],
+            clusterChargeX: 0,
+            clusterChargeO: 0,
+            crossChargeX: 0,
+            crossChargeO: 0,
+            radarX: 1,
+            radarO: 1,
+            radarResultsX: [],
+            radarResultsO: []
+          });
+        } else {
+          const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
+          initialBoard = JSON.stringify(Array(boardSize).fill(""));
+        }
 
         // Tạo phòng game đấu trực tuyến
         const room = await tx.gameRoom.create({
           data: {
             gameType,
-            status: "PLAYING",
+            status: gameType === "BATTLESHIP" ? "WAITING" : "PLAYING",
             playerXId,
             playerOId,
-            turnPlayerId: playerXId,
+            turnPlayerId: gameType === "BATTLESHIP" ? null : playerXId,
             board: initialBoard,
             wager: numericWager,
           },

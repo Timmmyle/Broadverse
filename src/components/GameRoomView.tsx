@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { checkTicTacToeWin, checkCaroWin } from "@/lib/gameLogic";
 import { getTicTacToeBotMove, getCaroBotMove } from "@/lib/botAi";
 import { SHOP_ITEMS } from "@/lib/shopItems";
+import BattleshipView from "./BattleshipView";
 import { 
   ArrowLeft, Swords, Award, AlertTriangle, Clock, RefreshCw, Copy, Check, Coins
 } from "lucide-react";
@@ -13,7 +14,7 @@ import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
 
 interface GameRoomViewProps {
-  gameType: "TIC_TAC_TOE" | "CARO";
+  gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
   mode: "BOT" | "FRIEND" | "RANDOM";
   details: {
     roomId?: string;
@@ -28,6 +29,18 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   const supabase = createClient();
 
   if (!profile) return null;
+
+  if (gameType === "BATTLESHIP") {
+    return (
+      <BattleshipView
+        mode={mode}
+        details={details}
+        profile={profile}
+        onBack={onBack}
+        refreshProfile={refreshProfile}
+      />
+    );
+  }
 
   const [roomId, setRoomId] = useState<string | undefined>(details.roomId);
   const [room, setRoom] = useState<any | null>(null);

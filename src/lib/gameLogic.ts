@@ -64,3 +64,132 @@ export function checkCaroWin(board: string[], lastPos: number, symbol: string): 
 
   return false;
 }
+
+import crypto from "crypto";
+
+export interface BattleshipShip {
+  id: string; // "carrier" | "battleship" | "destroyer" | "submarine" | "patrol"
+  name: string;
+  size: number;
+  x: number;
+  y: number;
+  vertical: boolean;
+}
+
+export interface BattleshipShot {
+  x: number;
+  y: number;
+  hit: boolean;
+  shipId: string | null;
+  sunk: boolean;
+}
+
+export const BATTLESHIP_SHIPS_CONFIG = [
+  { id: "carrier", name: "Tàu sân bay", size: 5 },
+  { id: "battleship", name: "Thiết giáp hạm", size: 4 },
+  { id: "destroyer", name: "Tàu khu trục", size: 3 },
+  { id: "submarine", name: "Tàu ngầm", size: 3 },
+  { id: "patrol", name: "Tàu tuần tra", size: 2 }
+];
+
+const ENCRYPTION_KEY = process.env.BATTLESHIP_SECRET || "default_battleship_secret_key_32_bytes_length!!";
+
+function getKey() {
+  return crypto.createHash("sha256").update(ENCRYPTION_KEY).digest();
+}
+
+export function encryptShips(ships: BattleshipShip[]): string {
+  const text = JSON.stringify(ships);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv("aes-256-cbc", getKey(), iv);
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return iv.toString("hex") + ":" + encrypted;
+}
+
+export function decryptShips(encryptedText: string): BattleshipShip[] {
+  const parts = encryptedText.split(":");
+  if (parts.length !== 2) throw new Error("Invalid encrypted format");
+  const iv = Buffer.from(parts[0], "hex");
+  const encrypted = parts[1];
+  const decipher = crypto.createDecipheriv("aes-256-cbc", getKey(), iv);
+  let decrypted = decipher.update(encrypted, "hex", "utf8");
+  decrypted += decipher.final("utf8");
+  return JSON.parse(decrypted);
+}
+
+export function validateShipPlacement(ships: BattleshipShip[]): boolean {
+  if (!Array.isArray(ships) || ships.length !== 5) return false;
+
+  const occupied = new Set<string>();
+
+  for (const ship of ships) {
+    const config = BATTLESHIP_SHIPS_CONFIG.find(c => c.id === ship.id);
+    if (!config || config.size !== ship.size) return false;
+
+    // Check bounds
+    if (ship.x < 0 || ship.x >= 10 || ship.y < 0 || ship.y >= 10) return false;
+    
+    if (ship.vertical) {
+      if (ship.y + ship.size > 10) return false;
+    } else {
+      if (ship.x + ship.size > 10) return false;
+    }
+
+    // Check overlaps
+    for (let i = 0; i < ship.size; i++) {
+      const cx = ship.vertical ? ship.x : ship.x + i;
+      const cy = ship.vertical ? ship.y + i : ship.y;
+      const key = `${cx},${cy}`;
+      if (occupied.has(key)) return false;
+      occupied.add(key);
+    }
+  }
+
+  return true;
+}
+
+export function checkBattleshipShot(
+  x: number,
+  y: number,
+  ships: BattleshipShip[],
+  previousShots: { x: number; y: number }[]
+): { hit: boolean; shipId: string | null; sunk: boolean } {
+  // Find if shot hits any ship
+  let hitShip: BattleshipShip | null = null;
+  
+  for (const ship of ships) {
+    for (let i = 0; i < ship.size; i++) {
+      const cx = ship.vertical ? ship.x : ship.x + i;
+      const cy = ship.vertical ? ship.y + i : ship.y;
+      if (cx === x && cy === y) {
+        hitShip = ship;
+        break;
+      }
+    }
+    if (hitShip) break;
+  }
+
+  if (!hitShip) {
+    return { hit: false, shipId: null, sunk: false };
+  }
+
+  // Check if ship is sunk
+  // A ship is sunk if all its cells are hit (either in previousShots or this current shot)
+  let hitCount = 0;
+  for (let i = 0; i < hitShip.size; i++) {
+    const cx = hitShip.vertical ? hitShip.x : hitShip.x + i;
+    const cy = hitShip.vertical ? hitShip.y + i : hitShip.y;
+    
+    const isThisShot = (cx === x && cy === y);
+    const isPrevShot = previousShots.some(s => s.x === cx && s.y === cy);
+    
+    if (isThisShot || isPrevShot) {
+      hitCount++;
+    }
+  }
+
+  const sunk = (hitCount === hitShip.size);
+  return { hit: true, shipId: hitShip.id, sunk };
+}
+

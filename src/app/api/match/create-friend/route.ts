@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const creatorId = user.id;
     const { gameType, wager } = await req.json();
 
-    if (!["TIC_TAC_TOE", "CARO"].includes(gameType)) {
+    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
     }
 
@@ -29,8 +29,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Bạn không đủ Coin để thiết lập mức cược này" }, { status: 400 });
     }
 
-    const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
-    const initialBoard = JSON.stringify(Array(boardSize).fill(""));
+    let initialBoard = "";
+    if (gameType === "BATTLESHIP") {
+      initialBoard = JSON.stringify({
+        phase: "PLACEMENT",
+        shipsX: "",
+        shipsO: "",
+        readyX: false,
+        readyO: false,
+        shotsX: [],
+        shotsO: [],
+        sunkX: [],
+        sunkO: [],
+        clusterChargeX: 0,
+        clusterChargeO: 0,
+        crossChargeX: 0,
+        crossChargeO: 0,
+        radarX: 1,
+        radarO: 1,
+        radarResultsX: [],
+        radarResultsO: []
+      });
+    } else {
+      const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
+      initialBoard = JSON.stringify(Array(boardSize).fill(""));
+    }
 
     // Thực hiện trong Transaction: Khóa coin và tạo phòng
     const room = await prisma.$transaction(async (tx) => {

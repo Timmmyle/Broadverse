@@ -12,7 +12,7 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 
 interface DashboardProps {
-  onSelectGame: (game: "TIC_TAC_TOE" | "CARO", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
+  onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
 }
 
 export default function Dashboard({ onSelectGame }: DashboardProps) {
@@ -24,7 +24,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // State tìm kiếm trận ngẫu nhiên
   const [matchmaking, setMatchmaking] = useState<{
     active: boolean;
-    gameType: "TIC_TAC_TOE" | "CARO";
+    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
     wager: number;
   } | null>(null);
 
@@ -47,7 +47,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [cashError, setCashError] = useState("");
 
   // Game Options
-  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO">("TIC_TAC_TOE");
+  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP">("TIC_TAC_TOE");
   const [selectedMode, setSelectedMode] = useState<"BOT" | "FRIEND" | "RANDOM">("BOT");
   const [botDifficulty, setBotDifficulty] = useState<"RANDOM" | "EASY" | "HARD">("EASY");
   const [matchWager, setMatchWager] = useState<number>(0);
@@ -553,7 +553,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {/* Game Selection */}
                       <div className="pixel-box-nested p-4">
                         <span className="block text-[8px] text-gray-400 uppercase mb-2">1. Chọn trò chơi:</span>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <button
                             onClick={() => setSelectedGame("TIC_TAC_TOE")}
                             className={`pixel-btn text-[10px] py-2 ${selectedGame === "TIC_TAC_TOE" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
@@ -565,6 +565,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             className={`pixel-btn text-[10px] py-2 ${selectedGame === "CARO" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
                             Caro 12x12
+                          </button>
+                          <button
+                            onClick={() => setSelectedGame("BATTLESHIP")}
+                            className={`pixel-btn text-[10px] py-2 ${selectedGame === "BATTLESHIP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                          >
+                            Tàu chiến
                           </button>
                         </div>
                       </div>
@@ -613,12 +619,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             >
                               Dễ (Chặn)
                             </button>
-                            {selectedGame === "TIC_TAC_TOE" && (
+                            {(selectedGame === "TIC_TAC_TOE" || selectedGame === "BATTLESHIP") && (
                               <button
                                 onClick={() => setBotDifficulty("HARD")}
                                 className={`pixel-btn text-[9px] py-2 ${botDifficulty === "HARD" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
                               >
-                                Khó (Minimax)
+                                {selectedGame === "BATTLESHIP" ? "Khó (Săn Lùng)" : "Khó (Minimax)"}
                               </button>
                             )}
                           </div>

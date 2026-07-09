@@ -106,6 +106,11 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
   const roomRef = useRef<any>(null);
   const [myOnlineShips, setMyOnlineShips] = useState<BattleshipShip[]>([]);
 
+  // Trạng thái Biểu cảm Emoji thời gian thực cho Battleship
+  const [activeEmojiX, setActiveEmojiX] = useState<string | null>(null);
+  const [activeEmojiO, setActiveEmojiO] = useState<string | null>(null);
+  const channelRef = useRef<any>(null);
+
   // --- TRẠNG THÁI GIAO DIỆN ĐẶT TÀU ---
   const [selectedShipId, setSelectedShipId] = useState<string>("carrier");
   const [placementOrientation, setPlacementOrientation] = useState<"H" | "V">("H");
@@ -255,10 +260,31 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
           }
         }
       )
+      .on(
+        "broadcast",
+        { event: "emoji" },
+        (payload: any) => {
+          const { senderId, emoji } = payload.payload;
+          const currentRoom = roomRef.current;
+          if (currentRoom) {
+            const isX = senderId === currentRoom.playerXId;
+            if (isX) {
+              setActiveEmojiX(emoji);
+              setTimeout(() => setActiveEmojiX(null), 2000);
+            } else {
+              setActiveEmojiO(emoji);
+              setTimeout(() => setActiveEmojiO(null), 2000);
+            }
+          }
+        }
+      )
       .subscribe();
+
+    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [roomId, mode, profile.id]);
 
@@ -701,6 +727,26 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const sendEmoji = (emoji: string) => {
+    if (!room) return;
+    const isPlayerX = profile.id === room.playerXId;
+    if (isPlayerX) {
+      setActiveEmojiX(emoji);
+      setTimeout(() => setActiveEmojiX(null), 2000);
+    } else {
+      setActiveEmojiO(emoji);
+      setTimeout(() => setActiveEmojiO(null), 2000);
+    }
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "emoji",
+        payload: { senderId: profile.id, emoji }
+      });
+    }
+  };
+
   // Reset chơi lại với Bot
   const handleRestartBotMatch = () => {
     setMyShips(JSON.parse(JSON.stringify(DEFAULT_SHIPS)));
@@ -980,7 +1026,21 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
       )}
 
       {/* 2. MAIN BODY */}
-      <main className="flex-1 p-4 flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto w-full">
+      <main className="flex-1 p-4 flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto w-full relative">
+        
+        {/* Floating Emoji Bubbles for Battleship */}
+        {activeEmojiX && (
+          <div className="absolute top-2 left-2 bg-[#121215] border border-black text-lg p-1.5 rounded-md animate-bounce shadow-lg z-50 font-mono">
+            <span className="text-[5px] text-gray-500 block uppercase font-sans">X:</span>
+            {activeEmojiX}
+          </div>
+        )}
+        {activeEmojiO && (
+          <div className="absolute top-2 right-2 bg-[#121215] border border-black text-lg p-1.5 rounded-md animate-bounce shadow-lg z-50 font-mono">
+            <span className="text-[5px] text-gray-500 block uppercase font-sans">O:</span>
+            {activeEmojiO}
+          </div>
+        )}
         
         {/* LOBBY CHỜ BẠN BÈ CHO BATTLESHIP */}
         {mode === "FRIEND" && room && room.status === "WAITING" && !room.playerOId ? (
@@ -1270,6 +1330,26 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         )}
       </>
     )}
+
+        {/* EMOJI QUICK CHAT BAR FOR BATTLESHIP (placement & play) */}
+        {mode !== "BOT" && room && room.status !== "FINISHED" && (
+          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2 bg-[#121215] border border-black p-1.5 px-3 rounded-full items-center select-none z-45 shadow-lg">
+            <span className="text-[6.5px] text-gray-500 font-mono uppercase mr-1">Biểu cảm:</span>
+            {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).map(emojiItem => (
+              <button
+                key={emojiItem.id}
+                onClick={() => sendEmoji(emojiItem.visuals.emoji!)}
+                className="text-sm hover:scale-125 transition-transform p-0.5 cursor-pointer"
+                title={emojiItem.name}
+              >
+                {emojiItem.visuals.emoji}
+              </button>
+            ))}
+            {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).length === 0 && (
+              <span className="text-[6.5px] text-gray-400 italic">Chưa sở hữu biểu cảm nào</span>
+            )}
+          </div>
+        )}
 
       </main>
 

@@ -120,6 +120,11 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   const [optimisticBoard, setOptimisticBoard] = useState<string[] | null>(null);
   const [optimisticTurnId, setOptimisticTurnId] = useState<string | null>(null);
 
+  // Trạng thái Biểu cảm Emoji thời gian thực
+  const [activeEmojiX, setActiveEmojiX] = useState<string | null>(null);
+  const [activeEmojiO, setActiveEmojiO] = useState<string | null>(null);
+  const channelRef = useRef<any>(null);
+
   // Game End overlay state
   const [gameResult, setGameResult] = useState<{
     finished: boolean;
@@ -138,6 +143,26 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
   // Clipboard copy state
   const [copiedLink, setCopiedLink] = useState(false);
+
+  const sendEmoji = (emoji: string) => {
+    if (!room) return;
+    const isPlayerX = profile.id === room.playerXId;
+    if (isPlayerX) {
+      setActiveEmojiX(emoji);
+      setTimeout(() => setActiveEmojiX(null), 2000);
+    } else {
+      setActiveEmojiO(emoji);
+      setTimeout(() => setActiveEmojiO(null), 2000);
+    }
+
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: "broadcast",
+        event: "emoji",
+        payload: { senderId: profile.id, emoji }
+      });
+    }
+  };
 
   // Board Theme
   const [boardThemeClass, setBoardThemeClass] = useState("bg-[#1e1e22]");
@@ -264,10 +289,31 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
           }
         }
       )
+      .on(
+        "broadcast",
+        { event: "emoji" },
+        (payload: any) => {
+          const { senderId, emoji } = payload.payload;
+          const currentRoom = roomRef.current;
+          if (currentRoom) {
+            const isX = senderId === currentRoom.playerXId;
+            if (isX) {
+              setActiveEmojiX(emoji);
+              setTimeout(() => setActiveEmojiX(null), 2000);
+            } else {
+              setActiveEmojiO(emoji);
+              setTimeout(() => setActiveEmojiO(null), 2000);
+            }
+          }
+        }
+      )
       .subscribe();
+
+    channelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [roomId, mode]);
 
@@ -672,6 +718,12 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 ? (localTurn === "X" ? "border-pixel-yellow shadow-lg shadow-pixel-yellow/10 -translate-y-0.5" : "border-white/10")
                 : (room.turnPlayerId === room.playerXId ? "border-pixel-yellow shadow-lg shadow-pixel-yellow/10 -translate-y-0.5" : "border-white/10")
             }`}>
+              {activeEmojiX && (
+                <div className="absolute -top-10 left-4 bg-[#1e1e24] border-2 border-black text-lg p-1.5 rounded-md animate-bounce shadow-lg z-50 font-mono">
+                  {activeEmojiX}
+                  <div className="absolute -bottom-1.5 left-3 w-2 h-2 bg-[#1e1e24] border-r-2 border-b-2 border-black transform rotate-45"></div>
+                </div>
+              )}
               <div className={`w-10 h-10 bg-pixel-gray-light border border-white/10 rounded-xl flex items-center justify-center shrink-0 ${
                 SHOP_ITEMS.find(i => i.id === (mode === "BOT" ? profile.avatarFrame : room.playerX.avatarFrame))?.visuals?.className || ""
               }`}>
@@ -698,6 +750,12 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 ? (localTurn === "O" ? "border-pixel-blue shadow-lg shadow-pixel-blue/10 -translate-y-0.5" : "border-white/10")
                 : (room.turnPlayerId === room.playerOId ? "border-pixel-blue shadow-lg shadow-pixel-blue/10 -translate-y-0.5" : "border-white/10")
             }`}>
+              {activeEmojiO && (
+                <div className="absolute -top-10 right-4 bg-[#1e1e24] border-2 border-black text-lg p-1.5 rounded-md animate-bounce shadow-lg z-50 font-mono">
+                  {activeEmojiO}
+                  <div className="absolute -bottom-1.5 right-3 w-2 h-2 bg-[#1e1e24] border-r-2 border-b-2 border-black transform rotate-45"></div>
+                </div>
+              )}
               <div className={`w-10 h-10 bg-pixel-gray-light border border-white/10 rounded-xl flex items-center justify-center shrink-0 ${
                 SHOP_ITEMS.find(i => i.id === (mode === "BOT" ? opponentProfile?.avatarFrame : room?.playerO?.avatarFrame))?.visuals?.className || ""
               }`}>
@@ -728,6 +786,26 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               </span>
             ) : null}
           </div>
+
+          {/* EMOJI QUICK CHAT BAR */}
+          {mode !== "BOT" && room && room.status === "PLAYING" && (
+            <div className="flex gap-2 bg-black bg-opacity-25 border border-white/5 p-1 px-3 rounded-full items-center select-none">
+              <span className="text-[6.5px] text-gray-500 font-mono uppercase mr-1">Biểu cảm:</span>
+              {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).map(emojiItem => (
+                <button
+                  key={emojiItem.id}
+                  onClick={() => sendEmoji(emojiItem.visuals.emoji!)}
+                  className="text-sm hover:scale-125 transition-transform p-1 cursor-pointer"
+                  title={emojiItem.name}
+                >
+                  {emojiItem.visuals.emoji}
+                </button>
+              ))}
+              {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).length === 0 && (
+                <span className="text-[6.5px] text-gray-400 italic">Chưa sở hữu biểu cảm nào</span>
+              )}
+            </div>
+          )}
 
           {/* GAME BOARD (TIC-TAC-TOE & CARO) */}
           <div className="relative w-full max-w-[320px] sm:max-w-[384px] aspect-square mx-auto">

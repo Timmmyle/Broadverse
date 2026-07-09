@@ -20,8 +20,7 @@ export async function POST() {
       return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
     }
 
-    // Giá mở hộp quà bắt đầu từ 80 Vỏ Sò và tăng thêm 20 Vỏ Sò sau mỗi lần mở
-    const BOX_COST = 80 + (profile.boxOpenings ?? 0) * 20;
+    const BOX_COST = 80; // Giá mở hộp quà cố định là 80 Vỏ Sò theo yêu cầu
 
     if (profile.shells < BOX_COST) {
       return NextResponse.json({ 
@@ -29,23 +28,38 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // Tỉ lệ rơi vật phẩm:
-    // 0 -> 39: sym_summer_melon (40%)
-    // 40 -> 69: frame_summer_sand (30%)
-    // 70 -> 89: theme_summer_ocean (20%)
-    // 90 -> 99: Cộng trực tiếp 150 Coins (10%)
-    const roll = Math.floor(Math.random() * 100);
+    // Tỉ lệ rơi vật phẩm theo điều chỉnh của Admin:
+    // - 25 Coins (30%)
+    // - 50 Coins (20%)
+    // - 150 Coins (10%)
+    // - Bàn cờ đại dương (7.5%)
+    // - Quân cờ dưa hấu (5%)
+    // - Khung cát vàng (5%)
+    // - Sound effect kiểu bãi biển (5%)
+    // - Ăn mừng bãi biển (10%)
+    // - 10 Coins (7.5% còn lại)
+    const roll = Math.random() * 100;
     let rewardItemId = "";
     let coinsReward = 0;
 
-    if (roll < 40) {
-      rewardItemId = "sym_summer_melon";
-    } else if (roll < 70) {
-      rewardItemId = "frame_summer_sand";
-    } else if (roll < 90) {
-      rewardItemId = "theme_summer_ocean";
-    } else {
+    if (roll < 30) {
+      coinsReward = 25;
+    } else if (roll < 50) {
+      coinsReward = 50;
+    } else if (roll < 60) {
       coinsReward = 150;
+    } else if (roll < 67.5) {
+      rewardItemId = "theme_summer_ocean";
+    } else if (roll < 72.5) {
+      rewardItemId = "sym_summer_melon";
+    } else if (roll < 77.5) {
+      rewardItemId = "frame_summer_sand";
+    } else if (roll < 82.5) {
+      rewardItemId = "sfx_beach";
+    } else if (roll < 92.5) {
+      rewardItemId = "emoji_beach";
+    } else {
+      coinsReward = 10;
     }
 
     let updateData: any = {

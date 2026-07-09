@@ -66,6 +66,17 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
         osc.start();
         osc.stop(ctx.currentTime + 0.35);
+      } else if (sfxType === "synth") {
+        // Sóng biển rì rào
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(250, ctx.currentTime + 0.5);
+        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 1.2);
+        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+        osc.start();
+        osc.stop(ctx.currentTime + 1.2);
       } else {
         osc.type = "sine";
         osc.frequency.setValueAtTime(600, ctx.currentTime);

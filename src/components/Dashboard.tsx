@@ -157,8 +157,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const expNeeded = 100 + profile.level * 5;
   const expPercent = Math.min(100, Math.floor((profile.exp / expNeeded) * 100));
 
-  // Giá mở hộp quà sự kiện tăng dần
-  const boxCost = 80 + (profile.boxOpenings ?? 0) * 20;
+  // Giá mở hộp quà sự kiện cố định
+  const boxCost = 80;
 
   // 1. Lưu Username mới
   const handleSaveUsername = async () => {
@@ -1230,6 +1230,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
                         osc.start();
                         osc.stop(ctx.currentTime + 0.35);
+                      } else if (type === "synth") {
+                        // Sóng biển rì rào
+                        osc.type = "sine";
+                        osc.frequency.setValueAtTime(150, ctx.currentTime);
+                        osc.frequency.linearRampToValueAtTime(250, ctx.currentTime + 0.5);
+                        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 1.2);
+                        gain.gain.setValueAtTime(0.01, ctx.currentTime);
+                        gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.5);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+                        osc.start();
+                        osc.stop(ctx.currentTime + 1.2);
                       } else {
                         // Mặc định beep nhẹ
                         osc.type = "sine";
@@ -1622,7 +1633,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <div>
                       <h4 className="text-[10px] font-bold text-pixel-yellow uppercase">Summer Mystery Box</h4>
                       <p className="text-[7px] text-gray-400 mt-1 leading-normal">
-                        Lượt này tốn <span className="text-orange-400 font-bold">{boxCost} Vỏ Sò 🐚</span> (Giá tăng thêm 20 Vỏ Sò sau mỗi lần mở). Có cơ hội trúng quân cờ, khung viền, hoặc theme bàn cờ Mùa Hè giới hạn. Nếu trùng sẽ hoàn trả <span className="text-pixel-green font-bold">120 Coins</span>!
+                        Mỗi lượt mở tốn <span className="text-orange-400 font-bold">{boxCost} Vỏ Sò 🐚</span> (Giá cố định). Có cơ hội trúng vật phẩm sự kiện giới hạn hoặc phần thưởng xu cực hời. Nếu trùng vật phẩm sẽ được đền bù <span className="text-pixel-green font-bold">120 Coins</span>!
                       </p>
                     </div>
 
@@ -1639,11 +1650,16 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                     <div className="border-t border-black pt-3 text-left">
                       <span className="text-[6.5px] text-gray-400 uppercase font-mono block mb-1">Tỷ lệ rơi vật phẩm sự kiện:</span>
-                      <div className="text-[6px] text-gray-400 font-mono space-y-1">
-                        <div>• Quân cờ dưa hấu 🍉: <span className="text-white">40%</span></div>
-                        <div>• Khung cát vàng 🏖️: <span className="text-white">30%</span></div>
-                        <div>• Bàn cờ đại dương 🌊: <span className="text-white">20%</span></div>
-                        <div>• 150 Coins may mắn 💰: <span className="text-white">10%</span></div>
+                      <div className="text-[5.5px] text-gray-400 font-mono space-y-0.5">
+                        <div>• 25 Coins 💰: <span className="text-white">30%</span></div>
+                        <div>• 50 Coins 💰: <span className="text-white">20%</span></div>
+                        <div>• 150 Coins 💰: <span className="text-white">10%</span></div>
+                        <div>• Bàn cờ đại dương 🌊: <span className="text-white">7.5%</span></div>
+                        <div>• Quân cờ dưa hấu 🍉: <span className="text-white">5%</span></div>
+                        <div>• Khung cát vàng 🏖️: <span className="text-white">5%</span></div>
+                        <div>• SFX Sóng biển 🔊: <span className="text-white">5%</span></div>
+                        <div>• Ăn mừng bãi biển 🏖️: <span className="text-white">10%</span></div>
+                        <div>• 10 Coins 💰 (Còn lại): <span className="text-white">7.5%</span></div>
                       </div>
                     </div>
                   </div>

@@ -248,6 +248,24 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: "Bàn cờ sóng biển xanh ngọc cực mát mẻ cho ngày hè oi bức.",
     visuals: { className: "bg-[#0b4d6b] border-cyan-400 text-cyan-200" },
     isEventOnly: true
+  },
+  {
+    id: "sfx_beach",
+    name: "🌊 Sóng Biển Rì Rào SFX",
+    type: "SFX",
+    price: 80, // Giá tính bằng Vỏ Sò
+    description: "Tiếng sóng biển rì rào cực kỳ thư giãn khi đi cờ.",
+    visuals: { sfxType: "synth" },
+    isEventOnly: true
+  },
+  {
+    id: "emoji_beach",
+    name: "🏖️ Kì Nghỉ Bãi Biển",
+    type: "EMOJI",
+    price: 60, // Giá tính bằng Vỏ Sò
+    description: "Biểu cảm kì nghỉ bãi biển lãng mạn.",
+    visuals: { emoji: "🏖️" },
+    isEventOnly: true
   }
 ];
 

@@ -51,8 +51,40 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Nhiệm vụ không hợp lệ" }, { status: 400 });
     }
 
-    // Ràng buộc cho nhiệm vụ mời bạn bè
-    if (questId === "quest_invite") {
+    const twoHours = 2 * 60 * 60 * 1000;
+
+    // Ràng buộc cooldown 2 giờ cho tất cả các nhiệm vụ
+    if (questId === "quest_daily") {
+      if (profile.lastClaimedEventDaily) {
+        const timeDiff = Date.now() - new Date(profile.lastClaimedEventDaily).getTime();
+        if (timeDiff < twoHours) {
+          const minutesLeft = Math.ceil((twoHours - timeDiff) / (60 * 1000));
+          return NextResponse.json({ 
+            error: `Bạn chỉ được nhận thưởng Đăng nhập tối đa 1 lần mỗi 2 giờ! Vui lòng quay lại sau ${minutesLeft} phút.` 
+          }, { status: 400 });
+        }
+      }
+    } else if (questId === "quest_win_3") {
+      if (profile.lastClaimedEventWin3) {
+        const timeDiff = Date.now() - new Date(profile.lastClaimedEventWin3).getTime();
+        if (timeDiff < twoHours) {
+          const minutesLeft = Math.ceil((twoHours - timeDiff) / (60 * 1000));
+          return NextResponse.json({ 
+            error: `Bạn chỉ được nhận thưởng Thắng 3 trận tối đa 1 lần mỗi 2 giờ! Vui lòng quay lại sau ${minutesLeft} phút.` 
+          }, { status: 400 });
+        }
+      }
+    } else if (questId === "quest_play_5") {
+      if (profile.lastClaimedEventPlay5) {
+        const timeDiff = Date.now() - new Date(profile.lastClaimedEventPlay5).getTime();
+        if (timeDiff < twoHours) {
+          const minutesLeft = Math.ceil((twoHours - timeDiff) / (60 * 1000));
+          return NextResponse.json({ 
+            error: `Bạn chỉ được nhận thưởng Chơi 5 trận tối đa 1 lần mỗi 2 giờ! Vui lòng quay lại sau ${minutesLeft} phút.` 
+          }, { status: 400 });
+        }
+      }
+    } else if (questId === "quest_invite") {
       // 1. Kiểm tra số lượng người đã đăng ký qua referral
       const totalInvites = await prisma.user.count({
         where: {
@@ -74,7 +106,6 @@ export async function POST(req: Request) {
       // 3. Kiểm tra cooldown 2 giờ giữa các lần nhận thưởng giới thiệu
       if (profile.lastClaimedReferral) {
         const timeDiff = Date.now() - new Date(profile.lastClaimedReferral).getTime();
-        const twoHours = 2 * 60 * 60 * 1000;
         if (timeDiff < twoHours) {
           const minutesLeft = Math.ceil((twoHours - timeDiff) / (60 * 1000));
           return NextResponse.json({ 
@@ -90,7 +121,13 @@ export async function POST(req: Request) {
       shells: { increment: rewardShells }
     };
 
-    if (questId === "quest_invite") {
+    if (questId === "quest_daily") {
+      updateData.lastClaimedEventDaily = new Date();
+    } else if (questId === "quest_win_3") {
+      updateData.lastClaimedEventWin3 = new Date();
+    } else if (questId === "quest_play_5") {
+      updateData.lastClaimedEventPlay5 = new Date();
+    } else if (questId === "quest_invite") {
       updateData.claimedReferralsCount = { increment: 1 };
       updateData.lastClaimedReferral = new Date();
     }

@@ -24,6 +24,9 @@ model User {
   referredBy            String?                         // Username người giới thiệu
   lastClaimedReferral   DateTime?                         // Thời gian cuối nhận thưởng giới thiệu bạn bè
   claimedReferralsCount Int      @default(0)             // Số lượng bạn bè đã nhận thưởng giới thiệu thành công
+  lastClaimedEventDaily DateTime?                         // Thời gian cuối nhận thưởng NV Đăng nhập ngày
+  lastClaimedEventWin3  DateTime?                         // Thời gian cuối nhận thưởng NV Thắng 3 trận
+  lastClaimedEventPlay5 DateTime?                         // Thời gian cuối nhận thưởng NV Chơi 5 trận
   createdAt             DateTime @default(now())
 
   // Trang trí

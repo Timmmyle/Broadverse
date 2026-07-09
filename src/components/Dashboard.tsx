@@ -1170,7 +1170,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
               <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {SHOP_ITEMS.filter(item => !item.isEventOnly && (shopCategory === "ALL" || item.type === shopCategory)).map(item => {
+                  {SHOP_ITEMS.filter(item => (!item.isEventOnly || profile.purchasedItems.includes(item.id)) && (shopCategory === "ALL" || item.type === shopCategory)).map(item => {
                     const owned = profile.purchasedItems.includes(item.id);
                     
                     // Logic trang bị đặc thù
@@ -1584,9 +1584,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   {questError && <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono font-bold">✗ {questError}</div>}
 
                   {[
-                    { id: "quest_daily", name: "Đăng nhập ngày", desc: "Đăng nhập game hôm nay", coins: 20, shells: 15 },
-                    { id: "quest_win_3", name: "Thắng 3 trận cờ", desc: "Giành chiến thắng trong 3 trận đấu bất kỳ", coins: 50, shells: 40 },
-                    { id: "quest_play_5", name: "Chơi đủ 5 trận cờ", desc: "Tham gia đấu đủ 5 trận cờ (Bot hoặc Online)", coins: 40, shells: 30 },
+                    { id: "quest_daily", name: "Đăng nhập ngày", desc: "Đăng nhập game hôm nay (Nhận tối đa 1 lần/2h)", coins: 20, shells: 15 },
+                    { id: "quest_win_3", name: "Thắng 3 trận cờ", desc: "Giành chiến thắng trong 3 trận đấu bất kỳ (Nhận tối đa 1 lần/2h)", coins: 50, shells: 40 },
+                    { id: "quest_play_5", name: "Chơi đủ 5 trận cờ", desc: "Tham gia đấu đủ 5 trận cờ (Nhận tối đa 1 lần/2h)", coins: 40, shells: 30 },
                     { id: "quest_invite", name: "Mời bạn cùng chơi", desc: "Có bạn mới đăng ký bằng biệt danh của bạn (Nhận tối đa 1 lần/2h)", coins: 150, shells: 100 }
                   ].map(quest => (
                     <div key={quest.id} className="pixel-box-nested p-3 flex justify-between items-center bg-black/30">

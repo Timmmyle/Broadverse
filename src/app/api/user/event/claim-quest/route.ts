@@ -33,11 +33,6 @@ export async function POST(req: Request) {
         rewardCoins = 40;
         rewardShells = 30;
         break;
-      case "quest_invite":
-        questName = "Giới thiệu bạn bè chơi game";
-        rewardCoins = 150;
-        rewardShells = 100;
-        break;
       default:
         return NextResponse.json({ error: "Nhiệm vụ không hợp lệ" }, { status: 400 });
     }

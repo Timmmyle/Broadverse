@@ -20,7 +20,8 @@ export async function POST() {
       return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
     }
 
-    const BOX_COST = 80; // Giá mở hộp quà là 80 Vỏ Sò
+    // Giá mở hộp quà bắt đầu từ 80 Vỏ Sò và tăng thêm 20 Vỏ Sò sau mỗi lần mở
+    const BOX_COST = 80 + (profile.boxOpenings ?? 0) * 20;
 
     if (profile.shells < BOX_COST) {
       return NextResponse.json({ 
@@ -48,7 +49,8 @@ export async function POST() {
     }
 
     let updateData: any = {
-      shells: { decrement: BOX_COST }
+      shells: { decrement: BOX_COST },
+      boxOpenings: { increment: 1 }
     };
 
     let rewardMessage = "";

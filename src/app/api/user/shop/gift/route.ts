@@ -55,8 +55,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Người chơi '${targetUsername}' đã sở hữu vật phẩm này rồi!` }, { status: 400 });
     }
 
-    // Áp dụng giảm giá 20% nếu người gửi là Premium
-    const actualPrice = senderProfile.isPremium ? Math.floor(item.price * 0.8) : item.price;
+    // Áp dụng giảm giá 20% nếu người gửi là Premium, sau đó giảm 50% (làm tròn) cho việc tặng quà
+    const basePrice = senderProfile.isPremium ? Math.floor(item.price * 0.8) : item.price;
+    const actualPrice = Math.round(basePrice / 2);
 
     // 4. Kiểm tra số dư coin người gửi
     if (senderProfile.coins < actualPrice) {

@@ -16,6 +16,7 @@ model User {
   premiumUntil      DateTime?                         // Thời hạn Premium (null = vĩnh viễn)
   coins             Int      @default(100)
   shells            Int      @default(0)             // Điểm vỏ sò sự kiện mùa hè
+  boxOpenings       Int      @default(0)             // Số lần mở hộp quà sự kiện
   level             Int      @default(1)
   exp               Int      @default(0)
   avatarUrl         String?

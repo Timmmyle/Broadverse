@@ -157,6 +157,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const expNeeded = 100 + profile.level * 5;
   const expPercent = Math.min(100, Math.floor((profile.exp / expNeeded) * 100));
 
+  // Giá mở hộp quà sự kiện tăng dần
+  const boxCost = 80 + (profile.boxOpenings ?? 0) * 20;
+
   // 1. Lưu Username mới
   const handleSaveUsername = async () => {
     if (!newUsername.trim() || newUsername.trim() === profile.username) {
@@ -1583,8 +1586,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   {[
                     { id: "quest_daily", name: "Đăng nhập ngày", desc: "Đăng nhập game hôm nay", coins: 20, shells: 15 },
                     { id: "quest_win_3", name: "Thắng 3 trận cờ", desc: "Giành chiến thắng trong 3 trận đấu bất kỳ", coins: 50, shells: 40 },
-                    { id: "quest_play_5", name: "Chơi đủ 5 trận cờ", desc: "Tham gia đấu đủ 5 trận cờ (Bot hoặc Online)", coins: 40, shells: 30 },
-                    { id: "quest_invite", name: "Mời bạn cùng chơi", desc: "Mời thành công 1 người bạn đạt Cấp 3", coins: 150, shells: 100 }
+                    { id: "quest_play_5", name: "Chơi đủ 5 trận cờ", desc: "Tham gia đấu đủ 5 trận cờ (Bot hoặc Online)", coins: 40, shells: 30 }
                   ].map(quest => (
                     <div key={quest.id} className="pixel-box-nested p-3 flex justify-between items-center bg-black/30">
                       <div>
@@ -1619,7 +1621,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <div>
                       <h4 className="text-[10px] font-bold text-pixel-yellow uppercase">Summer Mystery Box</h4>
                       <p className="text-[7px] text-gray-400 mt-1 leading-normal">
-                        Mỗi lượt mở tốn <span className="text-orange-400 font-bold">80 Vỏ Sò 🐚</span>. Có cơ hội trúng quân cờ, khung viền, hoặc theme bàn cờ Mùa Hè giới hạn. Nếu trùng sẽ hoàn trả <span className="text-pixel-green font-bold">120 Coins</span>!
+                        Lượt này tốn <span className="text-orange-400 font-bold">{boxCost} Vỏ Sò 🐚</span> (Giá tăng thêm 20 Vỏ Sò sau mỗi lần mở). Có cơ hội trúng quân cờ, khung viền, hoặc theme bàn cờ Mùa Hè giới hạn. Nếu trùng sẽ hoàn trả <span className="text-pixel-green font-bold">120 Coins</span>!
                       </p>
                     </div>
 
@@ -1628,10 +1630,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                     <button
                       onClick={handleOpenSummerBox}
-                      disabled={openingBox || (profile.shells ?? 0) < 80}
+                      disabled={openingBox || (profile.shells ?? 0) < boxCost}
                       className="pixel-btn pixel-btn-yellow w-full py-2.5 text-[9.5px] uppercase font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-orange-500/10"
                     >
-                      {openingBox ? "Đang mở quà..." : "Mở: 80 Vỏ Sò 🐚"}
+                      {openingBox ? "Đang mở quà..." : `Mở: ${boxCost} Vỏ Sò 🐚`}
                     </button>
 
                     <div className="border-t border-black pt-3 text-left">
@@ -1858,7 +1860,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             {(() => {
               const giftItem = SHOP_ITEMS.find(i => i.id === giftItemId);
               if (!giftItem) return null;
-              const giftPrice = profile.isPremium ? Math.floor(giftItem.price * 0.8) : giftItem.price;
+              const giftPrice = Math.round((profile.isPremium ? Math.floor(giftItem.price * 0.8) : giftItem.price) / 2);
 
               return (
                 <form onSubmit={handleGiftItem} className="space-y-4">

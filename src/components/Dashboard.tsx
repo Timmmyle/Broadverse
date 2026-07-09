@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./providers/AuthProvider";
 import { SHOP_ITEMS, ShopItem, getShopItem } from "@/lib/shopItems";
 import { createClient } from "@/lib/supabase/client";
@@ -60,6 +60,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
     wager: number;
   } | null>(null);
+
+  const matchmakingIntervalRef = useRef<any>(null);
 
   // Settings & Account Upgrade state
   const [editingUsername, setEditingUsername] = useState(false);
@@ -134,6 +136,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       setNewUsername(profile.username);
     }
   }, [profile]);
+
+  useEffect(() => {
+    return () => {
+      if (matchmakingIntervalRef.current) {
+        clearInterval(matchmakingIntervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (showQRPaymentModal) {
@@ -430,8 +440,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               },
               (payload: any) => {
                 const room = payload.new;
-                if (room.status === "PLAYING" && (room.playerXId === profile.id || room.playerOId === profile.id)) {
+                if ((room.status === "PLAYING" || room.status === "WAITING") && (room.playerXId === profile.id || room.playerOId === profile.id)) {
                   // Đã được ghép trận!
+                  if (matchmakingIntervalRef.current) {
+                    clearInterval(matchmakingIntervalRef.current);
+                    matchmakingIntervalRef.current = null;
+                  }
                   supabase.removeChannel(channel);
                   setMatchmaking(null);
                   onSelectGame(selectedGame, "RANDOM", { roomId: room.id });
@@ -442,6 +456,36 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
           // Lưu channel để hủy khi thoát
           (window as any).matchmakingChannel = channel;
+
+          // Thiết lập Polling định kỳ mỗi 3 giây phòng hờ lỗi Realtime hoặc race condition
+          if (matchmakingIntervalRef.current) {
+            clearInterval(matchmakingIntervalRef.current);
+          }
+
+          matchmakingIntervalRef.current = setInterval(async () => {
+            try {
+              const pollRes = await fetch("/api/matchmaking/join", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ gameType: selectedGame, wager: matchWager }),
+              });
+              if (pollRes.ok) {
+                const pollData = await pollRes.json();
+                if (pollData && pollData.matched) {
+                  // Hủy cả Realtime và Polling khi đã ghép được trận
+                  clearInterval(matchmakingIntervalRef.current);
+                  matchmakingIntervalRef.current = null;
+                  if (channel) {
+                    supabase.removeChannel(channel);
+                  }
+                  setMatchmaking(null);
+                  onSelectGame(selectedGame, "RANDOM", { roomId: pollData.room.id });
+                }
+              }
+            } catch (err) {
+              console.error("Lỗi polling ghép trận:", err);
+            }
+          }, 3000);
         }
       } else {
         const err = await res.json();
@@ -457,6 +501,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // Hủy ghép trận
   const handleCancelMatchmaking = async () => {
     setMatchmaking(null);
+    if (matchmakingIntervalRef.current) {
+      clearInterval(matchmakingIntervalRef.current);
+      matchmakingIntervalRef.current = null;
+    }
     if ((window as any).matchmakingChannel) {
       supabase.removeChannel((window as any).matchmakingChannel);
     }

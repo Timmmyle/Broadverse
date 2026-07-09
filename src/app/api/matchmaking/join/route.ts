@@ -20,6 +20,23 @@ export async function POST(req: Request) {
 
     const numericWager = Number(wager) || 0;
 
+    // Kiểm tra xem người chơi đã có phòng đấu mới tạo nào đang hoạt động không
+    const activeRoom = await prisma.gameRoom.findFirst({
+      where: {
+        OR: [
+          { playerXId: userId },
+          { playerOId: userId }
+        ],
+        status: { in: ["PLAYING", "WAITING"] },
+        createdAt: { gte: new Date(Date.now() - 30 * 1000) } // Trong vòng 30 giây gần nhất
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (activeRoom) {
+      return NextResponse.json({ matched: true, room: activeRoom });
+    }
+
     // Lấy thông tin user hiện tại để kiểm tra coin và level
     const profile = await prisma.user.findUnique({
       where: { id: userId },

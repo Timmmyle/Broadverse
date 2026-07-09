@@ -12,6 +12,7 @@ import {
 import { getBattleshipBotMove } from "@/lib/botAi";
 import { SHOP_ITEMS } from "@/lib/shopItems";
 import confetti from "canvas-confetti";
+import { QRCodeSVG } from "qrcode.react";
 
 interface BattleshipViewProps {
   mode: "BOT" | "FRIEND" | "RANDOM";
@@ -981,8 +982,43 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
       {/* 2. MAIN BODY */}
       <main className="flex-1 p-4 flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto w-full">
         
-        {/* PHASE A: PLACEMENT */}
-        {phase === "PLACEMENT" && (
+        {/* LOBBY CHỜ BẠN BÈ CHO BATTLESHIP */}
+        {mode === "FRIEND" && room && room.status === "WAITING" && !room.playerOId ? (
+          <div className="max-w-md w-full mx-auto px-4 py-8 flex flex-col items-center justify-center space-y-6">
+            <div className="pixel-box bg-[#16161c] p-6 w-full text-center space-y-6 border-4 border-black">
+              <h2 className="text-xs text-pixel-yellow uppercase tracking-wider border-b border-black pb-3">Phòng Đấu Bạn Bè (Battleship)</h2>
+              
+              <p className="text-[9px] text-gray-400 leading-relaxed uppercase">
+                Hãy gửi link mời bên dưới cho bạn bè để cùng tham gia đấu tàu cược {room.wager} Coin.
+              </p>
+
+              <div className="pixel-box-nested p-4 flex flex-col items-center justify-center bg-black">
+                {/* QR Code */}
+                <div className="bg-white p-2 border-4 border-black mb-4">
+                  <QRCodeSVG value={typeof window !== "undefined" ? `${window.location.origin}?joinRoom=${room.id}` : room.id} size={128} />
+                </div>
+                <span className="text-[8px] text-gray-500 font-mono select-all">ID: {room.id}</span>
+              </div>
+
+              <div className="space-y-2">
+                <button 
+                  onClick={handleCopyLink} 
+                  className="w-full pixel-btn pixel-btn-blue py-3 text-[10px] uppercase font-bold flex items-center justify-center gap-2"
+                >
+                  {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copiedLink ? "Đã copy link mời!" : "Copy Link Mời Trực Tiếp"}
+                </button>
+              </div>
+              
+              <div className="text-[8px] text-pixel-blue animate-pulse uppercase tracking-wider">
+                === Đang chờ bạn bè kết nối ===
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* PHASE A: PLACEMENT */}
+            {phase === "PLACEMENT" && (
           <div className="w-full flex flex-col md:flex-row gap-6 items-start">
             {/* Cột trái: Lưới của mình */}
             <div className="w-full md:w-[450px] shrink-0">
@@ -1232,6 +1268,8 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
           </div>
         )}
+      </>
+    )}
 
       </main>
 

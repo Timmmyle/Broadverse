@@ -176,6 +176,14 @@ export async function POST(req: Request) {
           const targetX = pos % 10;
           const targetY = Math.floor(pos / 10);
 
+          // Đảm bảo các mảng dữ liệu luôn tồn tại
+          if (!boardObj.shotsX) boardObj.shotsX = [];
+          if (!boardObj.shotsO) boardObj.shotsO = [];
+          if (!boardObj.sunkX) boardObj.sunkX = [];
+          if (!boardObj.sunkO) boardObj.sunkO = [];
+          if (!boardObj.radarResultsX) boardObj.radarResultsX = [];
+          if (!boardObj.radarResultsO) boardObj.radarResultsO = [];
+
           const weapon = weaponType || "NORMAL";
           const myShots = isPlayerX ? boardObj.shotsX : boardObj.shotsO;
           const myRadarResults = isPlayerX ? boardObj.radarResultsX : boardObj.radarResultsO;
@@ -497,9 +505,9 @@ export async function POST(req: Request) {
                     botTurn = false;
                   }
                 }
-              } catch (botErr) {
+              } catch (botErr: any) {
                 console.error("Lỗi trong lượt đi của Bot Battleship:", botErr);
-                nextTurnPlayerId = room.playerXId;
+                throw new Error("Lỗi xử lý Bot: " + (botErr.message || botErr));
               }
             }
 

@@ -483,7 +483,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     }
 
     // Clone danh sách tàu đang chỉnh sửa
-    const shipsClone = JSON.parse(JSON.stringify(mode === "BOT" ? myShips : myOnlineShips.length > 0 ? myOnlineShips : DEFAULT_SHIPS));
+    const shipsClone = JSON.parse(JSON.stringify(mode === "BOT" ? myShips : myOnlineShips));
     
     // Tìm hoặc thêm tàu
     const shipIdx = shipsClone.findIndex((s: any) => s.id === selectedShipId);
@@ -547,6 +547,11 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         });
 
         if (res.ok) {
+          const data = await res.json();
+          setRoom(data.room);
+          roomRef.current = data.room;
+          const boardObj = JSON.parse(data.room.board);
+          setPhase(boardObj.phase);
           setIsReady(true);
         } else {
           const err = await res.json();
@@ -822,6 +827,14 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
       });
 
       if (res.ok) {
+        const data = await res.json();
+        setRoom(data.room);
+        roomRef.current = data.room;
+        const boardObj = JSON.parse(data.room.board);
+        setPhase(boardObj.phase);
+        if (data.finished) {
+          showOnlineResult(data.room);
+        }
         setActiveWeapon("NORMAL");
       } else {
         const err = await res.json();

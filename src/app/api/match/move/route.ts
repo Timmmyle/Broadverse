@@ -112,6 +112,13 @@ export async function POST(req: Request) {
             if (boardObj.readyX) throw new Error("Bạn đã đặt tàu rồi");
             boardObj.shipsX = encrypted;
             boardObj.readyX = true;
+
+            // Nếu đối thủ là BOT, tự động sinh tàu cho BOT luôn
+            if (room.playerOId === "bot") {
+              const botShips = generateRandomShips();
+              boardObj.shipsO = encryptShips(botShips);
+              boardObj.readyO = true;
+            }
           } else {
             if (boardObj.readyO) throw new Error("Bạn đã đặt tàu rồi");
             boardObj.shipsO = encrypted;

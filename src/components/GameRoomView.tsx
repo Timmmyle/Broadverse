@@ -920,7 +920,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         <div className="flex-grow max-w-4xl w-full mx-auto px-4 mt-6 flex flex-col items-center space-y-6">
           
           {/* Active players dashboard */}
-          <div className="w-full grid grid-cols-2 gap-4 max-w-lg">
+          <div className="w-full hidden md:grid grid-cols-2 gap-4 max-w-lg">
             
             {/* Player X / Left Side */}
             <div className={`pixel-box p-3 bg-[#16161c] relative flex items-center gap-3 transition-all duration-300 ${
@@ -1044,25 +1044,31 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                     key={idx}
                     onClick={() => handleCellClick(idx)}
                     disabled={(mode === "BOT" ? localStatus !== "PLAYING" : room.status !== "PLAYING") || (cell !== "" && !isGhost) || !myTurn}
-                    className={`pixel-box-nested aspect-square flex items-center justify-center font-bold transition-all duration-75 cursor-pointer select-none text-black ${
+                    className={`pixel-box-nested aspect-square flex items-center justify-center font-bold transition-all duration-75 cursor-pointer select-none ${
                       cell === "" 
                         ? (myTurn ? (isGhost ? (isForbiddenCell ? "bg-red-950/20 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] animate-pulse" : "bg-yellow-500/10 border-yellow-400/50 animate-pulse") : "hover:bg-white/10") : "cursor-not-allowed") 
                         : ""
                     } ${
-                      gameType === "TIC_TAC_TOE" ? "text-3xl" : "text-sm"
+                      gameType === "TIC_TAC_TOE" ? "text-2xl sm:text-3xl" : "text-[10px] sm:text-xs"
                     }`}
                     style={{
-                      backgroundColor: cell === "" ? (isGhost ? (isForbiddenCell ? "rgba(220,38,38,0.1)" : "rgba(212,175,55,0.15)") : "rgba(0,0,0,0.4)") : "#fff",
-                      boxShadow: cell === "" ? "inset 2px 2px 0px 0px rgba(255,255,255,0.05)" : "inset -2px -2px 0px 2px rgba(0,0,0,0.1)",
+                      backgroundColor: cell === "" ? (isGhost ? (isForbiddenCell ? "rgba(220,38,38,0.1)" : "rgba(212,175,55,0.15)") : "rgba(0,0,0,0.4)") : "rgba(0,0,0,0.25)",
+                      boxShadow: "inset 1px 1px 0px 0px rgba(255,255,255,0.05)",
                       border: isForbiddenCell ? "1.5px solid #ef4444" : (isGhost ? "1.5px solid #D4AF37" : "1px solid rgba(255,255,255,0.08)")
                     }}
                   >
                     {isX ? (
-                      <span className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">{visual}</span>
+                      <span className="w-11/12 h-11/12 rounded-full bg-gradient-to-br from-red-500 to-red-700 text-white flex items-center justify-center shadow-lg transform scale-95 border border-red-400">
+                        {visual}
+                      </span>
                     ) : isO ? (
-                      <span className="text-blue-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">{visual}</span>
+                      <span className="w-11/12 h-11/12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg transform scale-95 border border-blue-400">
+                        {visual}
+                      </span>
                     ) : isGhost ? (
-                      <span className={`opacity-40 select-none ${isForbiddenCell ? "text-red-500 font-extrabold" : (mySymbol === "X" ? "text-red-600" : "text-blue-600")}`}>
+                      <span className={`w-11/12 h-11/12 rounded-full border border-dashed flex items-center justify-center opacity-50 transform scale-95 ${
+                        isForbiddenCell ? "border-red-500 text-red-500 bg-red-950/20" : (mySymbol === "X" ? "border-red-500 bg-red-500/10 text-red-400" : "border-blue-500 bg-blue-500/10 text-blue-400")
+                      }`}>
                         {isForbiddenCell ? "⚠️" : visual}
                       </span>
                     ) : (

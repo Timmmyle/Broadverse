@@ -92,6 +92,41 @@ export const BATTLESHIP_SHIPS_CONFIG = [
   { id: "patrol", name: "Tàu tuần tra", size: 2 }
 ];
 
+export function generateRandomShips(): BattleshipShip[] {
+  const ships: BattleshipShip[] = [];
+  const occupied = new Set<string>();
+
+  for (const config of BATTLESHIP_SHIPS_CONFIG) {
+    let placed = false;
+    while (!placed) {
+      const vertical = Math.random() > 0.5;
+      const x = Math.floor(Math.random() * (vertical ? 10 : 10 - config.size + 1));
+      const y = Math.floor(Math.random() * (vertical ? 10 - config.size + 1 : 10));
+
+      let overlaps = false;
+      for (let i = 0; i < config.size; i++) {
+        const cx = vertical ? x : x + i;
+        const cy = vertical ? y + i : y;
+        if (occupied.has(`${cx},${cy}`)) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (!overlaps) {
+        for (let i = 0; i < config.size; i++) {
+          const cx = vertical ? x : x + i;
+          const cy = vertical ? y + i : y;
+          occupied.add(`${cx},${cy}`);
+        }
+        ships.push({ id: config.id, name: config.name, size: config.size, x, y, vertical });
+        placed = true;
+      }
+    }
+  }
+  return ships;
+}
+
 const ENCRYPTION_KEY = process.env.BATTLESHIP_SECRET || "default_battleship_secret_key_32_bytes_length!!";
 
 function getKey() {

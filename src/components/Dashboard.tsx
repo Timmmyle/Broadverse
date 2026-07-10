@@ -94,6 +94,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
   // Theme bàn cờ được chọn ở client
   const [equippedThemeId, setEquippedThemeId] = useState("theme_classic");
+  const [equippedSfxId, setEquippedSfxId] = useState("sfx_retro");
 
   // Bảng xếp hạng
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -159,13 +160,18 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       setEquippedThemeId(localStorage.getItem("board_theme") || "theme_classic");
+      setEquippedSfxId(localStorage.getItem("equipped_sfx") || localStorage.getItem("board_sfx") || "sfx_retro");
     }
 
     const handleThemeChange = () => {
       setEquippedThemeId(localStorage.getItem("board_theme") || "theme_classic");
     };
+    const handleSfxChange = () => {
+      setEquippedSfxId(localStorage.getItem("equipped_sfx") || localStorage.getItem("board_sfx") || "sfx_retro");
+    };
 
     window.addEventListener("theme_changed", handleThemeChange);
+    window.addEventListener("sfx_changed", handleSfxChange);
     
     // Tải dữ liệu ban đầu
     fetchLeaderboard();
@@ -174,6 +180,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
     return () => {
       window.removeEventListener("theme_changed", handleThemeChange);
+      window.removeEventListener("sfx_changed", handleSfxChange);
     };
   }, []);
 
@@ -283,13 +290,43 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // Trạng thái sự kiện hè & Gửi tặng vật phẩm
   const [boxMessage, setBoxMessage] = useState("");
 
-  const handleClaimQuest = (questId: string) => {
-    alert("Đã nhận phần thưởng nhiệm vụ sự kiện thành công!");
+  const handleClaimQuest = async (questId: string) => {
+    try {
+      const res = await fetch("/api/user/event/claim-quest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        await refreshProfile();
+      } else {
+        alert(data.error || "Nhận thưởng thất bại!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối máy chủ.");
+    }
   };
 
-  const handleOpenSummerBox = () => {
-    alert("Tính năng mở rương đang được xử lý, bạn vừa nhận được Skin Quân Cờ Hổ Phách!");
-    setBoxMessage("Chúc mừng bạn đã nhận được Skin Quân Cờ Hổ Phách! Hãy kiểm tra kho đồ.");
+  const handleOpenSummerBox = async () => {
+    try {
+      const res = await fetch("/api/user/event/open-box", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        setBoxMessage(data.message);
+        await refreshProfile();
+      } else {
+        alert(data.error || "Mở rương thất bại!");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối máy chủ.");
+    }
   };
 
   const handleGiftSubmit = async (e: React.FormEvent) => {
@@ -306,12 +343,24 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // 4. Trang bị vật phẩm đã mua
   const handleEquipItem = async (itemId: string, slot?: "X" | "O") => {
     try {
+      const item = SHOP_ITEMS.find(i => i.id === itemId);
+      
       const res = await fetch("/api/user/shop/equip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ itemId, slot }),
       });
       if (res.ok) {
+        if (item?.type === "THEME") {
+          localStorage.setItem("board_theme", itemId);
+          setEquippedThemeId(itemId);
+          window.dispatchEvent(new Event("theme_changed"));
+        } else if (item?.type === "SFX") {
+          localStorage.setItem("board_sfx", itemId);
+          localStorage.setItem("equipped_sfx", itemId);
+          setEquippedSfxId(itemId);
+          window.dispatchEvent(new Event("sfx_changed"));
+        }
         await refreshProfile();
       } else {
         const err = await res.json();
@@ -1032,7 +1081,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {SHOP_ITEMS.filter((item) => shopCategory === "ALL" || item.type === shopCategory).map((item) => {
                   const isOwned = profile.purchasedItems.includes(item.id);
-                  const isEquipped = profile.avatarFrame === item.id || profile.selectedSymbolX === item.id || profile.selectedSymbolO === item.id;
+                  const isEquipped = 
+                    item.type === "FRAME" ? profile.avatarFrame === item.id :
+                    item.type === "SYMBOL" ? (profile.selectedSymbolX === item.id || profile.selectedSymbolO === item.id) :
+                    item.type === "THEME" ? equippedThemeId === item.id :
+                    item.type === "SFX" ? equippedSfxId === item.id : false;
                   
                   return (
                     <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3">
@@ -1061,8 +1114,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             <button
                               onClick={() => {
                                 if (item.type === "SYMBOL") {
-                                  // Cho phép trang bị vào Slot X
-                                  handleEquipItem(item.id, "X");
+                                  const slot = confirm("Bạn có muốn trang bị làm Quân Đen (đi trước - X) không? Chọn Cancel (Hủy) để trang bị làm Quân Trắng (đi sau - O).") ? "X" : "O";
+                                  handleEquipItem(item.id, slot);
                                 } else {
                                   handleEquipItem(item.id);
                                 }

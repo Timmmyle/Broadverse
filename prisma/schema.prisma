@@ -44,6 +44,7 @@ model User {
   // Bậc xếp hạng Gà & Phân chia Division
   rankTier          Int      @default(1)             // Hạng Gà (1: Trứng -> 7: Phượng Hoàng)
   rankDivision      Int      @default(4)             // Division (IV -> I)
+  rankPoints        Int      @default(0)             // Điểm Rank hiện tại (0 - 100)
 
   // Danh tính tùy chỉnh & Kho đồ sưu tập
   equippedChickenSkin String   @default("default")     // ID Skin Gà đang trang bị

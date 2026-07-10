@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { addExp, calculateElo, addBattlePassExp, DailyMission } from "@/lib/progression";
+import { addExp, calculateElo, addBattlePassExp, DailyMission, calculateRankUpdate } from "@/lib/progression";
 
 // Công thức tính thưởng
 function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: boolean = false) {
@@ -146,6 +146,10 @@ export async function POST(req: Request) {
       const loserMissions = updatePlayerMissions(loser.dailyMissions, room.gameType, "PLAY_GAME");
       const winnerWinMissions = updatePlayerMissions(winnerMissions, room.gameType, "WIN_GAME");
 
+      // Cập nhật Rank
+      const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
+      const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+
       // Cập nhật người thắng
       await tx.user.update({
         where: { id: winner.id },
@@ -154,6 +158,9 @@ export async function POST(req: Request) {
           level: winnerNewStats.level,
           exp: winnerNewStats.exp,
           [eloField]: newWinnerElo,
+          rankTier: winnerRank.tier,
+          rankDivision: winnerRank.division,
+          rankPoints: winnerRank.rankPoints,
           battlePassLevel: winBPMatch.level,
           battlePassExp: winBPMatch.exp,
           dailyMissions: winnerWinMissions,
@@ -168,6 +175,9 @@ export async function POST(req: Request) {
           level: loserNewStats.level,
           exp: loserNewStats.exp,
           [eloField]: newLoserElo,
+          rankTier: loserRank.tier,
+          rankDivision: loserRank.division,
+          rankPoints: loserRank.rankPoints,
           battlePassLevel: loseBPMatch.level,
           battlePassExp: loseBPMatch.exp,
           dailyMissions: loserMissions,

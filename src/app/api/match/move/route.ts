@@ -11,7 +11,7 @@ import {
   isRenjuForbidden,
   generateRandomShips
 } from "@/lib/gameLogic";
-import { addExp, calculateElo, addBattlePassExp, DailyMission } from "@/lib/progression";
+import { addExp, calculateElo, addBattlePassExp, DailyMission, calculateRankUpdate } from "@/lib/progression";
 import { getTicTacToeBotMove, getCaroBotMove, getBattleshipBotMove } from "@/lib/botAi";
 
 // Công thức tính thưởng
@@ -325,11 +325,14 @@ export async function POST(req: Request) {
             const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
             const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
 
-            // Cập nhật Elo Battleship
+            // Cập nhật Elo & Rank Battleship
             const winnerElo = winner.eloBattleship;
             const loserElo = loser.eloBattleship;
             const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
             const newLoserElo = calculateElo(loserElo, winnerElo, 0);
+
+            const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
+            const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
 
             // Tiến trình Battle Pass
             const winBPMatch = addBattlePassExp(winner.battlePassLevel, winner.battlePassExp, winner.isPremium ? 172 : 150);
@@ -347,6 +350,9 @@ export async function POST(req: Request) {
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
                 eloBattleship: newWinnerElo,
+                rankTier: winnerRank.tier,
+                rankDivision: winnerRank.division,
+                rankPoints: winnerRank.rankPoints,
                 battlePassLevel: winBPMatch.level,
                 battlePassExp: winBPMatch.exp,
                 dailyMissions: winnerHitMissions,
@@ -360,6 +366,9 @@ export async function POST(req: Request) {
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
                 eloBattleship: newLoserElo,
+                rankTier: loserRank.tier,
+                rankDivision: loserRank.division,
+                rankPoints: loserRank.rankPoints,
                 battlePassLevel: loseBPMatch.level,
                 battlePassExp: loseBPMatch.exp,
                 dailyMissions: loserMissions,
@@ -448,6 +457,7 @@ export async function POST(req: Request) {
                     const newStats = addExp(player.level, player.exp, rewards.exp);
                     const currentElo = player.eloBattleship;
                     const newElo = calculateElo(currentElo, 1000, 0);
+                    const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "LOSE");
                     const loseBPMatch = addBattlePassExp(player.battlePassLevel, player.battlePassExp, player.isPremium ? 57 : 50);
                     const playerMissions = updatePlayerMissions(player.dailyMissions, "BATTLESHIP", "PLAY_GAME");
 
@@ -458,6 +468,9 @@ export async function POST(req: Request) {
                         level: newStats.level,
                         exp: newStats.exp,
                         eloBattleship: newElo,
+                        rankTier: playerRank.tier,
+                        rankDivision: playerRank.division,
+                        rankPoints: playerRank.rankPoints,
                         battlePassLevel: loseBPMatch.level,
                         battlePassExp: loseBPMatch.exp,
                         dailyMissions: playerMissions
@@ -556,6 +569,9 @@ export async function POST(req: Request) {
             const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
             const newLoserElo = calculateElo(loserElo, winnerElo, 0);
 
+            const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
+            const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+
             // Cập nhật Database
             await tx.user.update({
               where: { id: winner.id },
@@ -564,6 +580,9 @@ export async function POST(req: Request) {
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
                 eloGomoku: newWinnerElo,
+                rankTier: winnerRank.tier,
+                rankDivision: winnerRank.division,
+                rankPoints: winnerRank.rankPoints,
               }
             });
 
@@ -574,6 +593,9 @@ export async function POST(req: Request) {
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
                 eloGomoku: newLoserElo,
+                rankTier: loserRank.tier,
+                rankDivision: loserRank.division,
+                rankPoints: loserRank.rankPoints,
               }
             });
 
@@ -646,6 +668,9 @@ export async function POST(req: Request) {
           const loserMissions = updatePlayerMissions(loser.dailyMissions, room.gameType, "PLAY_GAME");
           const winnerWinMissions = updatePlayerMissions(winnerMissions, room.gameType, "WIN_GAME");
 
+          const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
+          const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+
           await tx.user.update({
             where: { id: winner.id },
             data: {
@@ -654,6 +679,9 @@ export async function POST(req: Request) {
               exp: winnerNewStats.exp,
               eloGomoku: isGomoku ? newWinnerElo : undefined,
               eloTicTacToe: !isGomoku ? newWinnerElo : undefined,
+              rankTier: winnerRank.tier,
+              rankDivision: winnerRank.division,
+              rankPoints: winnerRank.rankPoints,
               battlePassLevel: winBPMatch.level,
               battlePassExp: winBPMatch.exp,
               dailyMissions: winnerWinMissions,
@@ -668,6 +696,9 @@ export async function POST(req: Request) {
               exp: loserNewStats.exp,
               eloGomoku: isGomoku ? newLoserElo : undefined,
               eloTicTacToe: !isGomoku ? newLoserElo : undefined,
+              rankTier: loserRank.tier,
+              rankDivision: loserRank.division,
+              rankPoints: loserRank.rankPoints,
               battlePassLevel: loseBPMatch.level,
               battlePassExp: loseBPMatch.exp,
               dailyMissions: loserMissions,
@@ -714,6 +745,9 @@ export async function POST(req: Request) {
           const newEloX = calculateElo(eloX, eloO, 0.5);
           const newEloO = calculateElo(eloO, eloX, 0.5);
 
+          const rankX = calculateRankUpdate(playerX.rankTier, playerX.rankDivision, playerX.rankPoints, "DRAW");
+          const rankO = calculateRankUpdate(playerO.rankTier, playerO.rankDivision, playerO.rankPoints, "DRAW");
+
           await tx.user.update({
             where: { id: playerX.id },
             data: {
@@ -722,6 +756,9 @@ export async function POST(req: Request) {
               exp: newStatsX.exp,
               eloGomoku: isGomoku ? newEloX : undefined,
               eloTicTacToe: !isGomoku ? newEloX : undefined,
+              rankTier: rankX.tier,
+              rankDivision: rankX.division,
+              rankPoints: rankX.rankPoints,
             }
           });
 
@@ -733,6 +770,9 @@ export async function POST(req: Request) {
               exp: newStatsO.exp,
               eloGomoku: isGomoku ? newEloO : undefined,
               eloTicTacToe: !isGomoku ? newEloO : undefined,
+              rankTier: rankO.tier,
+              rankDivision: rankO.division,
+              rankPoints: rankO.rankPoints,
             }
           });
 
@@ -796,6 +836,7 @@ export async function POST(req: Request) {
               const isGomoku = room.gameType === "CARO";
               const currentElo = isGomoku ? player.eloGomoku : player.eloTicTacToe;
               const newElo = calculateElo(currentElo, 1000, 0); 
+              const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "LOSE");
               const loseBPMatch = addBattlePassExp(player.battlePassLevel, player.battlePassExp, player.isPremium ? 57 : 50);
               const playerMissions = updatePlayerMissions(player.dailyMissions, room.gameType, "PLAY_GAME");
 
@@ -807,6 +848,9 @@ export async function POST(req: Request) {
                   exp: newStats.exp,
                   eloGomoku: isGomoku ? newElo : undefined,
                   eloTicTacToe: !isGomoku ? newElo : undefined,
+                  rankTier: playerRank.tier,
+                  rankDivision: playerRank.division,
+                  rankPoints: playerRank.rankPoints,
                   battlePassLevel: loseBPMatch.level,
                   battlePassExp: loseBPMatch.exp,
                   dailyMissions: playerMissions,
@@ -842,6 +886,8 @@ export async function POST(req: Request) {
               const currentElo = isGomoku ? player.eloGomoku : player.eloTicTacToe;
               const newElo = calculateElo(currentElo, 1000, 0.5);
 
+              const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "DRAW");
+
               await tx.user.update({
                 where: { id: player.id },
                 data: {
@@ -850,6 +896,9 @@ export async function POST(req: Request) {
                   exp: newStats.exp,
                   eloGomoku: isGomoku ? newElo : undefined,
                   eloTicTacToe: !isGomoku ? newElo : undefined,
+                  rankTier: playerRank.tier,
+                  rankDivision: playerRank.division,
+                  rankPoints: playerRank.rankPoints,
                 }
               });
 

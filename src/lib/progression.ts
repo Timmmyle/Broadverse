@@ -214,6 +214,123 @@ export function getRankFromElo(elo: number): RankInfo {
   };
 }
 
+export function getRankFromDb(tier: number, division: number, points: number): RankInfo {
+  const roman = ["", "I", "II", "III", "IV"];
+  const tierNames = [
+    "",
+    "Trứng",
+    "Gà Con",
+    "Gà Non",
+    "Gà Nhà",
+    "Gà Chiến",
+    "Cao Thủ Gà",
+    "Phượng Hoàng"
+  ];
+  const tierIcons = ["", "🥚", "🐣", "🐥", "🐔", "🪶", "⚔️", "🔥"];
+  const tierClassNames = [
+    "",
+    "text-gray-400",
+    "text-cyan-400 font-medium",
+    "text-indigo-400 font-medium",
+    "text-amber-300 font-bold",
+    "text-[#FF9F0A] font-bold",
+    "text-red-500 font-bold",
+    "text-[#FF9F0A] font-extrabold animate-pulse"
+  ];
+
+  const name = tierNames[tier] || "Chưa Hạng";
+  const icon = tierIcons[tier] || "🥚";
+  const className = tierClassNames[tier] || "text-gray-400";
+  
+  let divisionName = "";
+  if (tier === 7) {
+    divisionName = "🔥";
+  } else {
+    divisionName = roman[division] || "";
+  }
+
+  return {
+    tier,
+    division,
+    name,
+    divisionName,
+    icon,
+    className,
+    perks: []
+  };
+}
+
+export function calculateRankUpdate(
+  currentTier: number,
+  currentDivision: number,
+  currentPoints: number,
+  outcome: "WIN" | "LOSE" | "DRAW"
+): { tier: number; division: number; rankPoints: number; promoted: boolean; demoted: boolean } {
+  let pointsChange = 0;
+  if (outcome === "WIN") pointsChange = 25;
+  else if (outcome === "LOSE") pointsChange = -15;
+  else if (outcome === "DRAW") pointsChange = 5;
+
+  let newPoints = currentPoints + pointsChange;
+  let tier = currentTier;
+  let division = currentDivision;
+  let promoted = false;
+  let demoted = false;
+
+  const getMaxDivision = (t: number) => {
+    if (t >= 5 && t <= 6) return 4;
+    if (t >= 1 && t <= 4) return 3;
+    return 1;
+  };
+
+  const maxDiv = getMaxDivision(tier);
+  if (division > maxDiv) {
+    division = maxDiv;
+  }
+
+  if (tier === 7) {
+    if (newPoints < 0) newPoints = 0;
+    if (newPoints > 100) newPoints = 100;
+    return { tier, division: 1, rankPoints: newPoints, promoted: false, demoted: false };
+  }
+
+  if (newPoints >= 100) {
+    promoted = true;
+    if (division === 1) {
+      if (tier < 7) {
+        tier += 1;
+        const newMaxDiv = getMaxDivision(tier);
+        division = newMaxDiv;
+        newPoints = newPoints - 100;
+      } else {
+        newPoints = 100;
+      }
+    } else {
+      division -= 1;
+      newPoints = newPoints - 100;
+    }
+    if (newPoints > 100) newPoints = 99;
+  } else if (newPoints < 0) {
+    const maxDiv = getMaxDivision(tier);
+    if (tier === 1 && division === maxDiv) {
+      newPoints = 0;
+    } else {
+      demoted = true;
+      if (division === maxDiv) {
+        tier -= 1;
+        division = 1;
+        newPoints = 100 + newPoints;
+      } else {
+        division += 1;
+        newPoints = 100 + newPoints;
+      }
+    }
+    if (newPoints < 0) newPoints = 0;
+  }
+
+  return { tier, division, rankPoints: newPoints, promoted, demoted };
+}
+
 // 4. Danh sách Thành tựu (Achievements)
 export interface Achievement {
   id: string;

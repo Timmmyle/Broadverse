@@ -85,6 +85,7 @@ export async function POST() {
         goldenEggs: { increment: rewardGoldenEggs },
         rankTier: newTier,
         rankDivision: newDivision,
+        rankPoints: 0,
         eloGomoku: newElo,
         eloTicTacToe: newElo,
         eloBattleship: newElo,

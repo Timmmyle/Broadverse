@@ -10,7 +10,7 @@ import {
   CreditCard, Calendar, Gift, Volume2, Smile, Flame, ShieldAlert, Award, Star, Eye, UserPlus, Link2, Users
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { getExpNeededForLevel, DailyMission, getRankFromElo, ACHIEVEMENTS } from "@/lib/progression";
+import { getExpNeededForLevel, DailyMission, getRankFromElo, getRankFromDb, ACHIEVEMENTS } from "@/lib/progression";
 
 interface DashboardProps {
   onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
@@ -213,7 +213,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // Phép tính kinh nghiệm cần để lên cấp theo công thức mới
   const expNeeded = getExpNeededForLevel(profile.level);
   const expPercent = Math.min(100, Math.floor((profile.exp / expNeeded) * 100));
-  const rankInfo = profile ? getRankFromElo(profile.eloGomoku) : null;
+  const rankInfo = profile ? getRankFromDb(profile.rankTier, profile.rankDivision, profile.rankPoints) : null;
 
   // Tỷ lệ hoàn thành Battle Pass
   const bpExpNeeded = 1000;
@@ -1740,6 +1740,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </div>
               <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden border border-[#D4AF37]/10">
                 <div className="bg-[#D4AF37] h-full transition-all duration-300" style={{ width: `${expPercent}%` }}></div>
+              </div>
+            </div>
+
+            {/* Rank Points (RP) bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[9px] font-mono">
+                <span>Tiến trình Rank:</span>
+                <span>{profile.rankPoints} / 100 RP</span>
+              </div>
+              <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden border border-[#D4AF37]/10">
+                <div className="bg-[#FF9F0A] h-full transition-all duration-300" style={{ width: `${profile.rankPoints}%` }}></div>
               </div>
             </div>
 

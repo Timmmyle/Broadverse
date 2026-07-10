@@ -265,18 +265,122 @@ export async function POST(req: Request) {
             if (isPlayerX) boardObj.energyX = currentEnergy;
             else boardObj.energyO = currentEnergy;
 
-            const nextTurnPlayerId = isPlayerX ? room.playerOId! : room.playerXId;
+            let nextTurnPlayerId: string | null = isPlayerX ? room.playerOId! : room.playerXId;
+            let finalStatus = room.status;
+            let finalWinnerId: string | null = null;
+            let finished = false;
+            let finalRewards: any = null;
+
+            if (nextTurnPlayerId === "bot") {
+              try {
+                // --- BOT TỰ ĐỘNG BẮN TRẢ NGAY LẬP TỨC TRÊN SERVER ---
+                const playerShips = decryptShips(boardObj.shipsX);
+                let botTurn = true;
+                let loopGuard = 0;
+
+                while (botTurn && loopGuard < 100) {
+                  loopGuard++;
+                  const botKnowledge = Array(100).fill("");
+                  boardObj.shotsO.forEach((s: any) => {
+                    const idx = Number(s.y) * 10 + Number(s.x);
+                    if (s.sunk) botKnowledge[idx] = "S";
+                    else if (s.hit) botKnowledge[idx] = "H";
+                    else botKnowledge[idx] = "M";
+                  });
+
+                  const botMoveIdx = getBattleshipBotMove(botKnowledge, "EASY");
+                  if (botMoveIdx === -1) break;
+
+                  const bx = botMoveIdx % 10;
+                  const by = Math.floor(botMoveIdx / 10);
+                  const shotResult = checkBattleshipShot(bx, by, playerShips, boardObj.shotsO);
+
+                  boardObj.shotsO.push({
+                    x: bx,
+                    y: by,
+                    hit: shotResult.hit,
+                    shipId: shotResult.shipId,
+                    sunk: shotResult.sunk
+                  });
+
+                  if (shotResult.hit) {
+                    boardObj.energyO = Math.min(100, (boardObj.energyO || 50) + 15);
+                    if (shotResult.sunk && shotResult.shipId) {
+                      if (!boardObj.sunkX) boardObj.sunkX = [];
+                      boardObj.sunkX.push(shotResult.shipId);
+                      boardObj.shotsO.forEach((s: any) => {
+                        if (s.shipId === shotResult.shipId) s.sunk = true;
+                      });
+                      boardObj.energyO = Math.min(100, (boardObj.energyO || 50) + 30);
+                    }
+
+                    // Kiểm tra Bot thắng
+                    if (boardObj.sunkX && boardObj.sunkX.length === 5) {
+                      finalStatus = "FINISHED";
+                      finalWinnerId = "bot";
+                      nextTurnPlayerId = null;
+                      finished = true;
+                      botTurn = false;
+
+                      // Tính điểm thua cho Player
+                      const player = room.playerX;
+                      const rewards = calculateReward("LOSE", player.level, player.isPremium);
+                      const coinsGained = rewards.coins;
+                      const newStats = addExp(player.level, player.exp, rewards.exp);
+                      const currentElo = player.eloBattleship;
+                      const newElo = calculateElo(currentElo, 1000, 0);
+                      const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "LOSE");
+                      const loseBPMatch = addBattlePassExp(player.battlePassLevel, player.battlePassExp, player.isPremium ? 57 : 50);
+                      const playerMissions = updatePlayerMissions(player.dailyMissions, "BATTLESHIP", "PLAY_GAME");
+
+                      await tx.user.update({
+                        where: { id: player.id },
+                        data: {
+                          eggs: { increment: coinsGained },
+                          level: newStats.level,
+                          exp: newStats.exp,
+                          eloBattleship: newElo,
+                          rankTier: playerRank.tier,
+                          rankDivision: playerRank.division,
+                          rankPoints: playerRank.rankPoints,
+                          battlePassLevel: loseBPMatch.level,
+                          battlePassExp: loseBPMatch.exp,
+                          dailyMissions: playerMissions
+                        }
+                      });
+
+                      finalRewards = {
+                        [player.id]: { outcome: "LOSE", coins: coinsGained, exp: rewards.exp, levelUp: newStats.level > player.level }
+                      };
+                    }
+                  } else {
+                    // Trượt, chuyển lại lượt cho Player
+                    nextTurnPlayerId = room.playerXId;
+                    botTurn = false;
+                  }
+                }
+              } catch (botErr: any) {
+                console.error("Lỗi trong lượt đi của Bot Battleship:", botErr);
+                throw new Error("Lỗi xử lý Bot: " + (botErr.message || botErr));
+              }
+            }
+
             const updatedRoom = await tx.gameRoom.update({
               where: { id: roomId },
               data: {
                 board: JSON.stringify(boardObj),
+                status: finalStatus,
+                winnerId: finalWinnerId,
                 turnPlayerId: nextTurnPlayerId,
               },
             });
 
             return {
               room: updatedRoom,
-              finished: false,
+              finished,
+              winnerId: finalWinnerId,
+              wager: room.wager,
+              rewards: finalRewards
             };
           }
 

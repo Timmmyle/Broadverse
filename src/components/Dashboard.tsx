@@ -1127,7 +1127,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     item.type === "FRAME" ? profile.avatarFrame === item.id :
                     item.type === "SYMBOL" ? (profile.selectedSymbolX === item.id || profile.selectedSymbolO === item.id) :
                     item.type === "THEME" ? equippedThemeId === item.id :
-                    item.type === "SFX" ? equippedSfxId === item.id : false;
+                    item.type === "SFX" ? equippedSfxId === item.id :
+                    item.type === "SKIN" ? profile.equippedChickenSkin === item.id :
+                    item.type === "DICE" ? profile.equippedDiceSkin === item.id :
+                    item.type === "CARDBACK" ? (item.id.startsWith("banner_") ? profile.equippedBanner === item.id : profile.equippedCardBack === item.id) :
+                    item.type === "EMOJI" ? isOwned : false;
                   
                   return (
                     <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3">

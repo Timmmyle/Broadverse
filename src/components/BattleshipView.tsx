@@ -109,6 +109,97 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
   const [activeEmojiO, setActiveEmojiO] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
 
+  const playMoveSFX = (type?: "hit" | "miss" | "radar") => {
+    if (typeof window === "undefined") return;
+    const equippedSfx = localStorage.getItem("equipped_sfx") || "sfx_classic";
+    const item = SHOP_ITEMS.find(i => i.id === equippedSfx);
+    const sfxType = item?.visuals?.sfxType || "default";
+
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (ctx.state === "suspended") {
+        ctx.resume();
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (sfxType === "retro") {
+        osc.type = "square";
+        if (type === "hit") {
+          osc.frequency.setValueAtTime(400, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.2);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        } else if (type === "miss") {
+          osc.frequency.setValueAtTime(300, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } else { // radar
+          osc.frequency.setValueAtTime(600, ctx.currentTime);
+          osc.frequency.setValueAtTime(800, ctx.currentTime + 0.1);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        }
+      } else if (sfxType === "laser") {
+        osc.type = "sawtooth";
+        if (type === "hit") {
+          osc.frequency.setValueAtTime(800, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.25);
+          gain.gain.setValueAtTime(0.06, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+        } else if (type === "miss") {
+          osc.frequency.setValueAtTime(1200, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.35);
+          gain.gain.setValueAtTime(0.04, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        } else {
+          osc.frequency.setValueAtTime(1000, ctx.currentTime);
+          osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.08);
+          gain.gain.setValueAtTime(0.06, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        }
+      } else { // default (classic)
+        osc.type = "sine";
+        if (type === "hit") {
+          osc.frequency.setValueAtTime(500, ctx.currentTime);
+          gain.gain.setValueAtTime(0.07, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.15);
+        } else if (type === "miss") {
+          osc.frequency.setValueAtTime(250, ctx.currentTime);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.2);
+        } else {
+          osc.frequency.setValueAtTime(700, ctx.currentTime);
+          gain.gain.setValueAtTime(0.05, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.1);
+        }
+      }
+    } catch (e) {
+      console.error("Lỗi phát âm thanh Battleship:", e);
+    }
+  };
+
   // --- TRẠNG THÁI GIAO DIỆN ĐẶT TÀU ---
   const [selectedShipId, setSelectedShipId] = useState<string>("carrier");
   const [placementOrientation, setPlacementOrientation] = useState<"H" | "V">("H");
@@ -246,6 +337,33 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               
               const boardObj = JSON.parse(newRoom.board);
               setPhase(boardObj.phase);
+
+              try {
+                const prevBoard = JSON.parse(prevRoom.board);
+                const nextBoard = JSON.parse(newRoom.board);
+                const isPlayerX = profile.id === newRoom.playerXId;
+                
+                const prevMyShots = isPlayerX ? prevBoard.shotsX : prevBoard.shotsO;
+                const nextMyShots = isPlayerX ? nextBoard.shotsX : nextBoard.shotsO;
+                
+                const prevOppShots = isPlayerX ? prevBoard.shotsO : prevBoard.shotsX;
+                const nextOppShots = isPlayerX ? nextBoard.shotsO : nextBoard.shotsX;
+
+                const prevRadarCount = isPlayerX ? (prevBoard.radarResultsX?.length || 0) : (prevBoard.radarResultsO?.length || 0);
+                const nextRadarCount = isPlayerX ? (nextBoard.radarResultsX?.length || 0) : (nextBoard.radarResultsO?.length || 0);
+
+                if (nextRadarCount > prevRadarCount) {
+                  playMoveSFX("radar");
+                } else if (nextMyShots.length > prevMyShots.length) {
+                  const lastShot = nextMyShots[nextMyShots.length - 1];
+                  playMoveSFX(lastShot.hit ? "hit" : "miss");
+                } else if (nextOppShots.length > prevOppShots.length) {
+                  const lastShot = nextOppShots[nextOppShots.length - 1];
+                  playMoveSFX(lastShot.hit ? "hit" : "miss");
+                }
+              } catch (e) {
+                console.error("Lỗi so sánh board phát sfx:", e);
+              }
               
               if (newRoom.status === "FINISHED" && prevRoom.status !== "FINISHED") {
                 showOnlineResult(newRoom);
@@ -512,6 +630,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         }
       }
       setRadarResults(prev => [...prev, { x, y, count: radarHitCount }]);
+      playMoveSFX("radar");
       setEnergy(currentEnergy);
       // Radar chuyển lượt đi
       setLocalTurn("BOT");
@@ -558,6 +677,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     setMyShots(newShots);
     setSunkShipsBot(sunkList);
     setActiveWeapon("NORMAL");
+    playMoveSFX(anyHit ? "hit" : "miss");
 
     // Kiểm tra thắng
     if (sunkList.length === 5) {
@@ -623,6 +743,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
         setBotShots(newBotShots);
         setSunkShipsMy(sunkList);
+        playMoveSFX(shotResult.hit ? "hit" : "miss");
 
         // Kiểm tra xem Bot thắng chưa
         if (sunkList.length === 5) {

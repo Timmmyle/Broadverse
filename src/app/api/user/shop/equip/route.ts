@@ -54,6 +54,10 @@ export async function POST(req: Request) {
       } else {
         updateData.equippedCardBack = itemId;
       }
+    } else if (item.type === "SFX") {
+      return NextResponse.json({ message: "Đã chọn âm thanh thành công" });
+    } else if (item.type === "EMOJI") {
+      return NextResponse.json({ message: "Đã kích hoạt biểu cảm thành công" });
     } else if (item.type === "THEME") {
       // Đối với Theme, có thể lưu vào localStorage hoặc lưu trực tiếp nếu cần thiết, 
       // ở đây tạm thời cho phép trang bị trong DB bằng cách cập nhật avatarFrame hoặc 

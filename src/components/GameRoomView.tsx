@@ -36,6 +36,9 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (ctx.state === "suspended") {
+        ctx.resume();
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);

@@ -239,6 +239,20 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   };
 
   const sendEmoji = (emoji: string) => {
+    if (mode === "BOT") {
+      setActiveEmojiX(emoji);
+      setTimeout(() => setActiveEmojiX(null), 2000);
+
+      // Bot trả lời ngẫu nhiên sau 800ms
+      const botEmojis = ["🤖", "😎", "😅", "😱", "💥", "👑", "🍀", "👀"];
+      const randomBotEmoji = botEmojis[Math.floor(Math.random() * botEmojis.length)];
+      setTimeout(() => {
+        setActiveEmojiO(randomBotEmoji);
+        setTimeout(() => setActiveEmojiO(null), 2000);
+      }, 800);
+      return;
+    }
+
     if (!room) return;
     const isPlayerX = profile.id === room.playerXId;
     if (isPlayerX) {

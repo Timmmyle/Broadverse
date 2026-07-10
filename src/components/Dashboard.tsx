@@ -848,7 +848,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   </p>
                 </div>
                 <button
-                  onClick={() => setActiveTab("EVENT")}
+                  onClick={() => setActiveTab("BP")}
                   className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-4 rounded-lg uppercase text-[10px] font-extrabold transition shrink-0"
                 >
                   Khám phá ngay
@@ -1237,6 +1237,65 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   >
                     Kích hoạt ($4.99 / 99 xu)
                   </button>
+                </div>
+              </div>
+
+              {/* Lộ trình phần thưởng */}
+              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4">
+                <h3 className="text-xs font-extrabold text-white uppercase border-b border-[#D4AF37]/10 pb-2">
+                  🎁 Lộ Trình Phần Thưởng Mùa Giải
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                  {[
+                    { level: 1, free: "50 🥚", premium: "🎨 Khung Đêm Hoàng Kim" },
+                    { level: 2, free: "100 🥚", premium: "🔊 Âm thanh Beach Club" },
+                    { level: 5, free: "150 🥚", premium: "🌌 Tinh Vân Gà Banner" },
+                    { level: 10, free: "🦊 Khung Cát Vàng", premium: "🪶 Gà Chiến Binh Skin" },
+                    { level: 15, free: "200 🥚", premium: "🎲 Xúc Xắc Kim Cương" },
+                    { level: 20, free: "🍉 Quân cờ Dưa Hấu", premium: "⚔️ Gà Hiệp Sĩ Skin" },
+                    { level: 30, free: "300 🥚", premium: "⚡ Banner Cyber Neon" },
+                    { level: 40, free: "400 🥚", premium: "✨ Biểu cảm Tối Thượng" },
+                    { level: 50, free: "500 🥚 (Hoàn tiền)", premium: "👑 Gà Hoàng Gia Skin (VIP)" }
+                  ].map((reward) => {
+                    const isUnlocked = profile.battlePassLevel >= reward.level;
+                    const hasPremium = profile.isPremium;
+                    return (
+                      <div 
+                        key={reward.level} 
+                        className={`p-3 rounded-xl border flex flex-col gap-2 relative overflow-hidden transition duration-200 ${
+                          isUnlocked 
+                            ? "bg-[#141412] border-[#D4AF37]/35 shadow" 
+                            : "bg-[#1C1C18]/60 border-white/5 opacity-70"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-1.5">
+                          <span className="text-[10px] font-extrabold text-[#D4AF37] font-mono">CẤP {reward.level}</span>
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                            isUnlocked ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"
+                          }`}>
+                            {isUnlocked ? "Đã đạt ✓" : "Chưa đạt 🔒"}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5 text-[9.5px]">
+                          {/* Free Reward */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Miễn phí:</span>
+                            <span className="font-semibold text-white">{reward.free}</span>
+                          </div>
+
+                          {/* Premium Reward */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-[#FF9F0A]">Cao cấp:</span>
+                            <span className={`font-semibold ${hasPremium ? "text-[#FF9F0A]" : "text-gray-500 font-normal"}`}>
+                              {reward.premium} {!hasPremium && "🔒"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

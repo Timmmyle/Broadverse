@@ -250,6 +250,7 @@ export interface DailyMission {
   gameType?: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
   rewardCoins: number; // Mapped to eggs in UI
   rewardExp: number;
+  rewardBPExp?: number; // Thưởng EXP Battle Pass
   claimed: boolean;
 }
 
@@ -263,6 +264,7 @@ export function generateDailyMissions(): DailyMission[] {
       progress: 0,
       rewardCoins: 20,
       rewardExp: 150,
+      rewardBPExp: 150,
       claimed: false,
     },
     {
@@ -273,6 +275,7 @@ export function generateDailyMissions(): DailyMission[] {
       progress: 0,
       rewardCoins: 50,
       rewardExp: 300,
+      rewardBPExp: 300,
       claimed: false,
     },
     {
@@ -283,6 +286,7 @@ export function generateDailyMissions(): DailyMission[] {
       progress: 0,
       rewardCoins: 15,
       rewardExp: 100,
+      rewardBPExp: 100,
       claimed: false,
     }
   ];

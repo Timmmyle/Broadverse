@@ -5,6 +5,7 @@ import {
   addExp, 
   generateDailyMissions, 
   MAX_LEVEL_FOR_PRESTIGE, 
+  addBattlePassExp,
   DailyMission 
 } from "@/lib/progression";
 
@@ -203,6 +204,10 @@ export async function POST(req: Request) {
 
       // Cộng EXP và tiền
       const newStats = addExp(profile.level, profile.exp, mission.rewardExp);
+      
+      // Cộng Battle Pass EXP
+      const bpReward = mission.rewardBPExp || 150;
+      const newBPStats = addBattlePassExp(profile.battlePassLevel, profile.battlePassExp, bpReward);
 
       const updated = await prisma.user.update({
         where: { id: user.id },
@@ -210,13 +215,15 @@ export async function POST(req: Request) {
           eggs: { increment: mission.rewardCoins },
           level: newStats.level,
           exp: newStats.exp,
+          battlePassLevel: newBPStats.level,
+          battlePassExp: newBPStats.exp,
           dailyMissions: JSON.stringify(missions),
         },
       });
 
       return NextResponse.json({
         profile: updated,
-        message: `Nhận thưởng nhiệm vụ "${mission.description}" thành công! +${mission.rewardCoins} Trứng và +${mission.rewardExp} EXP.`,
+        message: `Nhận thưởng nhiệm vụ "${mission.description}" thành công! +${mission.rewardCoins} Trứng, +${mission.rewardExp} EXP người chơi và +${bpReward} EXP Battle Pass.`,
       });
     }
 

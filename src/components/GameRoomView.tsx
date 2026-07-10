@@ -752,6 +752,16 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   // Xác định người chơi Online
   const isOnlineCreator = room?.playerXId === profile?.id;
   const mySymbol = isOnlineCreator ? "X" : "O";
+  const getOpponentUsername = () => {
+    if (mode === "BOT") return `BOT [${details.difficulty}]`;
+    if (room?.playerOId === "bot") {
+      const names = ["KỳVươngĐắcBắc", "ThầnCờ9x", "VuaĐấuCờ", "SátThủGà", "MâyTrắng", "GàLửa99", "ĐộcCôCầuBại", "KêVươngChiến", "ThíchCáo", "ThợSănGà", "GàNhàLành", "TrứngBáchNhật", "GàChiếnThuật"];
+      const charSum = room.id.split("").reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0);
+      return names[charSum % names.length];
+    }
+    return room?.playerO?.username || "Đang chờ...";
+  };
+
   const myTurn = mode === "BOT" 
     ? (localTurn === "X") 
     : (optimisticTurnId ? (optimisticTurnId === profile?.id) : (room?.turnPlayerId === profile?.id));
@@ -762,7 +772,9 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
   const currentTurnPlayer = mode === "BOT" 
     ? (localTurn === "X" ? "BẠN" : "BOT") 
-    : ((optimisticTurnId || room?.turnPlayerId) === room?.playerXId ? room?.playerX?.username : room?.playerO?.username);
+    : ((optimisticTurnId || room?.turnPlayerId) === room?.playerXId 
+        ? room?.playerX?.username 
+        : (room?.playerOId === "bot" ? getOpponentUsername() : room?.playerO?.username));
 
   // Mảng visual đối thủ
   const opponentProfile = mode === "BOT" 
@@ -955,14 +967,14 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 SHOP_ITEMS.find(i => i.id === (mode === "BOT" ? opponentProfile?.avatarFrame : room?.playerO?.avatarFrame))?.visuals?.className || ""
               }`}>
                 <span className="text-sm font-bold text-pixel-blue font-press-start">
-                  {mode === "BOT" ? "O" : getSymbolVisual("O", room?.playerO)}
+                  {mode === "BOT" ? "O" : getSymbolVisual("O", room?.playerO || {})}
                 </span>
               </div>
               <div className="overflow-hidden">
                 <span className="block text-[9px] font-bold text-pixel-blue truncate uppercase tracking-wider">
-                  {mode === "BOT" ? opponentProfile?.username : room?.playerO?.username}
+                  {getOpponentUsername()}
                 </span>
-                <span className="text-[7px] text-gray-400 font-mono">Lv.{mode === "BOT" ? opponentProfile?.level : room?.playerO?.level}</span>
+                <span className="text-[7px] text-gray-400 font-mono">Lv.{mode === "BOT" ? opponentProfile?.level : (room?.playerOId === "bot" ? profile?.level : room?.playerO?.level || 1)}</span>
               </div>
               {((mode === "BOT" && localTurn === "O") || (mode !== "BOT" && room.turnPlayerId === room.playerOId)) && (
                 <span className="absolute -top-2 left-2 bg-pixel-blue text-white text-[8px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">

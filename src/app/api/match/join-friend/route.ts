@@ -37,16 +37,16 @@ export async function POST(req: Request) {
       where: { id: playerId },
     });
 
-    if (!profile || profile.coins < room.wager) {
-      return NextResponse.json({ error: "Bạn không đủ Coin để tham gia mức cược của phòng này" }, { status: 400 });
+    if (!profile || profile.eggs < room.wager) {
+      return NextResponse.json({ error: "Bạn không đủ Trứng để tham gia mức cược của phòng này" }, { status: 400 });
     }
 
-    // Thực hiện transaction: Khóa coin người tham gia, gán vào playerO, đổi status thành PLAYING và random lượt đi đầu
+    // Thực hiện transaction: Khóa eggs người tham gia, gán vào playerO, đổi status thành PLAYING và random lượt đi đầu
     const updatedRoom = await prisma.$transaction(async (tx) => {
       if (room.wager > 0) {
         await tx.user.update({
           where: { id: playerId },
-          data: { coins: { decrement: room.wager } },
+          data: { eggs: { decrement: room.wager } },
         });
       }
 

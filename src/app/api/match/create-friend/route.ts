@@ -25,8 +25,8 @@ export async function POST(req: Request) {
       where: { id: creatorId },
     });
 
-    if (!profile || profile.coins < numericWager) {
-      return NextResponse.json({ error: "Bạn không đủ Coin để thiết lập mức cược này" }, { status: 400 });
+    if (!profile || profile.eggs < numericWager) {
+      return NextResponse.json({ error: "Bạn không đủ Trứng để thiết lập mức cược này" }, { status: 400 });
     }
 
     let initialBoard = "";
@@ -55,12 +55,12 @@ export async function POST(req: Request) {
       initialBoard = JSON.stringify(Array(boardSize).fill(""));
     }
 
-    // Thực hiện trong Transaction: Khóa coin và tạo phòng
+    // Thực hiện trong Transaction: Khóa eggs và tạo phòng
     const room = await prisma.$transaction(async (tx) => {
       if (numericWager > 0) {
         await tx.user.update({
           where: { id: creatorId },
-          data: { coins: { decrement: numericWager } },
+          data: { eggs: { decrement: numericWager } },
         });
       }
 

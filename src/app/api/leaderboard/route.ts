@@ -9,14 +9,14 @@ export async function GET() {
       orderBy: [
         { level: "desc" },
         { exp: "desc" },
-        { coins: "desc" }
+        { eggs: "desc" }
       ],
       select: {
         id: true,
         username: true,
         level: true,
         exp: true,
-        coins: true,
+        eggs: true,
         avatarFrame: true,
         isGuest: true,
         isPremium: true

@@ -29,13 +29,17 @@ export async function POST() {
           email: user.email || null,
           username: defaultUsername,
           isGuest,
-          coins: 100, // Tặng 100 coin khởi nghiệp
+          eggs: 100, // Tặng 100 quả trứng khởi nghiệp
           level: 1,
           exp: 0,
           avatarFrame: "frame_default",
           selectedSymbolX: "sym_classic",
           selectedSymbolO: "sym_classic",
-          purchasedItems: ["sym_classic", "frame_default", "theme_classic"],
+          equippedChickenSkin: "skin_default",
+          equippedDiceSkin: "dice_wood",
+          equippedCardBack: "banner_classic",
+          equippedBanner: "banner_classic",
+          purchasedItems: ["sym_classic", "frame_default", "theme_classic", "skin_default", "dice_wood", "banner_classic"],
         },
       });
     } else {

@@ -80,7 +80,7 @@ export async function POST(req: Request) {
       const updated = await prisma.user.update({
         where: { id: user.id },
         data: {
-          coins: { increment: finalCoins },
+          eggs: { increment: finalCoins },
           level: newStats.level,
           exp: newStats.exp,
           loginStreak: streak,
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         profile: updated,
-        message: `Điểm danh Ngày ${dayIndex} thành công! Nhận ${finalCoins} Coins và ${expReward} EXP. ${
+        message: `Điểm danh Ngày ${dayIndex} thành công! Nhận ${finalCoins} Trứng và ${expReward} EXP. ${
           streakSaved ? "(Chuỗi đăng nhập đã được cứu bằng Thẻ Đóng Băng)" : ""
         }`,
       });
@@ -100,21 +100,21 @@ export async function POST(req: Request) {
 
     // 2. MUA THẺ ĐÓNG BĂNG CHUỖI
     if (action === "BUY_FREEZE") {
-      if (profile.coins < 10) {
-        return NextResponse.json({ error: "Không đủ Coin. Thẻ đóng băng chuỗi giá 10 Coins!" }, { status: 400 });
+      if (profile.eggs < 10) {
+        return NextResponse.json({ error: "Không đủ Trứng. Thẻ đóng băng chuỗi giá 10 Trứng!" }, { status: 400 });
       }
 
       const updated = await prisma.user.update({
         where: { id: user.id },
         data: {
-          coins: { decrement: 10 },
+          eggs: { decrement: 10 },
           streakFreezes: { increment: 1 },
         },
       });
 
       return NextResponse.json({
         profile: updated,
-        message: "Mua Thẻ Đóng Băng Chuỗi thành công! (-10 Coins)",
+        message: "Mua Thẻ Đóng Băng Chuỗi thành công! (-10 Trứng)",
       });
     }
 
@@ -207,7 +207,7 @@ export async function POST(req: Request) {
       const updated = await prisma.user.update({
         where: { id: user.id },
         data: {
-          coins: { increment: mission.rewardCoins },
+          eggs: { increment: mission.rewardCoins },
           level: newStats.level,
           exp: newStats.exp,
           dailyMissions: JSON.stringify(missions),
@@ -216,7 +216,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         profile: updated,
-        message: `Nhận thưởng nhiệm vụ "${mission.description}" thành công! +${mission.rewardCoins} Coins và +${mission.rewardExp} EXP.`,
+        message: `Nhận thưởng nhiệm vụ "${mission.description}" thành công! +${mission.rewardCoins} Trứng và +${mission.rewardExp} EXP.`,
       });
     }
 
@@ -225,13 +225,13 @@ export async function POST(req: Request) {
       const updated = await prisma.user.update({
         where: { id: user.id },
         data: {
-          coins: { increment: 100 },
+          eggs: { increment: 100 },
         },
       });
 
       return NextResponse.json({
         profile: updated,
-        message: "Chúc mừng bạn đã hoàn thành bài học luật Renju! Nhận ngay 100 Coins thưởng.",
+        message: "Chúc mừng bạn đã hoàn thành bài học luật Renju! Nhận ngay 100 Trứng thưởng.",
       });
     }
 

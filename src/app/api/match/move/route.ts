@@ -341,7 +341,7 @@ export async function POST(req: Request) {
             await tx.user.update({
               where: { id: winner.id },
               data: {
-                coins: { increment: winnerCoinsGained },
+                eggs: { increment: winnerCoinsGained },
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
                 eloBattleship: newWinnerElo,
@@ -354,7 +354,7 @@ export async function POST(req: Request) {
             await tx.user.update({
               where: { id: loser.id },
               data: {
-                coins: { increment: loserCoinsGained },
+                eggs: { increment: loserCoinsGained },
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
                 eloBattleship: newLoserElo,
@@ -467,7 +467,7 @@ export async function POST(req: Request) {
             await tx.user.update({
               where: { id: winner.id },
               data: {
-                coins: { increment: winnerCoinsGained },
+                eggs: { increment: winnerCoinsGained },
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
                 eloGomoku: newWinnerElo,
@@ -477,7 +477,7 @@ export async function POST(req: Request) {
             await tx.user.update({
               where: { id: loser.id },
               data: {
-                coins: { increment: loserCoinsGained },
+                eggs: { increment: loserCoinsGained },
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
                 eloGomoku: newLoserElo,
@@ -556,7 +556,7 @@ export async function POST(req: Request) {
           await tx.user.update({
             where: { id: winner.id },
             data: {
-              coins: { increment: winnerCoinsGained },
+              eggs: { increment: winnerCoinsGained },
               level: winnerNewStats.level,
               exp: winnerNewStats.exp,
               eloGomoku: isGomoku ? newWinnerElo : undefined,
@@ -570,7 +570,7 @@ export async function POST(req: Request) {
           await tx.user.update({
             where: { id: loser.id },
             data: {
-              coins: { increment: loserCoinsGained },
+              eggs: { increment: loserCoinsGained },
               level: loserNewStats.level,
               exp: loserNewStats.exp,
               eloGomoku: isGomoku ? newLoserElo : undefined,
@@ -624,7 +624,7 @@ export async function POST(req: Request) {
           await tx.user.update({
             where: { id: playerX.id },
             data: {
-              coins: { increment: coinsGainedX },
+              eggs: { increment: coinsGainedX },
               level: newStatsX.level,
               exp: newStatsX.exp,
               eloGomoku: isGomoku ? newEloX : undefined,
@@ -635,7 +635,7 @@ export async function POST(req: Request) {
           await tx.user.update({
             where: { id: playerO.id },
             data: {
-              coins: { increment: coinsGainedO },
+              eggs: { increment: coinsGainedO },
               level: newStatsO.level,
               exp: newStatsO.exp,
               eloGomoku: isGomoku ? newEloO : undefined,

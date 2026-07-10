@@ -71,11 +71,11 @@ export default function LoginScreen() {
       <header className="border-b border-[#D4AF37]/15 py-4 px-6 md:px-12 flex justify-between items-center relative z-20 bg-[#141412]/80 backdrop-blur-md sticky top-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] flex items-center justify-center shadow-lg shadow-[#D4AF37]/10">
-            <span className="font-bold text-[#141412] text-xl">G</span>
+            <span className="font-bold text-[#141412] text-xl">🐔</span>
           </div>
           <div>
-            <h1 className="text-xl font-bold uppercase tracking-wider text-white">Gridline</h1>
-            <p className="text-[8px] text-[#FF9F0A] tracking-widest uppercase">Đấu Trường Kịch Tính</p>
+            <h1 className="text-xl font-bold uppercase tracking-wider text-white">Vuiga.com</h1>
+            <p className="text-[8px] text-[#FF9F0A] tracking-widest uppercase">Trứng đến Phượng Hoàng</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -100,16 +100,16 @@ export default function LoginScreen() {
         <div className="lg:col-span-7 text-left space-y-6">
           <div className="inline-flex items-center gap-2 bg-[#1C1C18] border border-[#D4AF37]/20 px-3 py-1 rounded-full text-xs text-[#FF9F0A]">
             <Flame className="w-3.5 h-3.5" />
-            <span>Mùa Giải 1: Đêm Hoàng Kim Đang Diễn Ra</span>
+            <span>Mùa Giải 1: Vuiga Pass Khởi Tranh (60 Ngày)</span>
           </div>
           <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-tight">
             Đấu trường cờ <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A]">
-              Trực tuyến thế hệ mới
+              Kê Vương Hội Tụ
             </span>
           </h2>
           <p className="text-[#F3E5AB]/85 text-base md:text-lg max-w-xl leading-relaxed">
-            Nền tảng mạng xã hội và tiến trình lâu dài dành riêng cho kỳ thủ. Thách đấu Tic Tac Toe, Gomoku (Renju) và Battleship chiến thuật tức thì.
+            Hành trình tiến hóa từ Quả Trứng 🥚 đến Phượng Hoàng Lửa 🔥. Trải nghiệm Xếp Hạng Gomoku, Tic Tac Toe, và Battleship cùng hệ thống rương Egg Box hấp dẫn!
           </p>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4">
             <button
@@ -249,7 +249,7 @@ export default function LoginScreen() {
           <h3 className="text-xs uppercase tracking-widest text-[#FF9F0A] font-bold">Danh sách trò chơi</h3>
           <h2 className="text-3xl font-extrabold text-white">Đấu Trường 3 Thể Loại Cực Đỉnh</h2>
           <p className="text-[#F3E5AB]/60 text-sm max-w-lg mx-auto">
-            Gridline xây dựng hệ thống bàn cờ chất lượng cao, phản hồi chuyển động tactile cực đỉnh.
+            Vuiga.com xây dựng hệ thống bàn cờ chất lượng cao, phản hồi chuyển động tactile cực đỉnh.
           </p>
         </div>
 
@@ -370,7 +370,7 @@ export default function LoginScreen() {
         <div className="bg-[#1C1C18] border border-[#D4AF37]/15 p-8 rounded-2xl space-y-6">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
             <Award className="w-5 h-5 text-[#FF9F0A]" />
-            Tính năng Nổi bật trên Gridline
+            Tính năng Nổi bật trên Vuiga.com
           </h3>
           <ul className="space-y-4">
             <li className="flex gap-3">
@@ -378,8 +378,8 @@ export default function LoginScreen() {
                 <Check className="w-3.5 h-3.5 stroke-[3px]" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">Tiến trình Dài hạn & Danh vọng (Prestige)</h4>
-                <p className="text-[10px] text-[#F3E5AB]/75">Lên cấp, tích lũy chỉ số Master sâu và reset Prestige để nhận vinh danh ngôi sao tối thượng.</p>
+                <h4 className="text-xs font-bold text-white">Tiến trình Dài hạn & Reset Mùa giải</h4>
+                <p className="text-[10px] text-[#F3E5AB]/75">Lên cấp, tích lũy chỉ số Master và reset mùa giải 60 ngày nhận thưởng Trứng 🥚 và Trứng Vàng ✨.</p>
               </div>
             </li>
             <li className="flex gap-3">
@@ -387,8 +387,8 @@ export default function LoginScreen() {
                 <Check className="w-3.5 h-3.5 stroke-[3px]" />
               </div>
               <div>
-                <h4 className="text-xs font-bold text-white">Cửa Hàng Skin Độc Bản & Sound Pack</h4>
-                <p className="text-[10px] text-[#F3E5AB]/75">Sở hữu những bàn cờ gỗ mun, quân cờ Obsidian mạ vàng 24K, cùng các sound pack gõ cờ chân thực.</p>
+                <h4 className="text-xs font-bold text-white">Cửa Hàng Skin Gà Độc Quyền & Khung</h4>
+                <p className="text-[10px] text-[#F3E5AB]/75">Sở hữu các skin Samurai, Ninja, Cyber Chicken cực độc, khung gỗ, sắt, vàng và âm thanh gõ cờ sinh động.</p>
               </div>
             </li>
             <li className="flex gap-3">
@@ -452,13 +452,13 @@ export default function LoginScreen() {
       <footer className="border-t border-[#D4AF37]/10 py-12 px-6 md:px-12 bg-[#10100d] relative z-20 text-center space-y-4">
         <div className="flex items-center justify-center gap-2">
           <div className="w-6 h-6 rounded bg-[#D4AF37] flex items-center justify-center">
-            <span className="font-bold text-[#141412] text-sm">G</span>
+            <span className="font-bold text-[#141412] text-sm">🐔</span>
           </div>
-          <span className="text-sm font-bold uppercase tracking-wider text-white">Gridline</span>
+          <span className="text-sm font-bold uppercase tracking-wider text-white">Vuiga.com</span>
         </div>
         <p className="text-[10px] text-[#F3E5AB]/50 uppercase tracking-widest leading-relaxed">
-          © 2026 Gridline Board Games. Bảo lưu mọi quyền.<br />
-          Thiết kế bởi Product & Game Design Team (Steam, Discord, Chess.com inspiration).
+          © 2026 Vuiga.com Board Games. Bảo lưu mọi quyền.<br />
+          Thiết kế bởi Product & Game Design Team (Steam, Discord, Chess.com, Plato inspiration).
         </p>
       </footer>
     </div>

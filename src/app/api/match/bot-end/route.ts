@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       return await tx.user.update({
         where: { id: user.id },
         data: {
-          coins: { increment: coinsGained },
+          eggs: { increment: coinsGained },
           level: newStats.level,
           exp: newStats.exp,
           dailyMissions: updatedMissions,

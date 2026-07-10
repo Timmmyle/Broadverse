@@ -811,9 +811,24 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     : (room ? (profile.id === room.playerXId ? JSON.parse(room.board).radarResultsX : JSON.parse(room.board).radarResultsO) : []);
 
   // Thông tin đối thủ hiển thị
+  const getOpponentUsername = () => {
+    if (mode === "BOT") return `BOT [${details.difficulty || "EASY"}]`;
+    if (room && room.playerOId === "bot") {
+      const names = ["KỳVươngĐắcBắc", "ThầnCờ9x", "VuaĐấuCờ", "SátThủGà", "MâyTrắng", "GàLửa99", "ĐộcCôCầuBại", "KêVươngChiến", "ThíchCáo", "ThợSănGà", "GàNhàLành", "TrứngBáchNhật", "GàChiếnThuật"];
+      const charSum = room.id.split("").reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0);
+      return names[charSum % names.length];
+    }
+    const opp = room ? (profile.id === room.playerXId ? room.playerO : room.playerX) : null;
+    return opp?.username || "Đang chờ...";
+  };
+
   const opponentProfile = mode === "BOT"
     ? { username: `BOT [${details.difficulty || "EASY"}]`, level: 1, avatarFrame: "frame_default" }
-    : (room ? (profile.id === room.playerXId ? room.playerO : room.playerX) : null);
+    : {
+        username: getOpponentUsername(),
+        level: (room && room.playerOId === "bot") ? profile.level : (room ? (profile.id === room.playerXId ? room.playerO?.level : room.playerX?.level) : 1),
+        avatarFrame: (room ? (profile.id === room.playerXId ? room.playerO?.avatarFrame : room.playerX?.avatarFrame) : null) || "frame_default"
+      };
 
   // Kiểm tra xem ô có phải là vùng ảnh hưởng của đạn hover hay không
   const isHoveredByWeapon = (x: number, y: number) => {

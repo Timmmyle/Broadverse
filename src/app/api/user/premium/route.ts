@@ -26,20 +26,20 @@ export async function POST() {
 
     const PREMIUM_COST = 200; // Giá mua Premium là 200 Coins
 
-    if (profile.coins < PREMIUM_COST) {
+    if (profile.eggs < PREMIUM_COST) {
       return NextResponse.json({ 
-        error: `Bạn không đủ Coins để mua Premium! Cần ${PREMIUM_COST} Coins (Bạn hiện có ${profile.coins} Coins).` 
+        error: `Bạn không đủ Trứng để mua Premium! Cần ${PREMIUM_COST} Trứng (Bạn hiện có ${profile.eggs} Trứng).` 
       }, { status: 400 });
     }
 
     // Tính thời gian hết hạn sau 3 ngày (Premium tạm thời)
     const premiumUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 
-    // Khấu trừ Coin và nâng cấp Premium tạm thời
+    // Khấu trừ Trứng và nâng cấp Premium tạm thời
     const updatedProfile = await prisma.user.update({
       where: { id: user.id },
       data: {
-        coins: { decrement: PREMIUM_COST },
+        eggs: { decrement: PREMIUM_COST },
         isPremium: true,
         premiumUntil: premiumUntil
       }

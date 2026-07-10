@@ -44,6 +44,16 @@ export async function POST(req: Request) {
       } else {
         return NextResponse.json({ error: "Slot không hợp lệ (phải là X hoặc O)" }, { status: 400 });
       }
+    } else if (item.type === "SKIN") {
+      updateData.equippedChickenSkin = itemId;
+    } else if (item.type === "DICE") {
+      updateData.equippedDiceSkin = itemId;
+    } else if (item.type === "CARDBACK") {
+      if (itemId.startsWith("banner_")) {
+        updateData.equippedBanner = itemId;
+      } else {
+        updateData.equippedCardBack = itemId;
+      }
     } else if (item.type === "THEME") {
       // Đối với Theme, có thể lưu vào localStorage hoặc lưu trực tiếp nếu cần thiết, 
       // ở đây tạm thời cho phép trang bị trong DB bằng cách cập nhật avatarFrame hoặc 

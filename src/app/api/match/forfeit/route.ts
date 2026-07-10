@@ -150,7 +150,7 @@ export async function POST(req: Request) {
       await tx.user.update({
         where: { id: winner.id },
         data: {
-          coins: { increment: winnerCoinsGained },
+          eggs: { increment: winnerCoinsGained },
           level: winnerNewStats.level,
           exp: winnerNewStats.exp,
           [eloField]: newWinnerElo,
@@ -164,7 +164,7 @@ export async function POST(req: Request) {
       await tx.user.update({
         where: { id: loser.id },
         data: {
-          coins: { increment: loserCoinsGained },
+          eggs: { increment: loserCoinsGained },
           level: loserNewStats.level,
           exp: loserNewStats.exp,
           [eloField]: newLoserElo,

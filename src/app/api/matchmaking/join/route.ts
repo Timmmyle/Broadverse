@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const userId = user.id;
-    const { gameType, wager } = await req.json(); // gameType: "TIC_TAC_TOE", "CARO" hoặc "BATTLESHIP", wager: 0, 10, 50, 100
+    const { gameType, wager, forceBot } = await req.json(); // gameType: "TIC_TAC_TOE", "CARO" hoặc "BATTLESHIP", wager: 0, 10, 50, 100
 
     if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ matched: true, room: activeRoom });
     }
 
-    // Lấy thông tin user hiện tại để kiểm tra coin và level
+    // Lấy thông tin user hiện tại để kiểm tra eggs và level
     const profile = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -46,11 +46,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
     }
 
-    if (profile.coins < numericWager) {
-      return NextResponse.json({ error: "Bạn không đủ Coin để tham gia mức cược này" }, { status: 400 });
+    if (profile.eggs < numericWager) {
+      return NextResponse.json({ error: "Bạn không đủ Trứng để tham gia mức cược này" }, { status: 400 });
     }
 
     const userLevel = profile.level;
+
+    // --- Fast path cho đấu Bot ---
+    if (forceBot) {
+      // Xóa bản thân khỏi hàng chờ nếu có
+      await prisma.matchmakingQueue.deleteMany({
+        where: { playerId: userId }
+      });
+
+      // Khóa tiền cược của người chơi
+      if (numericWager > 0) {
+        await prisma.user.update({
+          where: { id: userId },
+          data: { eggs: { decrement: numericWager } }
+        });
+      }
+
+      // Khởi tạo bàn cờ
+      let initialBoard = "";
+      if (gameType === "BATTLESHIP") {
+        initialBoard = JSON.stringify({
+          phase: "PLACEMENT",
+          shipsX: "",
+          shipsO: "",
+          readyX: false,
+          readyO: false,
+          shotsX: [],
+          shotsO: [],
+          sunkX: [],
+          sunkO: [],
+          clusterChargeX: 0,
+          clusterChargeO: 0,
+          crossChargeX: 0,
+          crossChargeO: 0,
+          radarX: 1,
+          radarO: 1,
+          radarResultsX: [],
+          radarResultsO: []
+        });
+      } else {
+        const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
+        initialBoard = JSON.stringify(Array(boardSize).fill(""));
+      }
+
+      // Tạo phòng game đấu với Bot
+      const room = await prisma.gameRoom.create({
+        data: {
+          gameType,
+          status: gameType === "BATTLESHIP" ? "WAITING" : "PLAYING",
+          playerXId: userId,
+          playerOId: "bot",
+          turnPlayerId: gameType === "BATTLESHIP" ? null : userId,
+          board: initialBoard,
+          wager: numericWager,
+        },
+      });
+
+      return NextResponse.json({ matched: true, room });
+    }
 
     // Chạy Transaction để tránh race condition khi hai người cùng ghép trận một lúc
     const result = await prisma.$transaction(async (tx) => {
@@ -78,7 +136,7 @@ export async function POST(req: Request) {
           where: { id: opponent.playerId },
         });
 
-        if (!opponentProfile || opponentProfile.coins < numericWager) {
+        if (!opponentProfile || opponentProfile.eggs < numericWager) {
           // Đối thủ không đủ điều kiện cược nữa, xóa hàng chờ của họ và tìm tiếp
           await tx.matchmakingQueue.delete({
             where: { id: opponent.id },
@@ -95,11 +153,11 @@ export async function POST(req: Request) {
         if (numericWager > 0) {
           await tx.user.update({
             where: { id: userId },
-            data: { coins: { decrement: numericWager } },
+            data: { eggs: { decrement: numericWager } },
           });
           await tx.user.update({
             where: { id: opponent.playerId },
-            data: { coins: { decrement: numericWager } },
+            data: { eggs: { decrement: numericWager } },
           });
         }
 

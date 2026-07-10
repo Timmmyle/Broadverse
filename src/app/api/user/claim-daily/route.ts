@@ -34,13 +34,13 @@ export async function POST() {
       }
     }
 
-    // Phần thưởng: 50 Coins cho VIP Premium, 10 Coins cho người chơi thường
+    // Phần thưởng: 50 Trứng cho VIP Premium, 10 Trứng cho người chơi thường
     const rewardCoins = profile.isPremium ? 50 : 10;
 
     const updatedProfile = await prisma.user.update({
       where: { id: user.id },
       data: {
-        coins: { increment: rewardCoins },
+        eggs: { increment: rewardCoins },
         lastClaimedDaily: now,
       },
     });
@@ -48,7 +48,7 @@ export async function POST() {
     return NextResponse.json({ 
       profile: updatedProfile, 
       rewardCoins, 
-      message: `Điểm danh thành công! Nhận ${rewardCoins} Coins.` 
+      message: `Điểm danh thành công! Nhận ${rewardCoins} Trứng.` 
     });
   } catch (error: any) {
     console.error("Lỗi điểm danh:", error);

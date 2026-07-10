@@ -20,24 +20,24 @@ export async function POST() {
       return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
     }
 
-    const BOX_COST = 80; // Giá mở hộp quà cố định là 80 Vỏ Sò theo yêu cầu
+    const BOX_COST = 80; // Giá mở hộp quà cố định là 80 Trứng theo yêu cầu
 
-    if (profile.shells < BOX_COST) {
+    if (profile.eggs < BOX_COST) {
       return NextResponse.json({ 
-        error: `Bạn không đủ Vỏ Sò để mở Hộp Quà Mùa Hè! Cần ${BOX_COST} Vỏ Sò (Bạn hiện có ${profile.shells} Vỏ Sò).` 
+        error: `Bạn không đủ Trứng để mở Hộp Quà Mùa Hè! Cần ${BOX_COST} Trứng (Bạn hiện có ${profile.eggs} Trứng).` 
       }, { status: 400 });
     }
 
     // Tỉ lệ rơi vật phẩm theo điều chỉnh của Admin:
-    // - 25 Coins (30%)
-    // - 50 Coins (20%)
-    // - 150 Coins (10%)
+    // - 25 Eggs (30%)
+    // - 50 Eggs (20%)
+    // - 150 Eggs (10%)
     // - Bàn cờ đại dương (7.5%)
     // - Quân cờ dưa hấu (5%)
     // - Khung cát vàng (5%)
     // - Sound effect kiểu bãi biển (5%)
     // - Ăn mừng bãi biển (10%)
-    // - 10 Coins (7.5% còn lại)
+    // - 10 Eggs (7.5% còn lại)
     const roll = Math.random() * 100;
     let rewardItemId = "";
     let coinsReward = 0;
@@ -63,7 +63,7 @@ export async function POST() {
     }
 
     let updateData: any = {
-      shells: { decrement: BOX_COST },
+      eggs: { decrement: BOX_COST },
       boxOpenings: { increment: 1 }
     };
 
@@ -74,17 +74,17 @@ export async function POST() {
       itemReward = SHOP_ITEMS.find(i => i.id === rewardItemId);
       // Kiểm tra xem đã sở hữu vật phẩm này chưa
       if (profile.purchasedItems.includes(rewardItemId)) {
-        // Đã sở hữu -> hoàn lại 120 Coins
+        // Đã sở hữu -> hoàn lại 120 Trứng
         coinsReward = 120;
-        rewardMessage = `Bạn mở ra [${itemReward?.name}] nhưng đã sở hữu rồi! Hệ thống đền bù cho bạn ${coinsReward} Coins.`;
-        updateData.coins = { increment: coinsReward };
+        rewardMessage = `Bạn mở ra [${itemReward?.name}] nhưng đã sở hữu rồi! Hệ thống đền bù cho bạn ${coinsReward} Trứng.`;
+        updateData.eggs = { increment: coinsReward };
       } else {
         rewardMessage = `Chúc mừng! Bạn đã mở ra vật phẩm sự kiện độc quyền: [${itemReward?.name}]!`;
         updateData.purchasedItems = { push: rewardItemId };
       }
     } else {
-      rewardMessage = `Tuyệt vời! Bạn nhận được phần quà Coins may mắn: +${coinsReward} Coins!`;
-      updateData.coins = { increment: coinsReward };
+      rewardMessage = `Tuyệt vời! Bạn nhận được phần quà Trứng may mắn: +${coinsReward} Trứng!`;
+      updateData.eggs = { increment: coinsReward };
     }
 
     const updatedProfile = await prisma.user.update({

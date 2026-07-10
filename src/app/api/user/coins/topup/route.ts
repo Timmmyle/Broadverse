@@ -37,11 +37,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Gói nạp không hợp lệ" }, { status: 400 });
     }
 
-    // Cập nhật số dư Coin của người dùng
+    // Cập nhật số dư Trứng của người dùng
     const updatedProfile = await prisma.user.update({
       where: { id: user.id },
       data: {
-        coins: { increment: rewardCoins }
+        eggs: { increment: rewardCoins }
       }
     });
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       profile: updatedProfile,
       rewardCoins,
       price,
-      message: `Nạp thành công ${rewardCoins} Coins vào tài khoản!`
+      message: `Nạp thành công ${rewardCoins} Trứng vào tài khoản!`
     });
   } catch (error: any) {
     console.error("Lỗi nạp coin:", error);

@@ -59,16 +59,16 @@ export async function POST(req: Request) {
     const basePrice = senderProfile.isPremium ? Math.floor(item.price * 0.8) : item.price;
     const actualPrice = Math.round(basePrice / 2);
 
-    // 4. Kiểm tra số dư coin người gửi
-    if (senderProfile.coins < actualPrice) {
-      return NextResponse.json({ error: "Số dư Coin của bạn không đủ để tặng vật phẩm này" }, { status: 400 });
+    // 4. Kiểm tra số dư eggs người gửi
+    if (senderProfile.eggs < actualPrice) {
+      return NextResponse.json({ error: "Số dư Trứng của bạn không đủ để tặng vật phẩm này" }, { status: 400 });
     }
 
-    // 5. Thực hiện khấu trừ coin của người gửi và đẩy vật phẩm vào danh mục của người nhận
+    // 5. Thực hiện khấu trừ eggs của người gửi và đẩy vật phẩm vào danh mục của người nhận
     await prisma.$transaction([
       prisma.user.update({
         where: { id: senderProfile.id },
-        data: { coins: { decrement: actualPrice } }
+        data: { eggs: { decrement: actualPrice } }
       }),
       prisma.user.update({
         where: { id: receiverProfile.id },

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gridline - Chạm Lưới, Đấu Trí",
-  description: "Nền tảng mạng xã hội và tiến trình xếp hạng dài hạn cho kỳ thủ toàn cầu.",
+  title: "Vuiga.com - Đấu Trí Trại Gà Vui Vẻ",
+  description: "Hành trình từ Quả Trứng 🥚 đến Phượng Hoàng Lửa 🔥 - Hệ thống Tiến trình & Xếp hạng Boardgame Kê Vương.",
 };
 
 export default function RootLayout({

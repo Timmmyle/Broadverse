@@ -14,8 +14,8 @@ model User {
   isGuest           Boolean  @default(true)
   isPremium         Boolean  @default(false)         // Trạng thái tài khoản Premium
   premiumUntil      DateTime?                         // Thời hạn Premium (null = vĩnh viễn)
-  coins             Int      @default(100)
-  shells            Int      @default(0)             // Điểm vỏ sò sự kiện mùa hè
+  eggs              Int      @default(100)   @map("coins")
+  goldenEggs        Int      @default(0)     @map("shells")
   boxOpenings       Int      @default(0)             // Số lần mở hộp quà sự kiện
   level                 Int      @default(1)
   exp                   Int      @default(0)
@@ -40,6 +40,17 @@ model User {
   lastClaimedEventWin3  DateTime?                         // Thời gian cuối nhận thưởng NV Thắng 3 trận
   lastClaimedEventPlay5 DateTime?                         // Thời gian cuối nhận thưởng NV Chơi 5 trận
   createdAt             DateTime @default(now())
+
+  // Bậc xếp hạng Gà & Phân chia Division
+  rankTier          Int      @default(1)             // Hạng Gà (1: Trứng -> 7: Phượng Hoàng)
+  rankDivision      Int      @default(4)             // Division (IV -> I)
+
+  // Danh tính tùy chỉnh & Kho đồ sưu tập
+  equippedChickenSkin String   @default("default")     // ID Skin Gà đang trang bị
+  equippedDiceSkin    String   @default("default")     // ID Skin xúc xắc đang dùng
+  equippedCardBack    String   @default("default")     // ID Mặt sau thẻ đang dùng
+  equippedBanner      String   @default("default")     // ID Banner đang hiển thị
+  achievementsUnlocked String[] @default([])            // Các thành tựu đã mở khóa
 
   // Trang trí
   avatarFrame       String   @default("default")     // ID khung avatar đang dùng

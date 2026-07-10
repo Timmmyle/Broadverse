@@ -40,16 +40,16 @@ export async function POST(req: Request) {
     // Áp dụng giảm giá 20% nếu tài khoản là Premium
     const actualPrice = profile.isPremium ? Math.floor(item.price * 0.8) : item.price;
 
-    // Kiểm tra số dư coin
-    if (profile.coins < actualPrice) {
-      return NextResponse.json({ error: "Không đủ Coin để mua vật phẩm này" }, { status: 400 });
+    // Kiểm tra số dư eggs
+    if (profile.eggs < actualPrice) {
+      return NextResponse.json({ error: "Không đủ Trứng để mua vật phẩm này" }, { status: 400 });
     }
 
-    // Thực hiện trừ coin và thêm vào danh sách sở hữu
+    // Thực hiện trừ eggs và thêm vào danh sách sở hữu
     const updatedProfile = await prisma.user.update({
       where: { id: user.id },
       data: {
-        coins: { decrement: actualPrice },
+        eggs: { decrement: actualPrice },
         purchasedItems: { push: itemId }
       }
     });

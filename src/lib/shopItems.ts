@@ -1,150 +1,256 @@
 export interface ShopItem {
   id: string;
   name: string;
-  type: "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI";
+  type: "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI" | "SKIN" | "DICE" | "CARDBACK";
   price: number;
   description: string;
   visuals: {
-    // Với Symbol: [symbolX, symbolO]
-    // Với Frame: class CSS hoặc mã màu border
-    // Với Theme: class CSS của bàn cờ
     symbolX?: string;
     symbolO?: string;
     className?: string;
     color?: string;
     sfxType?: "retro" | "laser" | "epic" | "synth"; // Dành cho SFX
     emoji?: string; // Dành cho Emoji
+    skinUrl?: string; // Skin Gà hoặc xúc xắc
+    cardBackUrl?: string;
   };
-  isPremiumOnly?: boolean; // Chỉ dành cho Premium mua
-  isEventOnly?: boolean; // Chỉ dành cho Sự kiện đổi (bằng Vỏ sò)
+  isPremiumOnly?: boolean; // Chỉ dành cho Premium mua (Golden Egg)
+  isEventOnly?: boolean; // Chỉ dành cho Sự kiện đổi
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
-  // SYMBOLS (Quân cờ)
+  // 1. SYMBOLS (Quân cờ)
   {
     id: "sym_classic",
-    name: "Classic (X & O)",
+    name: "Classic X & O",
     type: "SYMBOL",
     price: 0,
     description: "Quân cờ X và O truyền thống.",
     visuals: { symbolX: "X", symbolO: "O" }
   },
   {
+    id: "sym_chicken_egg",
+    name: "🥚 Trứng Gà vs 🐣 Gà Con",
+    type: "SYMBOL",
+    price: 80,
+    description: "Biểu tượng Trứng Gà đấu Gà Con.",
+    visuals: { symbolX: "🥚", symbolO: "🐣" }
+  },
+  {
     id: "sym_battle",
     name: "⚔️ Kiếm vs 🛡️ Khiên",
     type: "SYMBOL",
     price: 100,
-    description: "Biến trận đấu thành chiến trường trung cổ.",
+    description: "Trận chiến trung cổ bảo vệ chuồng.",
     visuals: { symbolX: "⚔️", symbolO: "🛡️" }
   },
   {
-    id: "sym_cosmic",
-    name: "☀️ Mặt Trời vs 🌙 Mặt Trăng",
+    id: "sym_premium_crown",
+    name: "👑 Vương Miện vs 💎 Kim Cương",
     type: "SYMBOL",
     price: 150,
-    description: "Đại chiến giữa ngày và đêm.",
-    visuals: { symbolX: "☀️", symbolO: "🌙" }
-  },
-  {
-    id: "sym_love",
-    name: "❤️ Tim vs ⭐ Sao",
-    type: "SYMBOL",
-    price: 200,
-    description: "Cặp biểu tượng pixel dễ thương.",
-    visuals: { symbolX: "❤️", symbolO: "⭐" }
-  },
-  {
-    id: "sym_elements",
-    name: "🔥 Lửa vs ❄️ Băng",
-    type: "SYMBOL",
-    price: 250,
-    description: "Băng hoả lưỡng nghi thiên.",
-    visuals: { symbolX: "🔥", symbolO: "❄️" }
+    description: "Biểu tượng hoàng gia đẳng cấp VIP.",
+    visuals: { symbolX: "👑", symbolO: "💎" },
+    isPremiumOnly: true
   },
 
-  // FRAMES (Khung Avatar)
+  // 2. CHICKEN SKINS (Ngoại hình Gà)
+  {
+    id: "skin_default",
+    name: "🐔 Gà Mặc Định",
+    type: "SKIN",
+    price: 0,
+    description: "Chú gà trắng đáng yêu lúc mới nở.",
+    visuals: { className: "bg-white" }
+  },
+  {
+    id: "skin_samurai",
+    name: "🏯 Samurai Chicken",
+    type: "SKIN",
+    price: 200,
+    description: "Skin Gà chiến binh Samurai cổ truyền Nhật Bản.",
+    visuals: { className: "bg-red-800 text-yellow-500 border-yellow-400" }
+  },
+  {
+    id: "skin_ninja",
+    name: "🥷 Ninja Chicken",
+    type: "SKIN",
+    price: 200,
+    description: "Skin Gà sát thủ bóng đêm huyền bí.",
+    visuals: { className: "bg-gray-900 text-purple-400 border-purple-500" }
+  },
+  {
+    id: "skin_pirate",
+    name: "🏴‍☠️ Pirate Chicken",
+    type: "SKIN",
+    price: 250,
+    description: "Skin Gà cướp biển khét tiếng đại dương.",
+    visuals: { className: "bg-amber-950 text-yellow-600" }
+  },
+  {
+    id: "skin_cyber",
+    name: "🤖 Cyber Chicken",
+    type: "SKIN",
+    price: 300,
+    description: "Skin Gà người máy tương lai tích hợp AI.",
+    visuals: { className: "bg-[#0f172a] text-cyan-400 border-cyan-400 shadow-[0_0_10px_#22d3ee]" }
+  },
+  {
+    id: "skin_phoenix",
+    name: "🔥 Phoenix Chicken (VIP)",
+    type: "SKIN",
+    price: 500,
+    description: "Skin Phượng Hoàng tái sinh rực lửa.",
+    visuals: { className: "bg-gradient-to-r from-red-600 to-orange-500 text-yellow-200 border-yellow-400 shadow-[0_0_15px_#ea580c] animate-pulse" },
+    isPremiumOnly: true
+  },
+
+  // 3. AVATAR FRAMES (Khung Avatar)
   {
     id: "frame_default",
-    name: "Mặc định",
+    name: "Khung Mặc Định",
     type: "FRAME",
     price: 0,
-    description: "Không dùng viền khung.",
+    description: "Khung gỗ chuồng đơn giản.",
     visuals: { className: "border-0" }
   },
   {
-    id: "frame_bronze",
-    name: "Khung Gỗ Sồi",
+    id: "frame_wood",
+    name: "🪓 Khung Gỗ Chuồng",
     type: "FRAME",
-    price: 80,
-    description: "Khung gỗ mộc mạc cổ xưa.",
-    visuals: { className: "outline-[4px] outline-amber-700 outline-offset-1" }
+    price: 50,
+    description: "Khung làm từ các thanh gỗ mộc mạc.",
+    visuals: { className: "outline-[3px] outline-amber-800 outline-offset-1" }
   },
   {
     id: "frame_iron",
-    name: "Khung Sắt Rèn",
+    name: "⛓️ Khung Sắt Rèn",
     type: "FRAME",
-    price: 150,
-    description: "Khung sắt kiên cố xám đen.",
-    visuals: { className: "outline-[4px] outline-gray-500 outline-offset-1" }
+    price: 100,
+    description: "Khung sắt bảo vệ chống cáo hoang.",
+    visuals: { className: "outline-[3px] outline-gray-500 outline-offset-1" }
   },
   {
     id: "frame_gold",
-    name: "Khung Hoàng Kim",
+    name: "🏆 Khung Hoàng Kim",
     type: "FRAME",
-    price: 300,
-    description: "Khung vàng lấp lánh sang trọng.",
-    visuals: { className: "outline-[4px] outline-yellow-400 outline-offset-1 animate-pulse" }
+    price: 250,
+    description: "Khung mạ vàng hoàng gia bóng loáng.",
+    visuals: { className: "outline-[3px] outline-yellow-500 outline-offset-1 animate-pulse" }
   },
   {
-    id: "frame_rainbow",
-    name: "Khung Cầu Vồng RGB",
+    id: "frame_fire",
+    name: "🔥 Khung Rực Lửa",
+    type: "FRAME",
+    price: 350,
+    description: "Khung được đúc từ dung nham nóng chảy.",
+    visuals: { className: "outline-[3px] outline-red-600 outline-offset-1 shadow-[0_0_8px_#ef4444]" }
+  },
+  {
+    id: "frame_phoenix",
+    name: "🦅 Khung Phượng Hoàng (VIP)",
     type: "FRAME",
     price: 500,
-    description: "Khung chuyển động màu đa sắc cực chất.",
-    visuals: { className: "outline-[4px] outline-offset-1 ring-4 ring-offset-2 ring-red-500 animate-bounce" }
+    description: "Khung lông vũ Phượng Hoàng lấp lánh.",
+    visuals: { className: "outline-[4px] outline-yellow-400 outline-offset-1 ring-4 ring-orange-500 animate-pulse shadow-[0_0_12px_#f59e0b]" },
+    isPremiumOnly: true
   },
 
-  // THEMES (Chủ đề bàn cờ)
+  // 4. BANNERS (Bảng Hiệu Profile)
+  {
+    id: "banner_classic",
+    name: "Classic Wood Banner",
+    type: "CARDBACK", // Dùng type cardback/banner tương tự
+    price: 0,
+    description: "Phông nền gỗ cổ điển của chuồng gà.",
+    visuals: { className: "bg-amber-900/50" }
+  },
+  {
+    id: "banner_nature",
+    name: "🌳 Đồng Cỏ Xanh",
+    type: "CARDBACK",
+    price: 80,
+    description: "Đồng cỏ xanh tươi mát mẻ thích hợp chăn nuôi.",
+    visuals: { className: "bg-emerald-900/50" }
+  },
+  {
+    id: "banner_galaxy",
+    name: "🌌 Tinh Vân Gà",
+    type: "CARDBACK",
+    price: 180,
+    description: "Giải ngân hà với chòm sao Gà Trống độc đáo.",
+    visuals: { className: "bg-indigo-950/70 text-indigo-200" }
+  },
+  {
+    id: "banner_cyber",
+    name: "⚡ Cyber Neon Space (VIP)",
+    type: "CARDBACK",
+    price: 300,
+    description: "Phông nền Neon tương lai sôi động.",
+    visuals: { className: "bg-[#0b0c10] border-cyan-500 shadow-[inset_0_0_10px_#00d2ff]" },
+    isPremiumOnly: true
+  },
+
+  // 5. DICE SKINS (Giao diện Xúc Xắc)
+  {
+    id: "dice_wood",
+    name: "🎲 Xúc Xắc Gỗ Sồi",
+    type: "DICE",
+    price: 0,
+    description: "Bộ xúc xắc làm từ gỗ sồi bền đẹp.",
+    visuals: { className: "bg-amber-700 text-white" }
+  },
+  {
+    id: "dice_crystal",
+    name: "💎 Xúc Xắc Pha Lê",
+    type: "DICE",
+    price: 150,
+    description: "Bộ xúc xắc pha lê lung linh nhiều màu sắc.",
+    visuals: { className: "bg-cyan-600/50 border-cyan-400" }
+  },
+  {
+    id: "dice_golden_egg",
+    name: "✨ Xúc Xắc Trứng Vàng (VIP)",
+    type: "DICE",
+    price: 350,
+    description: "Bộ xúc xắc mô phỏng Trứng Vàng may mắn.",
+    visuals: { className: "bg-gradient-to-b from-yellow-400 to-yellow-600 text-yellow-950 font-bold" },
+    isPremiumOnly: true
+  },
+
+  // 6. BOARD THEMES (Chủ đề bàn cờ)
   {
     id: "theme_classic",
-    name: "Classic Gray",
+    name: "Classic Nest",
     type: "THEME",
     price: 0,
-    description: "Bàn cờ xám mặc định.",
+    description: "Giao diện tổ rơm truyền thống.",
     visuals: { className: "bg-[#1e1e22]" }
   },
   {
-    id: "theme_retro_green",
-    name: "Gameboy Green",
+    id: "theme_nature",
+    name: "Green Pasture",
     type: "THEME",
-    price: 120,
-    description: "Màu xanh lá phong cách màn hình Gameboy cổ.",
-    visuals: { className: "bg-[#2b5c2a] border-emerald-950" }
+    price: 100,
+    description: "Màu đồng cỏ xanh mướt mát mắt.",
+    visuals: { className: "bg-[#1c3a27] border-emerald-800 text-emerald-100" }
   },
   {
     id: "theme_cyber",
-    name: "Cyber Neon",
+    name: "Neon Coop",
     type: "THEME",
-    price: 250,
-    description: "Tông hồng tím neon đậm chất Cyberpunk.",
-    visuals: { className: "bg-[#250d3a] border-fuchsia-600 text-fuchsia-400" }
-  },
-  {
-    id: "theme_desert",
-    name: "Desert Sand",
-    type: "THEME",
-    price: 180,
-    description: "Màu cát sa mạc ấm áp phong cách cờ gỗ xưa.",
-    visuals: { className: "bg-[#b88b4a] border-amber-950 text-yellow-900" }
+    price: 200,
+    description: "Phong cách chuồng gà công nghệ viễn tưởng.",
+    visuals: { className: "bg-[#1f0f33] border-purple-500 text-purple-200" }
   },
 
-  // SOUND EFFECTS (Hiệu ứng âm thanh nước đi)
+  // 7. SOUND EFFECTS (Âm thanh nước đi)
   {
     id: "sfx_retro",
     name: "👾 8-Bit Arcade SFX",
     type: "SFX",
-    price: 120,
-    description: "Âm thanh bíp bíp cổ điển phong cách điện tử xèng.",
+    price: 100,
+    description: "Âm thanh bíp bíp cổ điển điện tử xèng.",
     visuals: { sfxType: "retro" }
   },
   {
@@ -152,120 +258,43 @@ export const SHOP_ITEMS: ShopItem[] = [
     name: "🚀 Space Laser SFX",
     type: "SFX",
     price: 150,
-    description: "Tiếng súng bắn laser công nghệ viễn tưởng cực ngầu.",
+    description: "Tiếng súng laser viễn tưởng siêu ngầu.",
     visuals: { sfxType: "laser" }
   },
-  {
-    id: "sfx_epic",
-    name: "⚡ Triad Epic SFX (VIP)",
-    type: "SFX",
-    price: 220,
-    description: "Hợp âm hoành tráng biểu thị quyền uy của VIP.",
-    visuals: { sfxType: "epic" },
-    isPremiumOnly: true
-  },
 
-  // EMOJIS (Biểu cảm nhanh)
+  // 8. EMOJIS (Biểu cảm Gà)
   {
-    id: "emoji_cool",
-    name: "😎 Kính Đen Ngầu",
+    id: "emoji_lol",
+    name: "😂 Gà Cười Haha",
+    type: "EMOJI",
+    price: 50,
+    description: "Thả biểu cảm cười lăn lộn.",
+    visuals: { emoji: "😂" }
+  },
+  {
+    id: "emoji_chicken_dance",
+    name: "🕺 Điệu Nhảy Gà Con",
     type: "EMOJI",
     price: 80,
-    description: "Gửi biểu cảm cool ngầu trêu chọc đối thủ.",
-    visuals: { emoji: "😎" }
+    description: "Điệu nhảy vỗ cánh chọc tức đối thủ.",
+    visuals: { emoji: "🕺" }
   },
   {
-    id: "emoji_rage",
-    name: "😡 Nổi Giận Lôi Đình",
+    id: "emoji_chicken_scream",
+    name: "😱 Gà Hét Thất Thanh",
     type: "EMOJI",
     price: 80,
-    description: "Gửi biểu cảm giận dữ khi bị đối phương chặn nước đi.",
-    visuals: { emoji: "😡" }
+    description: "Biểu cảm hoảng hốt khi bị chặn nước đi.",
+    visuals: { emoji: "😱" }
   },
   {
-    id: "emoji_celebrate",
-    name: "🎉 Ăn Mừng Chiến Thắng (VIP)",
+    id: "emoji_egg_throw",
+    name: "🥚 Chọi Trứng (VIP)",
     type: "EMOJI",
-    price: 120,
-    description: "Bắn pháo hoa ăn mừng dành riêng cho VIP.",
-    visuals: { emoji: "🎉" },
+    price: 150,
+    description: "Chọi một quả trứng vào màn hình đối thủ.",
+    visuals: { emoji: "🥚" },
     isPremiumOnly: true
-  },
-
-  // PREMIUM VIP EXCLUSIVE ITEMS (Vật phẩm VIP)
-  {
-    id: "sym_premium_crown",
-    name: "👑 Vương Miện vs 💎 Kim Cương (VIP)",
-    type: "SYMBOL",
-    price: 350,
-    description: "Quân cờ biểu tượng quyền quý dành riêng cho tài khoản VIP Premium.",
-    visuals: { symbolX: "👑", symbolO: "💎" },
-    isPremiumOnly: true
-  },
-  {
-    id: "frame_premium_phoenix",
-    name: "Khung Phượng Hoàng Lửa (VIP)",
-    type: "FRAME",
-    price: 450,
-    description: "Khung avatar Phượng Hoàng rực lửa quyền lực chỉ dành cho VIP.",
-    visuals: { className: "outline-[4px] outline-red-600 outline-offset-1 ring-4 ring-offset-2 ring-yellow-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]" },
-    isPremiumOnly: true
-  },
-  {
-    id: "theme_premium_gold",
-    name: "Royal Gold (VIP)",
-    type: "THEME",
-    price: 400,
-    description: "Bàn cờ hoàng gia viền mạ vàng bóng bẩy dành riêng cho VIP.",
-    visuals: { className: "bg-[#2d220a] border-yellow-500 text-yellow-400" },
-    isPremiumOnly: true
-  },
-
-  // EVENT EXCLUSIVE ITEMS (Vật phẩm sự kiện - Đổi bằng Vỏ Sò)
-  {
-    id: "sym_summer_melon",
-    name: "🍉 Dưa Hấu vs 🥥 Quả Dừa",
-    type: "SYMBOL",
-    price: 80, // Giá tính bằng Vỏ Sò
-    description: "Quân cờ Mùa Hè độc quyền, chỉ có thể đổi bằng Vỏ Sò trong thời gian sự kiện.",
-    visuals: { symbolX: "🍉", symbolO: "🥥" },
-    isEventOnly: true
-  },
-  {
-    id: "frame_summer_sand",
-    name: "Khung Cát Vàng Bãi Biển",
-    type: "FRAME",
-    price: 100, // Giá tính bằng Vỏ Sò
-    description: "Khung avatar bãi cát vàng biển xanh, chỉ có thể đổi bằng Vỏ Sò.",
-    visuals: { className: "outline-[4px] outline-yellow-200 outline-offset-1 ring-4 ring-orange-300 shadow-[0_0_8px_rgba(253,224,71,0.6)]" },
-    isEventOnly: true
-  },
-  {
-    id: "theme_summer_ocean",
-    name: "Blue Ocean",
-    type: "THEME",
-    price: 150, // Giá tính bằng Vỏ Sò
-    description: "Bàn cờ sóng biển xanh ngọc cực mát mẻ cho ngày hè oi bức.",
-    visuals: { className: "bg-[#0b4d6b] border-cyan-400 text-cyan-200" },
-    isEventOnly: true
-  },
-  {
-    id: "sfx_beach",
-    name: "🌊 Sóng Biển Rì Rào SFX",
-    type: "SFX",
-    price: 80, // Giá tính bằng Vỏ Sò
-    description: "Tiếng sóng biển rì rào cực kỳ thư giãn khi đi cờ.",
-    visuals: { sfxType: "synth" },
-    isEventOnly: true
-  },
-  {
-    id: "emoji_beach",
-    name: "🏖️ Kì Nghỉ Bãi Biển",
-    type: "EMOJI",
-    price: 60, // Giá tính bằng Vỏ Sò
-    description: "Biểu cảm kì nghỉ bãi biển lãng mạn.",
-    visuals: { emoji: "🏖️" },
-    isEventOnly: true
   }
 ];
 

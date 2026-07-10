@@ -781,7 +781,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       </header>
 
       {/* Main 3-Column Layout Container */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 py-6 flex flex-col lg:grid lg:grid-cols-12 gap-6 relative">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 pt-6 pb-24 lg:pb-6 flex flex-col lg:grid lg:grid-cols-12 gap-6 relative">
         
         {/* Column 1: Navigation Sidebar (PC Only) */}
         <div className="hidden lg:flex lg:col-span-2 flex-col gap-2 shrink-0">
@@ -1710,7 +1710,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         </div>
 
         {/* Column 3: Progression Sidebar (Right Side - Desktop Only) */}
-        <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 shrink-0 text-left">
+        <div className="flex lg:col-span-3 flex-col gap-6 shrink-0 text-left w-full lg:w-auto mt-6 lg:mt-0">
           
           {/* Profile Overview Card */}
           <div className={`pixel-box p-4 flex flex-col gap-4 relative overflow-hidden ${bannerItem?.visuals?.className || ""}`}>

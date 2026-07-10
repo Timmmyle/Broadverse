@@ -1121,7 +1121,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {SHOP_ITEMS.filter((item) => shopCategory === "ALL" || item.type === shopCategory).map((item) => {
+                {SHOP_ITEMS.filter((item) => (shopCategory === "ALL" || item.type === shopCategory) && item.type !== "DICE" && item.type !== "CARDBACK").map((item) => {
                   const isOwned = profile.purchasedItems.includes(item.id);
                   const isEquipped = 
                     item.type === "FRAME" ? profile.avatarFrame === item.id :

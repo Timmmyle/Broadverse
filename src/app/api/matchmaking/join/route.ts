@@ -94,6 +94,20 @@ export async function POST(req: Request) {
         initialBoard = JSON.stringify(Array(boardSize).fill(""));
       }
 
+      // Đảm bảo user "bot" tồn tại trong DB để thỏa mãn quan hệ khóa ngoại (Foreign Key)
+      await prisma.user.upsert({
+        where: { id: "bot" },
+        update: { username: "BOT AI", isGuest: true },
+        create: {
+          id: "bot",
+          username: "BOT AI",
+          email: "bot@vuiga.com",
+          isGuest: true,
+          eggs: 0,
+          level: 1,
+        }
+      });
+
       // Tạo phòng game đấu với Bot
       const room = await prisma.gameRoom.create({
         data: {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./providers/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
-import { checkTicTacToeWin, checkCaroWin } from "@/lib/gameLogic";
+import { checkTicTacToeWin, checkCaroWin, isRenjuForbidden } from "@/lib/gameLogic";
 import { getTicTacToeBotMove, getCaroBotMove } from "@/lib/botAi";
 import { SHOP_ITEMS } from "@/lib/shopItems";
 import BattleshipView from "./BattleshipView";
@@ -143,6 +143,100 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
   // Clipboard copy state
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Trạng thái luật Renju & Xác nhận 2 lần (Double-Tap to Confirm)
+  const [ghostCell, setGhostCell] = useState<number | null>(null);
+  const [renjuError, setRenjuError] = useState<string | null>(null);
+  
+  // Trạng thái giải đố Onboarding Renju
+  const [showOnboard, setShowOnboard] = useState<boolean>(false);
+  const [onboardStep, setOnboardStep] = useState<number>(1);
+  const [onboardBoard, setOnboardBoard] = useState<string[]>(Array(36).fill(""));
+  const [onboardMessage, setOnboardMessage] = useState<string>("");
+
+  // Kích hoạt hiển thị Onboard Renju nếu eloGomoku >= 1200 và chưa hoàn thành
+  useEffect(() => {
+    if (gameType === "CARO" && profile && profile.eloGomoku >= 1200) {
+      const completed = localStorage.getItem(`renju_onboard_completed_${profile.id}`);
+      if (completed !== "true") {
+        setShowOnboard(true);
+      }
+    }
+  }, [gameType, profile]);
+
+  // Cập nhật bàn cờ giải đố mẫu cho Onboard Renju
+  useEffect(() => {
+    if (!showOnboard) return;
+    const board = Array(36).fill("");
+    if (onboardStep === 1) {
+      // Bài 1: Double 3 (Đôi ba) tại index 14
+      board[8] = "X";
+      board[20] = "X";
+      board[13] = "X";
+      board[15] = "X";
+      setOnboardMessage("Bài 1/3: Hãy tìm ô cờ vi phạm luật cấm ĐÔI BA (Double Three) cho quân Đen X. Gợi ý: Giao điểm tạo thành hai hàng 3 cờ thoáng.");
+    } else if (onboardStep === 2) {
+      // Bài 2: Double 4 (Đôi bốn) tại index 9
+      board[3] = "X";
+      board[15] = "X";
+      board[21] = "X";
+      board[7] = "X";
+      board[8] = "X";
+      board[11] = "X";
+      setOnboardMessage("Bài 2/3: Hãy tìm ô cờ vi phạm luật cấm ĐÔI BỐN (Double Four) cho quân Đen X. Gợi ý: Đánh vào đây sẽ tạo thành hai hàng 4 quân cờ.");
+    } else if (onboardStep === 3) {
+      // Bài 3: Overline (>5 quân) tại index 21
+      board[18] = "X";
+      board[19] = "X";
+      board[20] = "X";
+      board[22] = "X";
+      board[23] = "X";
+      setOnboardMessage("Bài 3/3: Hãy tìm ô cờ vi phạm luật cấm OVERLINE (Hàng cờ quá 5 quân). Gợi ý: Đặt quân Đen vào đây tạo thành hàng 6 quân liên tục.");
+    }
+    setOnboardBoard(board);
+  }, [onboardStep, showOnboard]);
+
+  const handleOnboardCellClick = async (idx: number) => {
+    if (onboardStep === 1) {
+      if (idx === 14) {
+        alert("Chính xác! Đặt quân vào đây tạo thành Đôi Ba (Double Three) bị cấm ở luật Renju.");
+        setOnboardStep(2);
+      } else {
+        alert("Sai rồi! Hãy tìm ô giao điểm của 2 đường cờ 3 quân.");
+      }
+    } else if (onboardStep === 2) {
+      if (idx === 9) {
+        alert("Chính xác! Đặt quân vào đây tạo thành Đôi Bốn (Double Four) bị cấm.");
+        setOnboardStep(3);
+      } else {
+        alert("Sai rồi! Hãy tìm ô giao điểm của 2 đường cờ 4 quân.");
+      }
+    } else if (onboardStep === 3) {
+      if (idx === 21) {
+        alert("Chính xác! Tạo thành 6 quân cờ liên tục là Overline và bị xử thua ngay lập tức.");
+        
+        // Gọi API nhận thưởng
+        try {
+          const res = await fetch("/api/user/progression", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "COMPLETE_RENJU_ONBOARD" })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            alert(data.message);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        
+        localStorage.setItem(`renju_onboard_completed_${profile.id}`, "true");
+        setShowOnboard(false);
+      } else {
+        alert("Sai rồi! Hãy tìm ô cờ hoàn thành hàng 6 quân cờ.");
+      }
+    }
+  };
 
   const sendEmoji = (emoji: string) => {
     if (!room) return;
@@ -403,6 +497,30 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   const handleCellClick = async (index: number) => {
     if (!profile) return;
 
+    // Chế độ xác nhận hai lần (Double-Tap to Confirm)
+    if (gameType === "TIC_TAC_TOE" || gameType === "CARO") {
+      if (ghostCell !== index) {
+        setGhostCell(index);
+        
+        // Kiểm tra xem nước đi Gomoku có vi phạm luật cấm Renju không để cảnh báo
+        if (gameType === "CARO" && mySymbol === "X" && profile.eloGomoku >= 1200) {
+          const check = isRenjuForbidden(displayBoard, index, "X");
+          if (check.forbidden) {
+            setRenjuError(check.reason || "Nước đi cấm Renju!");
+          } else {
+            setRenjuError(null);
+          }
+        } else {
+          setRenjuError(null);
+        }
+        return;
+      }
+    }
+
+    // Đã click lần 2 -> Tiến hành đi nước cờ
+    setGhostCell(null);
+    setRenjuError(null);
+
     // A. CHẾ ĐỘ BOT (OFFLINE)
     if (mode === "BOT") {
       if (localStatus !== "PLAYING" || localTurn !== "X" || localBoard[index] !== "") return;
@@ -412,6 +530,17 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       nextBoard[index] = "X";
       setLocalBoard(nextBoard);
       playMoveSFX();
+
+      // Kiểm tra luật cấm Renju trong game đấu Bot (nếu eloGomoku >= 1200)
+      if (gameType === "CARO" && profile.eloGomoku >= 1200) {
+        const renjuCheck = isRenjuForbidden(nextBoard, index, "X");
+        if (renjuCheck.forbidden) {
+          setLocalStatus("FINISHED");
+          setLocalWinner("BOT");
+          await handleEndBotMatch("LOSE");
+          return;
+        }
+      }
 
       // Kiểm tra thắng thua
       let won = false;
@@ -532,7 +661,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       const res = await fetch("/api/match/bot-end", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outcome }),
+        body: JSON.stringify({ outcome, gameType }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -628,6 +757,58 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#0f0f13] select-none text-white scanlines pb-10">
+      
+      {/* ONBOARDING INTERACTIVE GUIDE MODAL */}
+      {showOnboard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+          <div className="pixel-box p-6 w-full max-w-lg bg-[#1C1C18] border border-[#D4AF37]/35 text-center space-y-6">
+            <div className="space-y-1">
+              <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Bài Học Chuyển Giao: Rank Bạch Kim Gomoku
+              </span>
+              <h2 className="text-base font-extrabold text-white">Luật Renju Quốc Tế Cho Quân Đen</h2>
+              <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed max-w-sm mx-auto">
+                Để cân bằng tỷ lệ thắng của bên đi trước (Đen), luật Renju cấm quân Đen tạo nước cờ lỗi đôi <strong>Double 3 (Đôi ba)</strong>, <strong>Double 4 (Đôi bốn)</strong>, và <strong>Overline (&gt;5 quân)</strong>. Hãy hoàn thành 3 bài đố vui để mở khóa sảnh chơi và nhận thưởng <strong>100 Coins</strong>!
+              </p>
+            </div>
+
+            <div className="pixel-box-nested p-4 bg-black/50 border border-[#D4AF37]/10 rounded-xl space-y-3">
+              <p className="text-[10.5px] text-[#FF9F0A] font-bold font-mono">{onboardMessage}</p>
+              
+              {/* 6x6 puzzle board */}
+              <div className="grid grid-cols-6 gap-1 w-44 h-44 mx-auto border border-[#D4AF37]/25 p-1.5 bg-[#141412] rounded-lg">
+                {onboardBoard.map((val, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleOnboardCellClick(idx)}
+                    className="w-full aspect-square flex items-center justify-center font-bold text-xs bg-[#1C1C18] hover:bg-[#D4AF37]/25 border border-[#D4AF37]/10 transition-colors cursor-pointer"
+                  >
+                    {val === "X" ? (
+                      <span className="text-red-500 font-extrabold">X</span>
+                    ) : val === "O" ? (
+                      <span className="text-blue-500 font-extrabold">O</span>
+                    ) : (
+                      ""
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  localStorage.setItem(`renju_onboard_completed_${profile.id}`, "true");
+                  setShowOnboard(false);
+                }}
+                className="bg-[#1C1C18] hover:bg-[#272722] text-[#F3E5AB]/60 border border-[#D4AF37]/15 py-2 px-6 rounded-lg text-[10px] font-bold uppercase transition"
+              >
+                Bỏ qua (Không nhận Coin)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Top Navigation */}
       <header className="w-full bg-[#16161c]/90 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between">
@@ -819,34 +1000,42 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               {displayBoard.map((cell: string, idx: number) => {
                 const isX = cell === "X";
                 const isO = cell === "O";
+                const isGhost = (ghostCell === idx);
                 
-                // Trả về visual quân cờ đúng
+                // Trả về visual quân cờ đúng (bao gồm ghost piece nếu là click nháp)
                 const visual = isX 
                   ? getSymbolVisual("X", room?.playerX || profile) 
-                  : (isO ? getSymbolVisual("O", room?.playerO || opponentProfile) : "");
+                  : (isO ? getSymbolVisual("O", room?.playerO || opponentProfile) : (isGhost ? getSymbolVisual(mySymbol, profile) : ""));
+
+                // Kiểm tra xem ghost cell có phải ô cấm Renju không
+                const isForbiddenCell = isGhost && renjuError !== null;
 
                 return (
                   <button
                     key={idx}
                     onClick={() => handleCellClick(idx)}
-                    disabled={(mode === "BOT" ? localStatus !== "PLAYING" : room.status !== "PLAYING") || cell !== "" || !myTurn}
+                    disabled={(mode === "BOT" ? localStatus !== "PLAYING" : room.status !== "PLAYING") || (cell !== "" && !isGhost) || !myTurn}
                     className={`pixel-box-nested aspect-square flex items-center justify-center font-bold transition-all duration-75 cursor-pointer select-none text-black ${
                       cell === "" 
-                        ? (myTurn ? "hover:bg-white/10" : "cursor-not-allowed") 
+                        ? (myTurn ? (isGhost ? (isForbiddenCell ? "bg-red-950/20 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] animate-pulse" : "bg-yellow-500/10 border-yellow-400/50 animate-pulse") : "hover:bg-white/10") : "cursor-not-allowed") 
                         : ""
                     } ${
                       gameType === "TIC_TAC_TOE" ? "text-3xl" : "text-sm"
                     }`}
                     style={{
-                      backgroundColor: cell === "" ? "rgba(0,0,0,0.4)" : "#fff",
+                      backgroundColor: cell === "" ? (isGhost ? (isForbiddenCell ? "rgba(220,38,38,0.1)" : "rgba(212,175,55,0.15)") : "rgba(0,0,0,0.4)") : "#fff",
                       boxShadow: cell === "" ? "inset 2px 2px 0px 0px rgba(255,255,255,0.05)" : "inset -2px -2px 0px 2px rgba(0,0,0,0.1)",
-                      border: "1px solid rgba(255,255,255,0.08)"
+                      border: isForbiddenCell ? "1.5px solid #ef4444" : (isGhost ? "1.5px solid #D4AF37" : "1px solid rgba(255,255,255,0.08)")
                     }}
                   >
                     {isX ? (
                       <span className="text-red-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">{visual}</span>
                     ) : isO ? (
                       <span className="text-blue-600 drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">{visual}</span>
+                    ) : isGhost ? (
+                      <span className={`opacity-40 select-none ${isForbiddenCell ? "text-red-500 font-extrabold" : (mySymbol === "X" ? "text-red-600" : "text-blue-600")}`}>
+                        {isForbiddenCell ? "⚠️" : visual}
+                      </span>
                     ) : (
                       ""
                     )}
@@ -855,6 +1044,15 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               })}
             </div>
           </div>
+
+          {/* CẢNH BÁO LUẬT RENJU TRÊN MÀN HÌNH */}
+          {renjuError && (
+            <div className="w-full max-w-[320px] sm:max-w-[384px] mx-auto text-red-400 text-xs font-bold text-center mt-4 px-4 bg-red-950/20 py-2.5 rounded-xl border border-red-500/30 animate-pulse relative z-20">
+              ⚠️ CẢNH BÁO PHẠM QUY RENJU:<br />
+              <span className="text-white mt-1 block font-extrabold">{renjuError}</span>
+              <span className="text-[10px] text-gray-400 mt-1 block font-medium">Bấm lần nữa để xác nhận đặt cờ và BỊ XỬ THUA!</span>
+            </div>
+          )}
 
           {/* ONLINE BOTTOM ACTIONS (SURRENDER & TIMEOUT CLAIM) */}
           {mode !== "BOT" && room.status === "PLAYING" && (

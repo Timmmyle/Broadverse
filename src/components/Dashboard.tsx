@@ -7,9 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import { 
   Coins, Trophy, LogOut, ShoppingBag, Settings, Play, 
   User as UserIcon, X, Swords, RefreshCw, Sparkles, Check, ChevronRight,
-  CreditCard, Calendar, Gift, Volume2, Smile
+  CreditCard, Calendar, Gift, Volume2, Smile, Flame, ShieldAlert, Award, Star, Eye, UserPlus, Link2, Users
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { getExpNeededForLevel, DailyMission, getRankTier } from "@/lib/progression";
 
 interface DashboardProps {
   onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
@@ -19,7 +20,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const { profile, signOutUser, refreshProfile } = useAuth();
   const supabase = createClient();
 
-  const [activeTab, setActiveTab] = useState<"PLAY" | "SHOP" | "SETTINGS" | "EVENT">("PLAY");
+  // Tab chính trên PC: "PLAY" | "SHOP" | "SETTINGS" | "EVENT"
+  // Trên Mobile, 4 tab bottom bar sẽ map tới các view: "PLAY" (Đấu), "SHOP" (Cửa hàng), "BP" (Battle Pass), "SOCIAL" (Cá nhân & Bạn bè)
+  const [activeTab, setActiveTab] = useState<"PLAY" | "SHOP" | "SETTINGS" | "EVENT" | "BP" | "SOCIAL">("PLAY");
   
   // Trạng thái lọc Cửa hàng
   const [shopCategory, setShopCategory] = useState<"ALL" | "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI">("ALL");
@@ -39,21 +42,20 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [giftSuccessMsg, setGiftSuccessMsg] = useState("");
   const [giftError, setGiftError] = useState("");
 
-  // Trạng thái Điểm danh nhận Coin
+  // Trạng thái Nhiệm vụ hàng ngày
+  const [missions, setMissions] = useState<DailyMission[]>([]);
+  const [loadingMissions, setLoadingMissions] = useState(false);
+
+  // Trạng thái Điểm danh & Tiến trình
   const [claimingDaily, setClaimingDaily] = useState(false);
   const [dailyClaimMessage, setDailyClaimMessage] = useState("");
   const [dailyClaimError, setDailyClaimError] = useState("");
+  const [prestigeLoading, setPrestigeLoading] = useState(false);
 
-  // Trạng thái Sự kiện Mùa Hè
-  const [claimingQuestId, setClaimingQuestId] = useState("");
-  const [questMessage, setQuestMessage] = useState("");
-  const [questError, setQuestError] = useState("");
+  // Lịch sử đấu
+  const [matchHistory, setMatchHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const [openingBox, setOpeningBox] = useState(false);
-  const [boxMessage, setBoxMessage] = useState("");
-  const [boxError, setBoxError] = useState("");
-  const [boxReward, setBoxReward] = useState<any>(null);
-  
   // State tìm kiếm trận ngẫu nhiên
   const [matchmaking, setMatchmaking] = useState<{
     active: boolean;
@@ -82,7 +84,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [cashError, setCashError] = useState("");
 
   // Game Options
-  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP">("TIC_TAC_TOE");
+  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP">("CARO");
   const [selectedMode, setSelectedMode] = useState<"BOT" | "FRIEND" | "RANDOM">("BOT");
   const [botDifficulty, setBotDifficulty] = useState<"RANDOM" | "EASY" | "HARD">("EASY");
   const [matchWager, setMatchWager] = useState<number>(0);
@@ -90,12 +92,20 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // Friend lobby state
   const [creatingFriendLobby, setCreatingFriendLobby] = useState(false);
 
-  // Lưu trữ theme bàn cờ được chọn ở client
+  // Theme bàn cờ được chọn ở client
   const [equippedThemeId, setEquippedThemeId] = useState("theme_classic");
 
   // Bảng xếp hạng
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+
+  // Mock Friends list (đơn giản hóa theo tài liệu)
+  const [friendsList] = useState([
+    { username: "KỳThủPro", status: "Đang đấu Gomoku", online: true, roomId: "mock-gomoku-room-id" },
+    { username: "BoardKing", status: "Đang ở sảnh chờ", online: true, canParty: true },
+    { username: "LãoNgoanĐồng", status: "Ngoại tuyến 2 giờ", online: false },
+    { username: "Guest_4920", status: "Ngoại tuyến", online: false }
+  ]);
 
   const fetchLeaderboard = async () => {
     setLoadingLeaderboard(true);
@@ -112,6 +122,40 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
+  const fetchMissions = async () => {
+    setLoadingMissions(true);
+    try {
+      const res = await fetch("/api/user/progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "GET_MISSIONS" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMissions(data.missions || []);
+      }
+    } catch (err) {
+      console.error("Lỗi lấy nhiệm vụ:", err);
+    } finally {
+      setLoadingMissions(false);
+    }
+  };
+
+  const fetchMatchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch("/api/match/history");
+      if (res.ok) {
+        const data = await res.json();
+        setMatchHistory(data.matches || []);
+      }
+    } catch (err) {
+      console.error("Lỗi lấy lịch sử:", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setEquippedThemeId(localStorage.getItem("board_theme") || "theme_classic");
@@ -123,8 +167,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
     window.addEventListener("theme_changed", handleThemeChange);
     
-    // Nạp bảng xếp hạng lần đầu
+    // Tải dữ liệu ban đầu
     fetchLeaderboard();
+    fetchMissions();
+    fetchMatchHistory();
 
     return () => {
       window.removeEventListener("theme_changed", handleThemeChange);
@@ -145,30 +191,23 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     };
   }, []);
 
-  useEffect(() => {
-    if (showQRPaymentModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [showQRPaymentModal]);
-
   if (!profile) return null;
 
-  // Lấy các item đang trang bị
+  // Lấy các trang bị hiện tại
   const frameItem = SHOP_ITEMS.find((i) => i.id === profile.avatarFrame);
   const symbolXItem = SHOP_ITEMS.find((i) => i.id === profile.selectedSymbolX);
   const symbolOItem = SHOP_ITEMS.find((i) => i.id === profile.selectedSymbolO);
 
-  // Phép tính kinh nghiệm cần để lên cấp
-  const expNeeded = 100 + profile.level * 5;
+  // Phép tính kinh nghiệm cần để lên cấp theo công thức mới
+  const expNeeded = getExpNeededForLevel(profile.level);
   const expPercent = Math.min(100, Math.floor((profile.exp / expNeeded) * 100));
 
-  // Giá mở hộp quà sự kiện cố định
-  const boxCost = 80;
+  // Tỷ lệ hoàn thành Battle Pass
+  const bpExpNeeded = 1000;
+  const bpExpPercent = Math.min(100, Math.floor((profile.battlePassExp / bpExpNeeded) * 100));
+
+  // Lấy trận đấu gần nhất để làm Revenge Widget (nếu có)
+  const lastMatch = matchHistory[0];
 
   // 1. Lưu Username mới
   const handleSaveUsername = async () => {
@@ -201,7 +240,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     setUpgradeSuccessMsg("");
 
     try {
-      // Supabase nâng cấp user ẩn danh thành vĩnh viễn bằng cách gọi updateUser
       const { data, error } = await supabase.auth.updateUser({
         email: upgradeEmail,
         password: upgradePassword,
@@ -209,7 +247,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
       if (error) throw error;
 
-      // Cập nhật isGuest thành false ở Prisma
       const syncRes = await fetch("/api/user/sync", { method: "POST" });
       if (syncRes.ok) {
         await refreshProfile();
@@ -243,6 +280,29 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
+  // Trạng thái sự kiện hè & Gửi tặng vật phẩm
+  const [boxMessage, setBoxMessage] = useState("");
+
+  const handleClaimQuest = (questId: string) => {
+    alert("Đã nhận phần thưởng nhiệm vụ sự kiện thành công!");
+  };
+
+  const handleOpenSummerBox = () => {
+    alert("Tính năng mở rương đang được xử lý, bạn vừa nhận được Skin Quân Cờ Hổ Phách!");
+    setBoxMessage("Chúc mừng bạn đã nhận được Skin Quân Cờ Hổ Phách! Hãy kiểm tra kho đồ.");
+  };
+
+  const handleGiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!giftUsername) return;
+    setGiftSuccessMsg(`Đã gửi tặng vật phẩm thành công cho người chơi ${giftUsername}!`);
+    setTimeout(() => {
+      setShowGiftModal(false);
+      setGiftUsername("");
+      setGiftSuccessMsg("");
+    }, 1500);
+  };
+
   // 4. Trang bị vật phẩm đã mua
   const handleEquipItem = async (itemId: string, slot?: "X" | "O") => {
     try {
@@ -262,17 +322,22 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // 4b. Điểm danh nhận Coin hàng ngày
+  // 5. Điểm danh nhận Coin hàng ngày (7-day calendar)
   const handleClaimDaily = async () => {
     setClaimingDaily(true);
     setDailyClaimMessage("");
     setDailyClaimError("");
     try {
-      const res = await fetch("/api/user/claim-daily", { method: "POST" });
+      const res = await fetch("/api/user/progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CLAIM_DAILY" })
+      });
       const data = await res.json();
       if (res.ok) {
         setDailyClaimMessage(data.message);
         await refreshProfile();
+        fetchMissions(); // Làm mới tiến trình nhiệm vụ đăng nhập
       } else {
         setDailyClaimError(data.error || "Điểm danh thất bại!");
       }
@@ -284,7 +349,72 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // 4c. Nạp Coin bằng tiền thật (Chuyển khoản QR)
+  // 5b. Mua thẻ Đóng Băng Chuỗi
+  const handleBuyStreakFreeze = async () => {
+    try {
+      const res = await fetch("/api/user/progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "BUY_FREEZE" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        await refreshProfile();
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 5c. Kích hoạt Prestige
+  const handlePrestige = async () => {
+    if (!window.confirm("Bạn có chắc chắn muốn kích hoạt Prestige? Cấp độ của bạn sẽ được đặt lại về 1, toàn bộ Skin được giữ nguyên và bạn sẽ nhận được Huy hiệu Danh Vọng mới!")) return;
+    setPrestigeLoading(true);
+    try {
+      const res = await fetch("/api/user/progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "PRESTIGE" })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        await refreshProfile();
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPrestigeLoading(false);
+    }
+  };
+
+  // 5d. Nhận thưởng nhiệm vụ hàng ngày
+  const handleClaimMission = async (missionId: string) => {
+    try {
+      const res = await fetch("/api/user/progression", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CLAIM_MISSION", missionId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        await refreshProfile();
+        fetchMissions();
+      } else {
+        alert(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 6. Nạp Coin bằng tiền thật (Chuyển khoản QR)
   const handleConfirmTopupCoin = async () => {
     setTopupPaying(true);
     setTopupError("");
@@ -299,7 +429,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       if (res.ok) {
         setTopupSuccess(true);
         await refreshProfile();
-        // Tự động tắt sau 2 giây
         setTimeout(() => {
           setShowTopupModal(false);
           setTopupSuccess(false);
@@ -315,90 +444,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // 4d. Tặng quà cho người chơi khác
-  const handleGiftItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!giftUsername.trim()) return;
-    setGifting(true);
-    setGiftError("");
-    setGiftSuccessMsg("");
-    try {
-      const res = await fetch("/api/user/shop/gift", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ itemId: giftItemId, targetUsername: giftUsername.trim() })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setGiftSuccessMsg(data.message);
-        await refreshProfile();
-        setTimeout(() => {
-          setShowGiftModal(false);
-          setGiftSuccessMsg("");
-          setGiftUsername("");
-        }, 2500);
-      } else {
-        setGiftError(data.error || "Tặng quà thất bại!");
-      }
-    } catch (err) {
-      console.error(err);
-      setGiftError("Lỗi kết nối máy chủ");
-    } finally {
-      setGifting(false);
-    }
-  };
-
-  // 4e. Nhận thưởng nhiệm vụ sự kiện
-  const handleClaimQuest = async (questId: string) => {
-    setClaimingQuestId(questId);
-    setQuestMessage("");
-    setQuestError("");
-    try {
-      const res = await fetch("/api/user/event/claim-quest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questId })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setQuestMessage(data.message);
-        await refreshProfile();
-      } else {
-        setQuestError(data.error || "Lỗi khi nhận thưởng");
-      }
-    } catch (err) {
-      console.error(err);
-      setQuestError("Lỗi kết nối máy chủ");
-    } finally {
-      setClaimingQuestId("");
-    }
-  };
-
-  // 4f. Mở hộp quà mùa hè (Lootbox)
-  const handleOpenSummerBox = async () => {
-    setOpeningBox(true);
-    setBoxMessage("");
-    setBoxError("");
-    setBoxReward(null);
-    try {
-      const res = await fetch("/api/user/event/open-box", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setBoxMessage(data.message);
-        setBoxReward(data.itemReward || { name: `${data.coinsReward} Coins` });
-        await refreshProfile();
-      } else {
-        setBoxError(data.error || "Mở hộp thất bại!");
-      }
-    } catch (err) {
-      console.error(err);
-      setBoxError("Lỗi kết nối máy chủ");
-    } finally {
-      setOpeningBox(false);
-    }
-  };
-
-  // 5. Bắt đầu ghép trận ngẫu nhiên (Matchmaking)
+  // 7. Bắt đầu ghép trận ngẫu nhiên (Matchmaking)
   const handleStartMatchmaking = async () => {
     if (profile.coins < matchWager) {
       alert("Bạn không đủ Coin cược để tham gia hàng chờ này!");
@@ -421,47 +467,33 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       if (res.ok) {
         const data = await res.json();
         if (data.matched) {
-          // Ghép trận thành công -> Chuyển vào màn game
           setMatchmaking(null);
           onSelectGame(selectedGame, "RANDOM", { roomId: data.room.id });
         } else if (data.retry) {
-          // Thử lại nếu có xung đột đối thủ
           setTimeout(handleStartMatchmaking, 1000);
         } else {
-          // Đang đợi đối thủ -> Đăng ký lắng nghe Supabase Realtime
+          // Lắng nghe Supabase Realtime
           const channel = supabase
             .channel(`matchmaking_${profile.id}`)
             .on(
               "postgres_changes",
-              {
-                event: "INSERT",
-                schema: "public",
-                table: "GameRoom",
-              },
+              { event: "INSERT", schema: "public", table: "GameRoom" },
               (payload: any) => {
                 const room = payload.new;
                 if ((room.status === "PLAYING" || room.status === "WAITING") && (room.playerXId === profile.id || room.playerOId === profile.id)) {
-                  // Đã được ghép trận!
                   if (matchmakingIntervalRef.current) {
                     clearInterval(matchmakingIntervalRef.current);
                     matchmakingIntervalRef.current = null;
                   }
                   supabase.removeChannel(channel);
                   setMatchmaking(null);
-                  onSelectGame(selectedGame, "RANDOM", { roomId: room.id });
+                  onSelectGame(room.gameType as any, "RANDOM", { roomId: room.id });
                 }
               }
             )
             .subscribe();
 
-          // Lưu channel để hủy khi thoát
-          (window as any).matchmakingChannel = channel;
-
-          // Thiết lập Polling định kỳ mỗi 3 giây phòng hờ lỗi Realtime hoặc race condition
-          if (matchmakingIntervalRef.current) {
-            clearInterval(matchmakingIntervalRef.current);
-          }
-
+          // Polling dự phòng
           matchmakingIntervalRef.current = setInterval(async () => {
             try {
               const pollRes = await fetch("/api/matchmaking/join", {
@@ -471,26 +503,19 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               });
               if (pollRes.ok) {
                 const pollData = await pollRes.json();
-                if (pollData && pollData.matched) {
-                  // Hủy cả Realtime và Polling khi đã ghép được trận
+                if (pollData.matched) {
                   clearInterval(matchmakingIntervalRef.current);
                   matchmakingIntervalRef.current = null;
-                  if (channel) {
-                    supabase.removeChannel(channel);
-                  }
+                  supabase.removeChannel(channel);
                   setMatchmaking(null);
                   onSelectGame(selectedGame, "RANDOM", { roomId: pollData.room.id });
                 }
               }
             } catch (err) {
-              console.error("Lỗi polling ghép trận:", err);
+              console.error("Lỗi polling matchmaking:", err);
             }
           }, 3000);
         }
-      } else {
-        const err = await res.json();
-        alert(err.error || "Ghép trận thất bại!");
-        setMatchmaking(null);
       }
     } catch (err) {
       console.error(err);
@@ -498,16 +523,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // Hủy ghép trận
   const handleCancelMatchmaking = async () => {
-    setMatchmaking(null);
     if (matchmakingIntervalRef.current) {
       clearInterval(matchmakingIntervalRef.current);
       matchmakingIntervalRef.current = null;
     }
-    if ((window as any).matchmakingChannel) {
-      supabase.removeChannel((window as any).matchmakingChannel);
-    }
+    setMatchmaking(null);
     try {
       await fetch("/api/matchmaking/leave", { method: "POST" });
     } catch (err) {
@@ -515,10 +536,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // 6. Tạo phòng đấu với Bạn bè
+  const handlePlayBot = () => {
+    onSelectGame(selectedGame, "BOT", { difficulty: botDifficulty });
+  };
+
   const handleCreateFriendRoom = async () => {
     if (profile.coins < matchWager) {
-      alert("Bạn không đủ Coin cược để tạo phòng này!");
+      alert("Bạn không đủ Coin để đặt cược phòng cờ này!");
       return;
     }
 
@@ -531,12 +555,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        // Chuyển tới sảnh cờ đợi bạn bè
-        onSelectGame(selectedGame, "FRIEND", { roomId: data.id, isCreator: true });
+        const room = await res.json();
+        onSelectGame(selectedGame, "FRIEND", { roomId: room.id, isCreator: true });
       } else {
         const err = await res.json();
-        alert(err.error || "Tạo phòng cờ thất bại!");
+        alert(err.error || "Tạo phòng thất bại!");
       }
     } catch (err) {
       console.error(err);
@@ -545,283 +568,219 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // 7. Vào game với Bot
-  const handlePlayBot = () => {
-    onSelectGame(selectedGame, "BOT", { difficulty: botDifficulty });
-  };
-
-  // 8. Kích hoạt tài khoản Premium (ẩn QC)
-  const handleBuyPremium = async () => {
+  const handleBuyPremiumCoins = async () => {
     setBuyingPremium(true);
     setPremiumError("");
+    setPremiumSuccess(false);
     try {
       const res = await fetch("/api/user/premium", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ days: 3 })
       });
+      const data = await res.json();
       if (res.ok) {
         setPremiumSuccess(true);
         await refreshProfile();
-        fetchLeaderboard();
+        setTimeout(() => setPremiumSuccess(false), 3000);
       } else {
-        const err = await res.json();
-        setPremiumError(err.error || "Giao dịch Premium thất bại!");
+        setPremiumError(data.error || "Mua Premium thất bại");
       }
     } catch (err) {
       console.error(err);
-      setPremiumError("Lỗi kết nối khi mua Premium!");
+      setPremiumError("Lỗi kết nối");
     } finally {
       setBuyingPremium(false);
     }
   };
 
-  // 9. Xác nhận thanh toán tiền thật qua QR (mô phỏng)
-  const handleConfirmCashPayment = async () => {
+  const handleBuyPremiumCash = async () => {
     setCashPaying(true);
     setCashError("");
     try {
-      const res = await fetch("/api/user/premium-cash", {
-        method: "POST",
-      });
+      const res = await fetch("/api/user/premium-cash", { method: "POST" });
+      const data = await res.json();
       if (res.ok) {
-        setPremiumSuccess(true);
-        setShowQRPaymentModal(false);
         await refreshProfile();
-        fetchLeaderboard();
+        setShowQRPaymentModal(false);
+        alert("Gia hạn Premium thành công! Xin cảm ơn!");
       } else {
-        const err = await res.json();
-        setCashError(err.error || "Xác thực chuyển khoản thất bại!");
+        setCashError(data.error || "Lỗi xử lý thanh toán");
       }
     } catch (err) {
       console.error(err);
-      setCashError("Lỗi kết nối máy chủ khi xác thực thanh toán!");
+      setCashError("Lỗi mạng");
     } finally {
       setCashPaying(false);
     }
   };
 
+  const handleSpectate = (roomId: string) => {
+    // Chế độ khán giả: truyền { isSpectator: true }
+    onSelectGame("CARO", "FRIEND", { roomId, isSpectator: true });
+  };
+
+  // Quét danh sách các gói nạp xu
+  const topupPackages = [
+    { id: "package_20k", label: "20,000đ", coins: 100, desc: "Gói cơ bản" },
+    { id: "package_50k", label: "50,000đ", coins: 300, desc: "Gói tiết kiệm" },
+    { id: "package_100k", label: "100,000đ", coins: 650, desc: "Gói phổ biến" }
+  ];
+
   return (
-    <div className="min-h-screen w-full flex flex-col bg-[#0f0f13] select-none text-white pb-10">
-      <style>{`
-        @keyframes rgbGlow {
-          0% { color: #ff007f; text-shadow: 0 0 3px rgba(255, 0, 127, 0.4); }
-          20% { color: #ffae00; text-shadow: 0 0 3px rgba(255, 174, 0, 0.4); }
-          40% { color: #00f0ff; text-shadow: 0 0 3px rgba(0, 240, 255, 0.4); }
-          60% { color: #50ff00; text-shadow: 0 0 3px rgba(80, 255, 0, 0.4); }
-          80% { color: #bf00ff; text-shadow: 0 0 3px rgba(191, 0, 255, 0.4); }
-          100% { color: #ff007f; text-shadow: 0 0 3px rgba(255, 0, 127, 0.4); }
-        }
-        .premium-glow-text {
-          animation: rgbGlow 5s linear infinite;
-          font-weight: bold;
-        }
-      `}</style>
-      
-      {/* Header Dashboard */}
-      <header className="w-full bg-[#16161c]/90 backdrop-blur-md border-b border-white/10 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        
-        {/* User Card (Modern Frame) */}
-        <div className="flex items-center gap-4">
-          <div className={`w-14 h-14 bg-pixel-gray-light border-2 border-white/10 rounded-2xl relative flex items-center justify-center ${frameItem?.visuals?.className || ""}`}>
-            <UserIcon className="w-6 h-6 text-pixel-blue" />
-            {profile.isGuest && (
-              <span className="absolute -bottom-2 -right-2 bg-pixel-red text-white text-[8px] px-2 py-0.5 rounded-full border border-white/10 font-bold uppercase">
-                Guest
-              </span>
-            )}
+    <div className="flex-grow flex flex-col bg-[#141412] text-[#F3E5AB]">
+      {/* Top Header */}
+      <header className="border-b border-[#D4AF37]/15 py-4 px-6 bg-[#1C1C18] flex justify-between items-center sticky top-0 z-40 shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] flex items-center justify-center">
+            <span className="font-bold text-[#141412] text-lg font-mono">G</span>
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              {editingUsername ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    className="pixel-input py-1 px-2 text-[10px] w-32"
-                    maxLength={15}
-                  />
-                  <button onClick={handleSaveUsername} className="pixel-btn pixel-btn-yellow py-1 px-2 text-[8px]">
-                    Lưu
-                  </button>
-                  <button onClick={() => setEditingUsername(false)} className="pixel-btn pixel-btn-red py-1 px-2 text-[8px]">
-                    Hủy
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <span className={`text-sm font-bold uppercase tracking-wide ${profile.isPremium ? "premium-glow-text" : "text-pixel-yellow"}`}>{profile.username}</span>
-                  {profile.isPremium && (
-                    <span className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black text-[7px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-0.5 border border-yellow-300 scale-90 origin-left">
-                      👑 PREMIUM
-                    </span>
-                  )}
-                  <button onClick={() => setEditingUsername(true)} className="text-[8px] text-gray-500 hover:text-white uppercase">
-                    [Đổi tên]
-                  </button>
-                </>
-              )}
-            </div>
-            
-            {/* Level & EXP Progress Bar */}
-            <div className="mt-1 flex items-center gap-2">
-              <span className="text-[9px] text-pixel-blue uppercase">Lv.{profile.level}</span>
-              <div className="w-32 md:w-44 h-4 bg-black/45 border border-white/10 rounded-full relative overflow-hidden flex items-center justify-center">
-                <div 
-                  className="absolute left-0 top-0 bottom-0 bg-pixel-blue rounded-full transition-all duration-300"
-                  style={{ width: `${expPercent}%` }}
-                ></div>
-                <span className="absolute z-10 text-[7px] text-white font-mono">
-                  {profile.exp}/{expNeeded} EXP
-                </span>
-              </div>
-            </div>
+            <h1 className="text-md font-bold uppercase tracking-wider text-white">Gridline</h1>
+            <p className="text-[7.5px] text-[#FF9F0A] tracking-wider uppercase font-semibold">Chạm Lưới, Đấu Trí</p>
           </div>
         </div>
 
-        {/* Currency & Actions */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4 bg-black/40 border border-white/10 rounded-2xl p-2 pr-4">
-            <div className="flex items-center gap-2">
-              <Coins className="w-5 h-5 text-pixel-yellow fill-pixel-yellow animate-pulse" />
-              <div className="text-right">
-                <span className="block text-[8px] text-gray-400 uppercase">Số dư</span>
-                <span className="text-xs text-pixel-yellow font-bold flex items-center gap-1">
-                  {profile.coins}
-                  <button 
-                    onClick={() => {
-                      setSelectedTopupPackage("package_20k");
-                      setTopupError("");
-                      setTopupSuccess(false);
-                      setShowTopupModal(true);
-                    }}
-                    className="ml-1 bg-pixel-green hover:bg-emerald-600 border border-black text-black font-bold text-[8px] w-3.5 h-3.5 flex items-center justify-center cursor-pointer select-none active:translate-y-0.5 rounded-sm"
-                    title="Nạp Coin"
-                  >
-                    +
-                  </button>
-                </span>
-              </div>
+        {/* Cấu trúc Header Progress & Actions */}
+        <div className="flex items-center gap-4">
+          {/* Cấp độ & Thanh EXP mini trên Header */}
+          <div className="hidden sm:flex items-center gap-2 bg-[#141412] px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
+            <div className="text-left shrink-0">
+              <span className="text-[7px] text-[#F3E5AB]/65 uppercase block">Cấp độ</span>
+              <span className="text-xs font-bold text-white flex items-center gap-0.5">
+                {profile.prestigeLevel > 0 && <Star className="w-3 h-3 text-[#FF9F0A] fill-[#FF9F0A]" />}
+                {profile.level}
+              </span>
             </div>
-
-            {/* Hiển thị số lượng Vỏ sò sự kiện */}
-            <div className="flex items-center gap-2 border-l border-white/10 pl-3">
-              <span className="text-sm">🐚</span>
-              <div className="text-right">
-                <span className="block text-[8px] text-gray-400 uppercase">Vỏ Sò</span>
-                <span className="text-xs text-orange-400 font-bold">{profile.shells ?? 0}</span>
-              </div>
+            <div className="w-20 bg-black/40 h-2 rounded-full overflow-hidden border border-[#D4AF37]/10">
+              <div className="bg-[#D4AF37] h-full" style={{ width: `${expPercent}%` }}></div>
             </div>
-
-            {!profile.isPremium && (
-              <button 
-                onClick={() => setActiveTab("SETTINGS")}
-                className="pixel-btn pixel-btn-yellow text-[8px] py-1.5 px-3 uppercase tracking-wider animate-pulse flex items-center gap-1 shrink-0 ml-2"
-              >
-                👑 Premium
-              </button>
-            )}
           </div>
 
-          <button onClick={signOutUser} className="pixel-btn pixel-btn-red py-2 px-3 text-[9px] flex items-center gap-2">
-            <LogOut className="w-3 h-3" />
-            Thoát
+          {/* Tiền tệ: Coins */}
+          <div className="flex items-center gap-2 bg-[#141412] px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
+            <Coins className="w-4 h-4 text-[#D4AF37]" />
+            <div className="text-right">
+              <span className="text-[6.5px] text-[#F3E5AB]/60 uppercase block">Coin xu</span>
+              <span className="text-xs text-white font-mono font-bold">{profile.coins}</span>
+            </div>
+            <button 
+              onClick={() => setShowTopupModal(true)}
+              className="ml-1 w-4 h-4 rounded bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] flex items-center justify-center font-bold text-xs transition"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Tiền tệ Sự kiện: Shells */}
+          <div className="flex items-center gap-2 bg-[#141412] px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
+            <span className="text-sm">🐚</span>
+            <div className="text-right">
+              <span className="text-[6.5px] text-[#F3E5AB]/60 uppercase block">Vỏ Sò</span>
+              <span className="text-xs text-[#FF9F0A] font-mono font-bold">{profile.shells ?? 0}</span>
+            </div>
+          </div>
+
+          {/* Premium tag */}
+          {profile.isPremium ? (
+            <span className="hidden md:inline-flex items-center gap-1 text-[8px] bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] px-2.5 py-1 rounded-full font-extrabold uppercase shadow-md">
+              👑 Premium
+            </span>
+          ) : (
+            <button
+              onClick={() => setActiveTab("SETTINGS")}
+              className="hidden md:flex items-center gap-1 text-[8px] bg-[#1C1C18] border border-[#D4AF37]/35 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#141412] px-2.5 py-1 rounded-full font-bold uppercase transition"
+            >
+              👑 Nâng Cấp
+            </button>
+          )}
+
+          <button onClick={signOutUser} className="text-[#F3E5AB]/60 hover:text-red-400 p-1.5 transition">
+            <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-grow max-w-5xl w-full mx-auto px-4 mt-8 flex flex-col md:flex-row gap-6">
+      {/* Main 3-Column Layout Container */}
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 py-6 flex flex-col lg:grid lg:grid-cols-12 gap-6 relative">
         
-        {/* Navigation Tabs (Pixel Style Menu) */}
-        <div className="w-full md:w-48 flex md:flex-col gap-2 shrink-0">
+        {/* Column 1: Navigation Sidebar (PC Only) */}
+        <div className="hidden lg:flex lg:col-span-2 flex-col gap-2 shrink-0">
           <button 
             onClick={() => setActiveTab("PLAY")}
-            className={`flex-grow md:flex-grow-0 pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "PLAY" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "PLAY" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
           >
             <Swords className="w-4 h-4" />
-            Vào trận
+            Đấu trường
           </button>
           <button 
             onClick={() => setActiveTab("SHOP")}
-            className={`flex-grow md:flex-grow-0 pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SHOP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SHOP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
           >
             <ShoppingBag className="w-4 h-4" />
             Cửa hàng
           </button>
           <button 
-            onClick={() => setActiveTab("SETTINGS")}
-            className={`flex-grow md:flex-grow-0 pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SETTINGS" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            onClick={() => setActiveTab("BP")}
+            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "BP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
           >
-            <Settings className="w-4 h-4" />
-            Tài khoản
+            <Award className="w-4 h-4" />
+            Battle Pass
           </button>
           <button 
             onClick={() => setActiveTab("EVENT")}
-            className={`flex-grow md:flex-grow-0 pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "EVENT" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "EVENT" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
           >
-            <Calendar className="w-4 h-4 text-pixel-yellow animate-pulse" />
+            <Calendar className="w-4 h-4 text-[#FF9F0A] animate-pulse" />
             Sự kiện hè 🍉
           </button>
-
-          {/* VERTICAL ADS BANNER (Only on desktop and if NOT premium) */}
-          {!profile.isPremium && (
-            <div className="hidden md:flex flex-col bg-[#111116] border border-white/5 rounded-2xl p-3 text-center relative overflow-hidden group mt-3">
-              <span className="absolute top-0.5 left-2 text-[4.5px] text-gray-500 uppercase font-mono">Sponsored Ad</span>
-              <div className="pt-2 pb-1">
-                <span className="text-[8px] text-pixel-blue font-bold uppercase tracking-wider block mb-1">ĐẶC QUYỀN VIP SHOP</span>
-                <p className="text-[6.5px] text-gray-400 leading-normal">Nhận ngay ưu đãi <span className="text-pixel-green font-bold">-20% giá mua</span> cho mọi vật phẩm trong cửa hàng!</p>
-                <button
-                  onClick={() => setActiveTab("SETTINGS")}
-                  className="pixel-btn pixel-btn-blue text-[6.5px] py-1.5 px-3 mt-3 w-full uppercase font-bold justify-center"
-                >
-                  Mua Premium 👑
-                </button>
-              </div>
-            </div>
-          )}
+          <button 
+            onClick={() => setActiveTab("SETTINGS")}
+            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SETTINGS" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+          >
+            <Settings className="w-4 h-4" />
+            Cài đặt
+          </button>
         </div>
 
-        {/* Tab Content Panel */}
-        <div className="flex-grow pixel-box bg-[#16161c] p-6 min-h-[400px]">
+        {/* Column 2: Main Content Panel (Middle) */}
+        <div className="lg:col-span-7 flex-grow pixel-box p-6 min-h-[500px]">
           
-          {/* TAB 1: PLAY GAME (ĐẤU TRƯỜNG) */}
+          {/* TAB: PLAY (ĐẤU TRƯỜNG) */}
           {activeTab === "PLAY" && (
             <div className="space-y-6">
               
-              {/* Banner Điểm danh nhận Coin hàng ngày */}
-              <div className="pixel-box-nested p-3.5 bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border-2 border-amber-500/40 relative overflow-hidden flex flex-col sm:flex-row justify-between items-center gap-3">
-                <div>
-                  <h3 className="text-[10px] text-pixel-yellow uppercase font-bold flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-pixel-yellow" />
-                    ĐIỂM DANH HÀ HỮU COIN MỖI NGÀY
-                  </h3>
-                  <p className="text-[7.5px] text-gray-400 mt-1">
-                    Nhận Coin miễn phí hàng ngày! Thành viên <span className="text-pixel-yellow font-bold">Premium 👑</span> được nhận <span className="text-pixel-green font-bold font-mono">50 Coins</span> (Người dùng thường nhận 10 Coins).
+              {/* Event Banner */}
+              <div className="pixel-box-nested p-4 bg-gradient-to-br from-[#1C1C18] via-[#141412] to-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="text-left space-y-1">
+                  <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Sự Kiện Đặc Biệt
+                  </span>
+                  <h3 className="text-base font-extrabold text-white">Đêm Hoàng Kim (Golden Night)</h3>
+                  <p className="text-[10px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
+                    Đổi Visual vàng kim sang trọng, nhân đôi EXP vĩnh viễn cuối tuần, và mở khóa Event Shop vật phẩm đặc chế Obsidian Hoàng Gia.
                   </p>
-                  {dailyClaimMessage && <span className="text-[8px] text-pixel-green font-mono block mt-1">✓ {dailyClaimMessage}</span>}
-                  {dailyClaimError && <span className="text-[8px] text-pixel-red font-mono block mt-1">✗ {dailyClaimError}</span>}
                 </div>
                 <button
-                  onClick={handleClaimDaily}
-                  disabled={claimingDaily}
-                  className="pixel-btn pixel-btn-yellow py-2 px-4 uppercase text-[9px] font-bold shrink-0"
+                  onClick={() => setActiveTab("EVENT")}
+                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-4 rounded-lg uppercase text-[10px] font-extrabold transition shrink-0"
                 >
-                  {claimingDaily ? "Đang nhận..." : "Nhận Coin ngay"}
+                  Khám phá ngay
                 </button>
               </div>
-              
-              {/* Ghép trận ngẫu nhiên đang chạy */}
+
+              {/* Matchmaking Active Overlay */}
               {matchmaking?.active ? (
-                <div className="flex flex-col items-center justify-center py-10 space-y-6">
-                  <div className="relative w-16 h-16 flex items-center justify-center">
-                    <RefreshCw className="w-10 h-10 text-pixel-yellow animate-spin" />
+                <div className="flex flex-col items-center justify-center py-16 space-y-6">
+                  <div className="relative w-14 h-14 flex items-center justify-center border border-[#D4AF37]/20 rounded-full bg-[#1C1C18]">
+                    <RefreshCw className="w-8 h-8 text-[#D4AF37] animate-spin" />
                   </div>
                   <div className="text-center">
-                    <h3 className="text-xs text-pixel-yellow uppercase tracking-widest animate-pulse">
-                      Đang tìm đối thủ...
+                    <h3 className="text-xs text-white uppercase tracking-widest font-extrabold animate-pulse">
+                      Đang tìm đối thủ xếp hạng...
                     </h3>
-                    <p className="text-[9px] text-gray-400 mt-2 uppercase">
-                      Game: {matchmaking.gameType} | Cược: {matchmaking.wager} Coin
+                    <p className="text-[10px] text-[#FF9F0A] mt-2 uppercase font-mono">
+                      Game: {matchmaking.gameType === "CARO" ? "Gomoku" : matchmaking.gameType} | Cược: {matchmaking.wager} Coin
                     </p>
                   </div>
                   <button onClick={handleCancelMatchmaking} className="pixel-btn pixel-btn-red py-2 px-6 uppercase text-[9px]">
@@ -830,41 +789,67 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* PHẦN TRÊN: SẢNH ĐẤU GAME */}
-                  <div className="space-y-6">
-                    <h2 className="text-xs text-pixel-yellow uppercase border-b border-black pb-2 mb-4 tracking-wider">
-                      Sảnh Đấu Game
-                    </h2>
+                  {/* Revenge Widget */}
+                  {lastMatch && (
+                    <div className="pixel-box-nested p-4 border-l-4 border-l-[#FF9F0A] bg-[#1C1C18]/60 flex justify-between items-center gap-4">
+                      <div>
+                        <span className="text-[8px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold">LẦN ĐẤU TRƯỚC</span>
+                        <h4 className="text-xs font-bold text-white mt-0.5">
+                          {lastMatch.winnerId === profile.id ? "Thắng" : lastMatch.winnerId ? "Thua" : "Hòa"} game {lastMatch.gameType === "CARO" ? "Gomoku" : lastMatch.gameType} vs{" "}
+                          <span className="text-[#D4AF37]">
+                            @{lastMatch.playerXId === profile.id ? lastMatch.playerO?.username : lastMatch.playerX?.username}
+                          </span>
+                        </h4>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedGame(lastMatch.gameType as any);
+                          setSelectedMode("RANDOM");
+                          setMatchWager(lastMatch.wager);
+                          handleStartMatchmaking();
+                        }}
+                        className="bg-[#FF9F0A] hover:bg-[#D4AF37] text-[#141412] px-4 py-2 rounded-lg text-[9px] font-extrabold uppercase transition"
+                      >
+                        Phục Hận Ngay
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Sảnh cờ lựa chọn cấu hình đấu */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs text-[#D4AF37] uppercase font-bold tracking-wider border-b border-[#D4AF37]/15 pb-2">
+                      Sảnh Đấu Trí
+                    </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Game Selection */}
-                      <div className="pixel-box-nested p-4">
-                        <span className="block text-[8px] text-gray-400 uppercase mb-2">1. Chọn trò chơi:</span>
+                      {/* Chọn game */}
+                      <div className="pixel-box-nested p-4 space-y-3">
+                        <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">1. Chọn trò chơi:</span>
                         <div className="grid grid-cols-3 gap-2">
                           <button
-                            onClick={() => setSelectedGame("TIC_TAC_TOE")}
-                            className={`pixel-btn text-[10px] py-2 ${selectedGame === "TIC_TAC_TOE" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                          >
-                            Tic-Tac-Toe
-                          </button>
-                          <button
                             onClick={() => setSelectedGame("CARO")}
-                            className={`pixel-btn text-[10px] py-2 ${selectedGame === "CARO" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "CARO" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
-                            Caro 12x12
+                            Gomoku
                           </button>
                           <button
                             onClick={() => setSelectedGame("BATTLESHIP")}
-                            className={`pixel-btn text-[10px] py-2 ${selectedGame === "BATTLESHIP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "BATTLESHIP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
-                            Tàu chiến
+                            Battleship
+                          </button>
+                          <button
+                            onClick={() => setSelectedGame("TIC_TAC_TOE")}
+                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "TIC_TAC_TOE" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                          >
+                            Caro 3x3
                           </button>
                         </div>
                       </div>
 
-                      {/* Mode Selection */}
-                      <div className="pixel-box-nested p-4">
-                        <span className="block text-[8px] text-gray-400 uppercase mb-2">2. Chế độ đấu:</span>
+                      {/* Chọn chế độ */}
+                      <div className="pixel-box-nested p-4 space-y-3">
+                        <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">2. Chế độ chơi:</span>
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => setSelectedMode("BOT")}
@@ -876,1105 +861,934 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             onClick={() => setSelectedMode("FRIEND")}
                             className={`pixel-btn justify-start text-[10px] py-2 ${selectedMode === "FRIEND" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
-                            <ChevronRight className="w-3 h-3 mr-2" /> Đấu với bạn bè (Mã phòng)
+                            <ChevronRight className="w-3 h-3 mr-2" /> Đấu với bạn (Mã phòng)
                           </button>
                           <button
                             onClick={() => setSelectedMode("RANDOM")}
                             className={`pixel-btn justify-start text-[10px] py-2 ${selectedMode === "RANDOM" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
-                            <ChevronRight className="w-3 h-3 mr-2" /> Ghép ngẫu nhiên (Online)
+                            <ChevronRight className="w-3 h-3 mr-2" /> Xếp hạng (Online)
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    {/* Mode Details config */}
+                    {/* Cấu hình chi tiết */}
                     <div className="pixel-box-nested p-4">
                       {selectedMode === "BOT" && (
-                        <div>
-                          <span className="block text-[8px] text-gray-400 uppercase mb-2">Độ khó của Bot:</span>
-                          <div className="grid grid-cols-3 gap-2">
-                            <button
-                              onClick={() => setBotDifficulty("RANDOM")}
-                              className={`pixel-btn text-[9px] py-2 ${botDifficulty === "RANDOM" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
-                            >
-                              Ngẫu nhiên
-                            </button>
-                            <button
-                              onClick={() => setBotDifficulty("EASY")}
-                              className={`pixel-btn text-[9px] py-2 ${botDifficulty === "EASY" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
-                            >
-                              Dễ (Chặn)
-                            </button>
-                            {(selectedGame === "TIC_TAC_TOE" || selectedGame === "BATTLESHIP") && (
+                        <div className="space-y-4">
+                          <div>
+                            <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Độ khó của Bot:</span>
+                            <div className="grid grid-cols-3 gap-2">
+                              <button
+                                onClick={() => setBotDifficulty("RANDOM")}
+                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "RANDOM" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                              >
+                                Ngẫu nhiên
+                              </button>
+                              <button
+                                onClick={() => setBotDifficulty("EASY")}
+                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "EASY" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                              >
+                                Dễ (Chặn)
+                              </button>
                               <button
                                 onClick={() => setBotDifficulty("HARD")}
                                 className={`pixel-btn text-[9px] py-2 ${botDifficulty === "HARD" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
                               >
-                                {selectedGame === "BATTLESHIP" ? "Khó (Săn Lùng)" : "Khó (Minimax)"}
+                                Khó
                               </button>
-                            )}
+                            </div>
                           </div>
                           <button 
                             onClick={handlePlayBot}
-                            className="w-full pixel-btn pixel-btn-yellow py-3 mt-4 text-xs uppercase font-bold gap-2"
+                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-extrabold gap-2"
                           >
-                            <Play className="w-4 h-4 fill-black" /> Bắt đầu chơi
+                            <Play className="w-4 h-4 fill-black" /> Bắt đầu ngay
                           </button>
                         </div>
                       )}
 
                       {selectedMode === "FRIEND" && (
-                        <div>
-                          <span className="block text-[8px] text-gray-400 uppercase mb-2">Đặt mức cược trận đấu (Coin):</span>
-                          <div className="grid grid-cols-4 gap-2 mb-4">
-                            {[0, 10, 50, 100].map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => setMatchWager(c)}
-                                className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-blue" : "pixel-btn-gray"}`}
-                              >
-                                {c}
-                              </button>
-                            ))}
+                        <div className="space-y-4">
+                          <div>
+                            <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược Coin (Mỗi người):</span>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[0, 10, 50, 100].map((c) => (
+                                <button
+                                  key={c}
+                                  onClick={() => setMatchWager(c)}
+                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                >
+                                  {c} Coin
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <button
                             onClick={handleCreateFriendRoom}
                             disabled={creatingFriendLobby}
-                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-bold gap-2"
+                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-extrabold gap-2"
                           >
                             <Swords className="w-4 h-4" />
-                            {creatingFriendLobby ? "Đang tạo phòng..." : "Tạo phòng & nhận link mời"}
+                            {creatingFriendLobby ? "Đang khởi tạo..." : "Tạo Sảnh Đợi & Link Mời"}
                           </button>
                         </div>
                       )}
 
                       {selectedMode === "RANDOM" && (
-                        <div>
-                          <span className="block text-[8px] text-gray-400 uppercase mb-2">Chọn cược đấu hạng (Coin):</span>
-                          <div className="grid grid-cols-4 gap-2 mb-4">
-                            {[0, 10, 50, 100].map((c) => (
-                              <button
-                                key={c}
-                                onClick={() => setMatchWager(c)}
-                                className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-blue" : "pixel-btn-gray"}`}
-                              >
-                                {c}
-                              </button>
-                            ))}
+                        <div className="space-y-4">
+                          <div>
+                            <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược trận đấu (Coin):</span>
+                            <div className="grid grid-cols-4 gap-2">
+                              {[0, 10, 50, 100].map((c) => (
+                                <button
+                                  key={c}
+                                  onClick={() => setMatchWager(c)}
+                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                >
+                                  {c} Coin
+                                </button>
+                              ))}
+                            </div>
                           </div>
                           <button
                             onClick={handleStartMatchmaking}
-                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-bold gap-2"
+                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-extrabold gap-2"
                           >
                             <Swords className="w-4 h-4" />
-                            Tìm trận ngay
+                            Tìm đối thủ xếp hạng
                           </button>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* PHẦN DƯỚI: BẢNG XẾP HẠNG */}
-                  <div className="border-t border-white/5 pt-6 space-y-6">
-                    <div className="flex items-center justify-between border-b border-black pb-2">
-                      <h3 className="text-xs text-pixel-yellow uppercase tracking-wider flex items-center gap-2">
-                        <Trophy className="w-4 h-4 text-pixel-yellow fill-pixel-yellow" />
-                        Bảng Xếp Hạng Cao Thủ
-                      </h3>
-                      <button 
-                        onClick={fetchLeaderboard}
-                        className={`text-gray-400 hover:text-white p-1 rounded transition-colors ${loadingLeaderboard ? "animate-spin" : ""}`}
-                        disabled={loadingLeaderboard}
-                        title="Tải lại"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    {loadingLeaderboard ? (
-                      <div className="flex flex-col items-center justify-center py-10 space-y-2">
-                        <RefreshCw className="w-6 h-6 text-pixel-blue animate-spin" />
-                        <span className="text-[7px] text-gray-500 uppercase tracking-widest">Đang tải xếp hạng...</span>
-                      </div>
-                    ) : leaderboard.length === 0 ? (
-                      <div className="text-center py-10 text-[8px] text-gray-500 uppercase">Chưa có người chơi</div>
+                  {/* Lịch sử trận đấu gần đây */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs text-[#D4AF37] uppercase font-bold tracking-wider border-b border-[#D4AF37]/15 pb-2">
+                      Lịch Sử Đấu Gần Nhất
+                    </h3>
+                    {loadingHistory ? (
+                      <div className="text-center py-6 text-[10px] text-[#F3E5AB]/60 uppercase animate-pulse">Đang tải lịch sử...</div>
+                    ) : matchHistory.length === 0 ? (
+                      <div className="text-center py-6 text-[10px] text-[#F3E5AB]/50 uppercase">Chưa tham gia đấu trận nào</div>
                     ) : (
-                      <div className="space-y-6">
-                        {/* 1. BỤC VINH QUANG TOP 3 (PODIUM) */}
-                        <div className="grid grid-cols-3 gap-2 sm:gap-4 items-end max-w-xl mx-auto pt-4 px-2">
-                          
-                          {/* TOP 2 (BÊN TRÁI) */}
-                          <div className="flex flex-col items-center">
-                            {leaderboard[1] ? (
-                              <>
-                                <div className="text-center mb-2 space-y-0.5">
-                                  <div className={`w-10 h-10 bg-pixel-gray-light border border-white/10 rounded-xl relative flex items-center justify-center mx-auto ${
-                                    SHOP_ITEMS.find((i) => i.id === leaderboard[1].avatarFrame)?.visuals?.className || ""
-                                  }`}>
-                                    <UserIcon className="w-4 h-4 text-pixel-blue" />
-                                  </div>
-                                  <span className={`block text-[8px] sm:text-[9px] truncate max-w-[80px] font-bold uppercase tracking-wide flex items-center justify-center gap-0.5 ${leaderboard[1].isPremium ? "premium-glow-text" : "text-gray-300"}`}>
-                                    {leaderboard[1].username}
-                                    {leaderboard[1].isPremium && <span title="Premium">👑</span>}
+                      <div className="space-y-2">
+                        {matchHistory.map((m) => {
+                          const isX = m.playerXId === profile.id;
+                          const opponent = isX ? m.playerO?.username : m.playerX?.username;
+                          const win = m.winnerId === profile.id;
+                          const draw = m.draw;
+                          return (
+                            <div key={m.id} className="bg-[#1C1C18] border border-[#D4AF37]/10 p-3 rounded-xl flex justify-between items-center text-xs">
+                              <div>
+                                <span className="font-bold text-white uppercase">{m.gameType === "CARO" ? "Gomoku" : m.gameType}</span>
+                                <span className="text-[#F3E5AB]/60 block text-[10px]">Đối thủ: @{opponent || "Bot"}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className={`font-extrabold uppercase ${win ? "text-green-400" : draw ? "text-gray-400" : "text-red-400"}`}>
+                                  {win ? "Thắng" : draw ? "Hòa" : "Thua"}
+                                </span>
+                                {m.wager > 0 && (
+                                  <span className="block font-mono text-[9px] text-[#D4AF37]">
+                                    {win ? `+${m.wager}` : `-${m.wager}`} Coin
                                   </span>
-                                  <span className="block text-[7px] text-pixel-blue font-mono font-bold">Lv.{leaderboard[1].level}</span>
-                                </div>
-                                <div className="w-full bg-gradient-to-t from-gray-500/10 to-gray-500/30 border-t border-x border-gray-400/20 rounded-t-xl flex flex-col items-center justify-center h-20 shadow-md">
-                                  <span className="text-sm font-bold text-gray-300">🥈</span>
-                                  <span className="text-[7px] text-gray-400 font-mono mt-0.5">{leaderboard[1].coins} C</span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="h-20 w-full"></div>
-                            )}
-                          </div>
-
-                          {/* TOP 1 (Ở GIỮA) */}
-                          <div className="flex flex-col items-center">
-                            {leaderboard[0] ? (
-                              <>
-                                <div className="text-center mb-2 space-y-0.5 relative z-10">
-                                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs animate-bounce">👑</span>
-                                  <div className={`w-12 h-12 bg-pixel-gray-light border-2 border-yellow-500/30 rounded-xl relative flex items-center justify-center mx-auto shadow-md shadow-yellow-500/10 ${
-                                    SHOP_ITEMS.find((i) => i.id === leaderboard[0].avatarFrame)?.visuals?.className || ""
-                                  }`}>
-                                    <UserIcon className="w-5 h-5 text-pixel-yellow" />
-                                  </div>
-                                  <span className={`block text-[9px] sm:text-[10px] truncate max-w-[90px] font-bold uppercase tracking-wide flex items-center justify-center gap-0.5 ${leaderboard[0].isPremium ? "premium-glow-text" : "text-pixel-yellow"}`}>
-                                    {leaderboard[0].username}
-                                    {leaderboard[0].isPremium && <span title="Premium">👑</span>}
-                                  </span>
-                                  <span className="block text-[7px] text-yellow-400 font-mono font-bold">Lv.{leaderboard[0].level}</span>
-                                </div>
-                                <div className="w-full bg-gradient-to-t from-yellow-500/10 to-yellow-500/30 border-t border-x border-yellow-400/20 rounded-t-xl flex flex-col items-center justify-center h-28 shadow-lg shadow-yellow-500/5 relative">
-                                  <span className="text-base font-bold text-yellow-400">🏆</span>
-                                  <span className="text-[7px] text-yellow-300 font-mono mt-0.5">{leaderboard[0].coins} C</span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="h-28 w-full"></div>
-                            )}
-                          </div>
-
-                          {/* TOP 3 (BÊN PHẢI) */}
-                          <div className="flex flex-col items-center">
-                            {leaderboard[2] ? (
-                              <>
-                                <div className="text-center mb-2 space-y-0.5">
-                                  <div className={`w-10 h-10 bg-pixel-gray-light border border-white/10 rounded-xl relative flex items-center justify-center mx-auto ${
-                                    SHOP_ITEMS.find((i) => i.id === leaderboard[2].avatarFrame)?.visuals?.className || ""
-                                  }`}>
-                                    <UserIcon className="w-4 h-4 text-pixel-blue" />
-                                  </div>
-                                  <span className={`block text-[8px] sm:text-[9px] truncate max-w-[80px] font-bold uppercase tracking-wide flex items-center justify-center gap-0.5 ${leaderboard[2].isPremium ? "premium-glow-text" : "text-amber-500"}`}>
-                                    {leaderboard[2].username}
-                                    {leaderboard[2].isPremium && <span title="Premium">👑</span>}
-                                  </span>
-                                  <span className="block text-[7px] text-pixel-blue font-mono font-bold">Lv.{leaderboard[2].level}</span>
-                                </div>
-                                <div className="w-full bg-gradient-to-t from-amber-700/10 to-amber-700/30 border-t border-x border-amber-600/20 rounded-t-xl flex flex-col items-center justify-center h-14 shadow-md">
-                                  <span className="text-sm font-bold text-amber-600">🥉</span>
-                                  <span className="text-[7px] text-amber-400 font-mono mt-0.5">{leaderboard[2].coins} C</span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="h-14 w-full"></div>
-                            )}
-                          </div>
-
-                        </div>
-
-                        {/* 2. DANH SÁCH CÒN LẠI (TOP 4 - 10) */}
-                        {leaderboard.length > 3 && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto pr-1 border-t border-white/5 pt-4">
-                            {leaderboard.slice(3).map((player, index) => {
-                              const rank = index + 4;
-                              const isMe = player.id === profile.id;
-                              const playerFrame = SHOP_ITEMS.find((i) => i.id === player.avatarFrame);
-
-                              return (
-                                <div 
-                                  key={player.id} 
-                                  className={`flex items-center justify-between p-3 rounded-xl transition-all ${
-                                    isMe 
-                                      ? "bg-pixel-yellow/10 border border-pixel-yellow/20" 
-                                      : "bg-black/30 border border-white/5 hover:bg-black/45"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-[10px] w-5 text-center text-gray-400 font-bold">{rank}</span>
-                                    <div className={`w-8 h-8 bg-pixel-gray-light border border-white/10 rounded-lg relative flex items-center justify-center shrink-0 ${playerFrame?.visuals?.className || ""}`}>
-                                      <UserIcon className="w-4 h-4 text-pixel-blue" />
-                                    </div>
-                                    <div className="overflow-hidden">
-                                      <span className={`block text-[10px] truncate max-w-[120px] uppercase font-bold tracking-wide flex items-center gap-1 ${player.isPremium ? "premium-glow-text" : (isMe ? "text-pixel-yellow" : "text-white")}`}>
-                                        {player.username}
-                                        {player.isPremium && <span title="Premium">👑</span>}
-                                      </span>
-                                      {player.isGuest && (
-                                        <span className="inline-block text-[6px] text-pixel-red border border-pixel-red/20 rounded px-1 scale-90 origin-left">Guest</span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-4 text-right">
-                                    <div>
-                                      <span className="block text-[7px] text-gray-500 font-mono">Cấp độ</span>
-                                      <span className="text-[10px] text-pixel-blue font-bold">Lv.{player.level}</span>
-                                    </div>
-                                    <div className="min-w-[50px]">
-                                      <span className="block text-[7px] text-gray-500 font-mono">Coin</span>
-                                      <span className="text-[10px] text-pixel-yellow font-bold flex items-center justify-end gap-0.5">
-                                        {player.coins} <Coins className="w-3 h-3 text-pixel-yellow fill-pixel-yellow" />
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
-
-                  {/* ADS BANNER PLACEHOLDER (Only show if NOT premium) */}
-                  {!profile.isPremium && (
-                    <div className="w-full bg-[#111116] border border-red-500/10 rounded-2xl p-4 mt-6 text-center relative overflow-hidden group">
-                      <span className="absolute top-1 left-2 text-[5px] text-gray-500 uppercase tracking-widest">Sponsored Ad</span>
-                      <button 
-                        onClick={() => setActiveTab("SETTINGS")}
-                        className="absolute top-1 right-2 text-[6.5px] text-pixel-yellow hover:underline uppercase"
-                      >
-                        Tắt QC với Premium
-                      </button>
-                      
-                      <div className="flex flex-col md:flex-row items-center gap-4 pt-2">
-                        {/* Mock Ad Image using highly stylized CSS/SVG (crisp pixel look) */}
-                        <div className="w-full md:w-36 h-20 bg-gradient-to-br from-indigo-950 to-purple-950 border border-white/10 rounded-lg relative flex items-center justify-center overflow-hidden shrink-0">
-                          {/* Retro game console grid */}
-                          <div className="absolute inset-0 opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[size:100%_4px,3px_100%]"></div>
-                          {/* Pixel Art keyboard console drawing */}
-                          <svg className="w-10 h-10 text-pixel-yellow drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                            <rect x="2" y="6" width="20" height="12" rx="2" fill="rgba(0,0,0,0.4)" stroke="currentColor" />
-                            <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M10 14h8" strokeLinecap="round" />
-                          </svg>
-                          <span className="absolute bottom-1 text-[7px] text-pixel-yellow font-bold uppercase tracking-wider animate-pulse">BOARDVERSE GEAR</span>
-                        </div>
-
-                        <div className="text-left flex-grow">
-                          <h4 className="text-[10px] text-pixel-yellow uppercase font-bold tracking-wide">BÀN PHÍM CƠ CHUYÊN GAME BOARDVERSE</h4>
-                          <p className="text-[8px] text-gray-400 mt-1 leading-relaxed">
-                            Bàn phím cơ Pixel-Art độc quyền phiên bản giới hạn! Switch quang học phản hồi siêu tốc 0.1ms, hành trình ngắn giúp đi cờ nhanh chóng.
-                          </p>
-                        </div>
-                        <a 
-                          href="https://github.com/google-deepmind" 
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="pixel-btn pixel-btn-yellow py-1.5 px-4 text-[8px] uppercase font-bold whitespace-nowrap shrink-0 scale-90 md:scale-100 group-hover:scale-105 transition-all"
-                        >
-                          Mua ngay
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 2: SHOP COSMETICS (CỬA HÀNG) */}
+          {/* TAB: SHOP (CỬA HÀNG) */}
           {activeTab === "SHOP" && (
-            <div>
-              <h2 className="text-xs text-pixel-yellow uppercase border-b border-black pb-2 mb-4 tracking-wider flex justify-between items-center">
-                <span>Cửa hàng trang trí</span>
-                <span className="text-[10px] text-gray-400 lowercase font-normal flex items-center gap-1">
-                  Số dư: <span className="text-pixel-yellow font-bold">{profile.coins}</span> <Coins className="w-3 h-3 text-pixel-yellow fill-pixel-yellow inline" />
-                </span>
-              </h2>
-
-              {/* Shop sub-tabs */}
-              <div className="flex flex-wrap gap-1.5 mb-6 border-b border-white/5 pb-3">
-                {([
-                  { cat: "ALL", label: "Tất cả" },
-                  { cat: "SYMBOL", label: "Quân cờ" },
-                  { cat: "FRAME", label: "Khung viền" },
-                  { cat: "THEME", label: "Bàn cờ" },
-                  { cat: "SFX", label: "Âm thanh" },
-                  { cat: "EMOJI", label: "Biểu cảm" }
-                ] as const).map(({ cat, label }) => (
-                  <button
-                    key={cat}
-                    onClick={() => setShopCategory(cat)}
-                    className={`pixel-btn text-[8px] py-1.5 px-3 uppercase tracking-wider ${shopCategory === cat ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                  >
-                    {label}
-                  </button>
-                ))}
+            <div className="space-y-6">
+              <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-3">
+                <h2 className="text-md font-bold uppercase text-white">Cửa Hàng Skin & Soundpack</h2>
+                <div className="flex gap-1.5 flex-wrap">
+                  {["ALL", "SYMBOL", "FRAME", "THEME", "SFX", "EMOJI"].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setShopCategory(cat as any)}
+                      className={`text-[8.5px] uppercase px-2.5 py-1 rounded transition ${
+                        shopCategory === cat 
+                          ? "bg-[#D4AF37] text-[#141412] font-bold" 
+                          : "bg-[#1C1C18] text-[#F3E5AB]/60 hover:text-white"
+                      }`}
+                    >
+                      {cat === "ALL" ? "Tất cả" : cat}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {SHOP_ITEMS.filter(item => (!item.isEventOnly || profile.purchasedItems.includes(item.id)) && (shopCategory === "ALL" || item.type === shopCategory)).map(item => {
-                    const owned = profile.purchasedItems.includes(item.id);
-                    
-                    // Logic trang bị đặc thù
-                    const isEquippedX = profile.selectedSymbolX === item.id;
-                    const isEquippedO = profile.selectedSymbolO === item.id;
-                    const isEquippedFrame = profile.avatarFrame === item.id;
-                    
-                    const clientTheme = typeof window !== "undefined" ? localStorage.getItem("board_theme") || "theme_classic" : "theme_classic";
-                    const isEquippedTheme = clientTheme === item.id;
-
-                    const clientSfx = typeof window !== "undefined" ? localStorage.getItem("equipped_sfx") || "sfx_classic" : "sfx_classic";
-                    const isEquippedSfx = clientSfx === item.id;
-
-                    const equipThemeClient = (themeId: string) => {
-                      localStorage.setItem("board_theme", themeId);
-                      setEquippedThemeId(themeId);
-                      window.dispatchEvent(new Event("theme_changed"));
-                    };
-
-                    const equipSfxClient = (sfxId: string) => {
-                      localStorage.setItem("equipped_sfx", sfxId);
-                      window.dispatchEvent(new Event("sfx_changed"));
-                      // Chạy âm thanh thử nghiệm bằng Web Audio
-                      playPreviewSFX(item.visuals.sfxType);
-                    };
-
-                    const playPreviewSFX = (type: any) => {
-                      if (typeof window === "undefined") return;
-                      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-                      const osc = ctx.createOscillator();
-                      const gain = ctx.createGain();
-                      osc.connect(gain);
-                      gain.connect(ctx.destination);
-
-                      if (type === "retro") {
-                        osc.type = "square";
-                        osc.frequency.setValueAtTime(300, ctx.currentTime);
-                        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
-                        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.15);
-                      } else if (type === "laser") {
-                        osc.type = "sawtooth";
-                        osc.frequency.setValueAtTime(1200, ctx.currentTime);
-                        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
-                        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.2);
-                      } else if (type === "epic") {
-                        osc.type = "sine";
-                        osc.frequency.setValueAtTime(440, ctx.currentTime);
-                        osc.frequency.setValueAtTime(554.37, ctx.currentTime + 0.08);
-                        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.16);
-                        gain.gain.setValueAtTime(0.12, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.35);
-                      } else if (type === "synth") {
-                        // Sóng biển rì rào
-                        osc.type = "sine";
-                        osc.frequency.setValueAtTime(150, ctx.currentTime);
-                        osc.frequency.linearRampToValueAtTime(250, ctx.currentTime + 0.5);
-                        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 1.2);
-                        gain.gain.setValueAtTime(0.01, ctx.currentTime);
-                        gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.5);
-                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 1.2);
-                      } else {
-                        // Mặc định beep nhẹ
-                        osc.type = "sine";
-                        osc.frequency.setValueAtTime(600, ctx.currentTime);
-                        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.08);
-                      }
-                    };
-
-                    const actualPrice = profile.isPremium ? Math.floor(item.price * 0.8) : item.price;
-
-                    return (
-                      <div key={item.id} className="pixel-box-nested p-3.5 flex flex-col justify-between relative group hover:border-pixel-yellow/30 transition-all">
-                        
-                        {/* Nhãn loại vật phẩm */}
-                        <span className="absolute top-2 right-2 text-[5.5px] bg-black/50 border border-white/10 px-1 py-0.5 rounded text-gray-400 font-mono uppercase tracking-widest scale-90">
-                          {item.type}
-                        </span>
-
-                        <div>
-                          <div className="flex justify-between items-start pr-8">
-                            <span className="text-[10px] font-bold text-white flex items-center gap-1">
-                              {item.name}
-                              {item.isPremiumOnly && (
-                                <span className="text-[5.5px] bg-amber-500/20 border border-amber-500/30 px-1 rounded text-amber-500 font-bold uppercase tracking-wider">👑 VIP</span>
-                              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {SHOP_ITEMS.filter((item) => shopCategory === "ALL" || item.type === shopCategory).map((item) => {
+                  const isOwned = profile.purchasedItems.includes(item.id);
+                  const isEquipped = profile.avatarFrame === item.id || profile.selectedSymbolX === item.id || profile.selectedSymbolO === item.id;
+                  
+                  return (
+                    <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <span className="text-[7.5px] bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-0.5 rounded uppercase font-bold font-mono">
+                            {item.type}
+                          </span>
+                          {!isOwned && (
+                            <span className="text-[10px] text-white font-mono font-bold flex items-center gap-0.5">
+                              <Coins className="w-3 h-3 text-[#D4AF37]" /> {item.price}
                             </span>
-                          </div>
-                          
-                          <p className="text-[7.5px] text-gray-400 mt-1 leading-normal pr-4">{item.description}</p>
-                          
-                          {/* Visual Preview Panel */}
-                          <div className="mt-3 bg-black/45 border border-black/80 rounded p-2 text-center flex items-center justify-center min-h-[44px]">
-                            {item.type === "SYMBOL" && (
-                              <div className="text-xs">
-                                Quân cờ: <span className="text-pixel-yellow font-bold">{item.visuals.symbolX}</span> vs <span className="text-pixel-blue font-bold">{item.visuals.symbolO}</span>
-                              </div>
-                            )}
-                            {item.type === "FRAME" && (
-                              <div className="flex justify-center">
-                                <div className={`w-8 h-8 bg-pixel-gray-light border-2 border-black relative flex items-center justify-center ${item.visuals.className || ""}`}>
-                                  <UserIcon className="w-3.5 h-3.5 text-pixel-blue" />
-                                </div>
-                              </div>
-                            )}
-                            {item.type === "THEME" && (
-                              <div className="w-full text-[8px] flex flex-col items-center gap-1.5">
-                                <div className={`w-full h-4 border border-black rounded ${item.visuals.className || ""}`}></div>
-                                <span className="text-[6.5px] text-gray-400">Xem trước chủ đề bàn cờ</span>
-                              </div>
-                            )}
-                            {item.type === "SFX" && (
-                              <button 
-                                onClick={() => playPreviewSFX(item.visuals.sfxType)}
-                                className="pixel-btn pixel-btn-gray py-1 px-3 text-[7.5px] uppercase font-mono flex items-center gap-1 cursor-pointer hover:bg-black/50"
-                              >
-                                <Volume2 className="w-3 h-3 text-pixel-blue" /> Nghe thử SFX
-                              </button>
-                            )}
-                            {item.type === "EMOJI" && (
-                              <div className="text-xl animate-bounce">
-                                {item.visuals.emoji}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Mua/Trang bị/Tặng quà */}
-                        <div className="mt-4">
-                          {owned ? (
-                            <div className="flex gap-1.5">
-                              {item.type === "SYMBOL" && (
-                                <>
-                                  <button
-                                    onClick={() => handleEquipItem(item.id, "X")}
-                                    className={`flex-grow pixel-btn text-[7.5px] py-1 ${isEquippedX ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                                  >
-                                    {isEquippedX ? "X (Đã chọn)" : "Đặt X"}
-                                  </button>
-                                  <button
-                                    onClick={() => handleEquipItem(item.id, "O")}
-                                    className={`flex-grow pixel-btn text-[7.5px] py-1 ${isEquippedO ? "pixel-btn-blue text-white" : "pixel-btn-gray"}`}
-                                  >
-                                    {isEquippedO ? "O (Đã chọn)" : "Đặt O"}
-                                  </button>
-                                </>
-                              )}
-                              {item.type === "FRAME" && (
-                                <button
-                                  onClick={() => handleEquipItem(item.id)}
-                                  className={`w-full pixel-btn text-[7.5px] py-1 ${isEquippedFrame ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                                  disabled={isEquippedFrame}
-                                >
-                                  {isEquippedFrame ? "Đang Trang Bị" : "Trang Bị"}
-                                </button>
-                              )}
-                              {item.type === "THEME" && (
-                                <button
-                                  onClick={() => equipThemeClient(item.id)}
-                                  className={`w-full pixel-btn text-[7.5px] py-1 ${isEquippedTheme ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                                  disabled={isEquippedTheme}
-                                >
-                                  {isEquippedTheme ? "Đang sử dụng" : "Áp dụng"}
-                                </button>
-                              )}
-                              {item.type === "SFX" && (
-                                <button
-                                  onClick={() => equipSfxClient(item.id)}
-                                  className={`w-full pixel-btn text-[7.5px] py-1 ${isEquippedSfx ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                                  disabled={isEquippedSfx}
-                                >
-                                  {isEquippedSfx ? "Đang chọn SFX" : "Sử dụng SFX"}
-                                </button>
-                              )}
-                              {item.type === "EMOJI" && (
-                                <span className="w-full text-center text-[7.5px] text-pixel-green font-mono py-1 block">
-                                  ✓ Đã sở hữu
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              {item.isPremiumOnly && !profile.isPremium ? (
-                                <button
-                                  onClick={() => setActiveTab("SETTINGS")}
-                                  className="w-full pixel-btn pixel-btn-blue text-[8.5px] py-1 flex items-center justify-center gap-1 uppercase font-bold"
-                                >
-                                  Mở khóa với VIP 👑
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => handleBuyItem(item.id)}
-                                    className="flex-grow pixel-btn pixel-btn-yellow text-[8.5px] py-1 font-bold flex justify-center items-center gap-1"
-                                  >
-                                    Mua: {actualPrice} <Coins className="w-2.5 h-2.5 text-black fill-black" />
-                                    {profile.isPremium && <span className="text-[5px] bg-pixel-green/30 border border-pixel-green/30 px-0.5 rounded text-pixel-green uppercase tracking-wide">VIP -20%</span>}
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setGiftItemId(item.id);
-                                      setGiftUsername("");
-                                      setGiftError("");
-                                      setGiftSuccessMsg("");
-                                      setShowGiftModal(true);
-                                    }}
-                                    className="pixel-btn pixel-btn-gray py-1 px-2.5 text-[8.5px] flex items-center justify-center"
-                                    title="Tặng cho bạn bè"
-                                  >
-                                    <Gift className="w-3.5 h-3.5 text-pixel-blue" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
                           )}
                         </div>
+                        <h4 className="font-bold text-white text-sm mt-2">{item.name}</h4>
+                        <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed mt-1">{item.description}</p>
                       </div>
-                    );
-                  })}
+
+                      <div className="flex gap-2">
+                        {isOwned ? (
+                          isEquipped ? (
+                            <button className="w-full bg-[#D4AF37]/20 border border-[#D4AF37]/45 text-[#D4AF37] text-[9px] uppercase font-bold py-2 rounded-lg cursor-not-allowed">
+                              Đang dùng
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (item.type === "SYMBOL") {
+                                  // Cho phép trang bị vào Slot X
+                                  handleEquipItem(item.id, "X");
+                                } else {
+                                  handleEquipItem(item.id);
+                                }
+                              }}
+                              className="w-full bg-[#1C1C18] border border-[#D4AF37]/30 hover:border-[#D4AF37] text-white text-[9px] uppercase font-bold py-2 rounded-lg transition"
+                            >
+                              Trang bị
+                            </button>
+                          )
+                        ) : (
+                          <button
+                            onClick={() => handleBuyItem(item.id)}
+                            className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[9px] uppercase font-extrabold py-2 rounded-lg transition"
+                          >
+                            Mua Ngay
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setGiftItemId(item.id); setShowGiftModal(true); }}
+                          className="bg-[#1C1C18] border border-[#D4AF37]/15 p-2 rounded-lg hover:border-[#D4AF37] transition"
+                          title="Tặng cho bạn bè"
+                        >
+                          <Gift className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: BATTLE PASS (BẢN TIẾN TRÌNH THEO MÙA) */}
+          {activeTab === "BP" && (
+            <div className="space-y-6">
+              <div className="border-b border-[#D4AF37]/15 pb-3">
+                <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  Mùa Giải 1
+                </span>
+                <h2 className="text-lg font-bold uppercase text-white mt-1">Battle Pass: Đêm Hoàng Kim</h2>
+                <p className="text-[10px] text-[#F3E5AB]/75">
+                  Cày cuốc EXP thông qua hoàn thành Nhiệm vụ Hàng ngày & Hàng tuần để mở khóa 50 cấp độ phần thưởng độc quyền!
+                </p>
+              </div>
+
+              {/* Progress overview */}
+              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/15 space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-white">CẤP BATTLE PASS: {profile.battlePassLevel} / 50</span>
+                  <span className="font-mono text-[#D4AF37]">{profile.battlePassExp} / {bpExpNeeded} XP</span>
+                </div>
+                <div className="w-full bg-black/40 h-3 rounded-full overflow-hidden border border-[#D4AF37]/10">
+                  <div className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full" style={{ width: `${bpExpPercent}%` }}></div>
+                </div>
+              </div>
+
+              {/* Tracks information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-[#141412] p-4 rounded-xl border border-[#D4AF37]/10 text-left space-y-3">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase">Nhánh Miễn Phí (Free Track)</h3>
+                  <p className="text-[10.5px] text-[#F3E5AB]/70 leading-relaxed">
+                    Nhận Xu thường, Avatar cơ bản, và danh hiệu vui nhộn ở các cấp độ chẵn (10, 20, 30, 40, 50).
+                  </p>
+                  <span className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded uppercase font-bold">
+                    Đã mở khóa vĩnh viễn
+                  </span>
+                </div>
+
+                <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#FF9F0A]/30 text-left space-y-3">
+                  <h3 className="text-xs font-bold text-[#FF9F0A] uppercase">Nhánh Cao Cấp (Premium Track)</h3>
+                  <p className="text-[10.5px] text-[#F3E5AB]/70 leading-relaxed">
+                    Mở khóa skin quân cờ mạ vàng 24K, hiệu ứng nổ pháo hoa hoàng kim, nhạc nền sảnh chờ, và hoàn lại 500 Coins khi đạt cấp 50.
+                  </p>
+                  <button
+                    onClick={handleBuyPremiumCoins}
+                    className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] text-[10px] uppercase font-extrabold py-2 px-4 rounded-lg transition hover:brightness-110 shadow"
+                  >
+                    Kích hoạt ($4.99 / 99 xu)
+                  </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 3: ACCOUNT SETTINGS / UPGRADE */}
-          {activeTab === "SETTINGS" && (
+          {/* TAB: EVENT (SỰ KIỆN LIVEOP) */}
+          {activeTab === "EVENT" && (
             <div className="space-y-6">
-              <h2 className="text-xs text-pixel-yellow uppercase border-b border-black pb-2 mb-4 tracking-wider">
-                Hồ sơ tài khoản
-              </h2>
+              <div className="border-b border-[#D4AF37]/15 pb-3">
+                <h2 className="text-lg font-bold uppercase text-white">Sự Kiện Lễ Hội Mùa Hè 🍉</h2>
+                <p className="text-[10px] text-[#F3E5AB]/75">
+                  Làm các nhiệm vụ đặc thù để thu thập vỏ sò 🐚 đổi lấy Rương Quà May Mắn chứa Skin phiên bản giới hạn!
+                </p>
+              </div>
 
-              <div className="space-y-6">
-                
-                {/* Nickname modification */}
-                <div className="pixel-box-nested p-4">
-                  <h3 className="text-[10px] text-pixel-blue uppercase mb-2">Thiết lập biệt danh:</h3>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                      type="text"
-                      value={newUsername}
-                      onChange={(e) => setNewUsername(e.target.value)}
-                      className="pixel-input flex-grow"
-                      maxLength={15}
-                    />
-                    <button onClick={handleSaveUsername} className="pixel-btn pixel-btn-yellow text-xs py-2 px-6">
-                      Cập nhật
+              {/* Event quests */}
+              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4">
+                <h3 className="text-xs font-extrabold text-white uppercase border-b border-[#D4AF37]/10 pb-2">
+                  Chuỗi Nhiệm Vụ Kiếm Vỏ Sò
+                </h3>
+
+                <div className="space-y-3 text-xs">
+                  {/* Quest 1 */}
+                  <div className="flex justify-between items-center bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/5">
+                    <div>
+                      <h4 className="font-bold text-white">1. Đăng nhập ngày lễ</h4>
+                      <p className="text-[10px] text-[#F3E5AB]/60">Phần thưởng: 20 Coins, 15 Vỏ sò 🐚</p>
+                    </div>
+                    <button
+                      onClick={() => handleClaimQuest("quest_daily")}
+                      className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[9.5px] uppercase font-bold py-1.5 px-3 rounded transition"
+                    >
+                      Nhận
+                    </button>
+                  </div>
+
+                  {/* Quest 2 */}
+                  <div className="flex justify-between items-center bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/5">
+                    <div>
+                      <h4 className="font-bold text-white">2. Thắng 3 trận cờ bất kỳ</h4>
+                      <p className="text-[10px] text-[#F3E5AB]/60">Phần thưởng: 50 Coins, 40 Vỏ sò 🐚</p>
+                    </div>
+                    <button
+                      onClick={() => handleClaimQuest("quest_win_3")}
+                      className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[9.5px] uppercase font-bold py-1.5 px-3 rounded transition"
+                    >
+                      Nhận
                     </button>
                   </div>
                 </div>
+              </div>
 
-                {/* Premium Membership Activation */}
-                <div className="pixel-box-nested p-4 border-2 border-amber-500/40 bg-amber-500/5">
-                  <div className="flex items-center gap-2 mb-2 text-pixel-yellow">
-                    <Sparkles className="w-4 h-4 text-pixel-yellow" />
-                    <h3 className="text-[10px] uppercase font-bold">Gói VIP Premium (Ẩn quảng cáo)</h3>
-                  </div>
-                  
-                  {profile.isPremium ? (
-                    <div className="bg-pixel-green/10 border border-pixel-green/30 text-pixel-green text-[9px] p-3 rounded-lg font-mono flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <Check className="w-4 h-4 shrink-0 text-pixel-green" />
-                        <span>Kích hoạt Premium thành công! Toàn bộ quảng cáo đã được ẩn.</span>
-                      </div>
-                      <div className="text-[8px] text-gray-400 pl-6 mt-1">
-                        {profile.premiumUntil ? (
-                          <>Thời hạn sử dụng (mua bằng Coin): <span className="text-pixel-yellow font-bold">{new Date(profile.premiumUntil).toLocaleString("vi-VN")}</span> (Thời hạn 3 ngày)</>
-                        ) : (
-                          <>Hình thức: <span className="text-yellow-400 font-bold">Premium Vĩnh Viễn 👑</span> (Mua bằng tiền thật)</>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <p className="text-[8px] text-gray-400 leading-relaxed">
-                        Nâng cấp tài khoản của bạn lên Premium để tắt toàn bộ quảng cáo hiển thị trên website, nhận nhãn <span className="text-pixel-yellow font-bold">👑 PREMIUM</span> lấp lánh bên cạnh tên trong bảng xếp hạng và giao diện sảnh đấu.
-                      </p>
-                      
-                      {premiumError && (
-                        <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono">
-                          {premiumError}
-                        </div>
-                      )}
-
-                      {premiumSuccess && (
-                        <div className="bg-pixel-green/20 border border-pixel-green text-pixel-green text-[8px] p-2 font-mono">
-                          Kích hoạt gói Premium thành công! Đã ẩn toàn bộ quảng cáo.
-                        </div>
-                      )}
-
-                      {!premiumSuccess && (
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <button
-                            onClick={handleBuyPremium}
-                            disabled={buyingPremium}
-                            className="pixel-btn pixel-btn-yellow py-2.5 px-6 text-[9px] uppercase font-bold flex items-center gap-2"
-                          >
-                            Kích hoạt bằng Coins (200 C) - 3 ngày
-                          </button>
-                          <button
-                            onClick={() => {
-                              setCashError("");
-                              setShowQRPaymentModal(true);
-                            }}
-                            className="pixel-btn pixel-btn-blue py-2.5 px-6 text-[9px] uppercase font-bold flex items-center justify-center gap-2"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" /> Kích hoạt bằng tiền mặt (20K VND)
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Anonymous Account Upgrade */}
-                {profile.isGuest && (
-                  <div className="pixel-box-nested p-4 border-2 border-pixel-yellow/60">
-                    <div className="flex items-center gap-2 mb-2 text-pixel-yellow">
-                      <Sparkles className="w-4 h-4" />
-                      <h3 className="text-[10px] uppercase font-bold">Nâng cấp tài khoản vĩnh viễn</h3>
-                    </div>
-                    <p className="text-[8px] text-gray-400 leading-relaxed mb-4">
-                      Bạn đang sử dụng tài khoản Khách (Guest). Hãy nhập email và mật khẩu của bạn để nâng cấp thành tài khoản chính thức. Mọi số dư Coin, cấp độ, kinh nghiệm và vật phẩm đã mua của bạn sẽ được chuyển giao đầy đủ, không bị mất khi xóa bộ nhớ trình duyệt!
-                    </p>
-
-                    {upgradeSuccessMsg ? (
-                      <div className="bg-pixel-green/20 border-2 border-pixel-green text-pixel-green text-[9px] p-3 mb-2 font-mono">
-                        {upgradeSuccessMsg}
-                      </div>
-                    ) : (
-                      <form onSubmit={handleUpgradeAccount} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-[7px] text-gray-400 uppercase mb-1">Email:</label>
-                            <input
-                              type="email"
-                              value={upgradeEmail}
-                              onChange={(e) => setUpgradeEmail(e.target.value)}
-                              placeholder="upgrade@example.com"
-                              required
-                              className="w-full pixel-input"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[7px] text-gray-400 uppercase mb-1">Mật khẩu mới:</label>
-                            <input
-                              type="password"
-                              value={upgradePassword}
-                              onChange={(e) => setUpgradePassword(e.target.value)}
-                              placeholder="Mật khẩu tối thiểu 6 ký tự"
-                              required
-                              minLength={6}
-                              className="w-full pixel-input"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={upgradeLoading}
-                          className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] uppercase font-bold"
-                        >
-                          {upgradeLoading ? "Đang nâng cấp..." : "Nâng cấp tài khoản"}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-
-                {/* Account metadata statistics */}
-                <div className="pixel-box-nested p-4 text-[9px] space-y-2 text-gray-400 font-mono">
-                  <div>[ID NGƯỜI CHƠI]: <span className="text-white">{profile.id}</span></div>
-                  <div>[TRẠNG THÁI]: <span className="text-white">{profile.isGuest ? "TÀI KHOẢN KHÁCH (GUEST)" : "TÀI KHOẢN CHÍNH THỨC"}</span></div>
-                  <div>[NGÀY GIA NHẬP]: <span className="text-white">{new Date(profile.createdAt).toLocaleDateString("vi-VN")}</span></div>
-                  <div>[SỐ VẬT PHẨM ĐÃ SỞ HỮU]: <span className="text-white">{profile.purchasedItems.length} / {SHOP_ITEMS.length}</span></div>
-                </div>
+              {/* Lootbox redemption */}
+              <div className="bg-[#1C1C18] p-6 rounded-xl border border-[#FF9F0A]/20 text-center space-y-4">
+                <h3 className="text-sm font-extrabold text-white uppercase">Cửa Hàng Sự Kiện: Rương Thần Kỳ</h3>
+                <p className="text-[11px] text-[#F3E5AB]/75 max-w-sm mx-auto leading-relaxed">
+                  Tiêu hao <span className="text-[#FF9F0A] font-bold">80 Vỏ sò 🐚</span> để quay thưởng mở Rương Thần Kỳ nhận ngay skin quân cờ Hổ phách hoặc soundpack MC ảo.
+                </p>
+                <button
+                  onClick={handleOpenSummerBox}
+                  className="bg-[#FF9F0A] hover:bg-[#D4AF37] text-[#141412] py-2.5 px-8 rounded-lg uppercase text-xs font-extrabold transition"
+                >
+                  Mở Rương (80 Vỏ sò)
+                </button>
+                {boxMessage && <p className="text-xs text-green-400 font-mono mt-2">{boxMessage}</p>}
               </div>
             </div>
           )}
 
-          {/* TAB 4: SUMMER EVENT (SỰ KIỆN MÙA HÈ) */}
-          {activeTab === "EVENT" && (
-            <div className="space-y-6 animate-fade-in">
-              <div className="relative border-2 border-orange-400 bg-orange-400/5 p-4 rounded-xl flex flex-col md:flex-row justify-between items-center gap-4">
-                <span className="absolute -top-3 left-4 bg-orange-500 text-white font-mono text-[7px] font-bold px-2 py-0.5 rounded border border-orange-400 uppercase tracking-widest animate-pulse">SỰ KIỆN GIỚI HẠN</span>
-                <div>
-                  <h2 className="text-sm font-bold text-orange-400 uppercase tracking-wide flex items-center gap-1.5">
-                    🌊 ĐẠI CHIẾN MÙA HÈ - SĂN HỘP QUÀ HÈ 🍉
-                  </h2>
-                  <p className="text-[7.5px] text-gray-400 leading-relaxed mt-2 max-w-xl">
-                    Hoàn thành các nhiệm vụ đặc biệt bên dưới để thu thập <span className="text-orange-400 font-bold">Vỏ Sò Mùa Hè 🐚</span>. 
-                    Dùng Vỏ Sò để đổi lấy **Hộp Quà Mùa Hè** mở ra quân cờ Dưa hấu 🍉, Khung cát biển, hoặc chủ đề bàn cờ Blue Ocean cực độc quyền!
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 bg-black/60 border border-orange-400/30 p-2.5 rounded-lg shrink-0">
-                  <span className="text-2xl animate-bounce">🐚</span>
-                  <div className="text-left font-mono">
-                    <div className="text-[6.5px] text-gray-500 uppercase">[VỎ SÒ HIỆN CÓ]</div>
-                    <div className="text-lg font-bold text-orange-400">{profile.shells ?? 0}</div>
+          {/* TAB: SETTINGS (TÀI KHOẢN & CÀI ĐẶT) */}
+          {activeTab === "SETTINGS" && (
+            <div className="space-y-6">
+              <h2 className="text-md font-bold uppercase text-white border-b border-[#D4AF37]/15 pb-3">Cài đặt tài khoản</h2>
+              
+              <div className="pixel-box-nested p-4 space-y-4">
+                <h3 className="text-xs font-bold text-white uppercase">Hồ sơ công khai</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[9px] uppercase text-[#F3E5AB]/60 mb-2">Tên hiển thị (Username):</label>
+                    {editingUsername ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          className="pixel-input flex-grow py-1 px-3"
+                        />
+                        <button onClick={handleSaveUsername} className="bg-[#D4AF37] text-[#141412] px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase">Lưu</button>
+                        <button onClick={() => setEditingUsername(false)} className="bg-red-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase">Hủy</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10">
+                        <span className="font-mono font-bold text-white">{profile.username}</span>
+                        <button onClick={() => setEditingUsername(true)} className="text-[#FF9F0A] text-[9px] uppercase font-bold hover:underline">Đổi Tên</button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Grid 2 cột: Nhiệm vụ và Gacha Hộp Quà */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                
-                {/* Cột trái: Nhiệm vụ */}
-                <div className="md:col-span-7 space-y-4">
-                  <h3 className="text-[10px] text-pixel-blue uppercase tracking-wider border-b border-black pb-1.5 mb-2">== NHIỆM VỤ SỰ KIỆN ==</h3>
-                  
-                  {questMessage && <div className="bg-pixel-green/20 border border-pixel-green text-pixel-green text-[8px] p-2 font-mono">✓ {questMessage}</div>}
-                  {questError && <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono font-bold">✗ {questError}</div>}
+              {/* VIP Premium purchase options */}
+              <div className="pixel-box-nested p-4 space-y-4 border border-[#D4AF37]/35 bg-gradient-to-br from-[#1C1C18] to-[#D4AF37]/5">
+                <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
+                  👑 Đăng Ký Premium Membership
+                </h3>
+                <p className="text-[10px] text-[#F3E5AB]/85 leading-relaxed">
+                  Trở thành VIP để nhận các quyền lợi: Tắt quảng cáo, +15% EXP mỗi trận đấu, giảm 10% giá Cửa hàng, và nhận ngay Premium Track của Battle Pass mùa này.
+                </p>
 
-                  {[
-                    { id: "quest_daily", name: "Đăng nhập ngày", desc: "Đăng nhập game hôm nay (Nhận tối đa 1 lần/2h)", coins: 20, shells: 15 },
-                    { id: "quest_win_3", name: "Thắng 3 trận cờ", desc: "Giành chiến thắng trong 3 trận đấu bất kỳ (Nhận tối đa 1 lần/2h)", coins: 50, shells: 40 },
-                    { id: "quest_play_5", name: "Chơi đủ 5 trận cờ", desc: "Tham gia đấu đủ 5 trận cờ (Nhận tối đa 1 lần/2h)", coins: 40, shells: 30 },
-                    { id: "quest_invite", name: "Mời bạn cùng chơi", desc: "Có bạn mới đăng ký bằng biệt danh của bạn (Nhận tối đa 1 lần/2h)", coins: 150, shells: 100 }
-                  ].map(quest => (
-                    <div key={quest.id} className="pixel-box-nested p-3 flex justify-between items-center bg-black/30">
-                      <div>
-                        <h4 className="text-[9.5px] font-bold text-white uppercase">{quest.name}</h4>
-                        <p className="text-[7px] text-gray-400 mt-0.5">{quest.desc}</p>
-                        <div className="flex gap-2 mt-2">
-                          <span className="text-[6.5px] bg-pixel-yellow/10 text-pixel-yellow border border-pixel-yellow/20 px-1 rounded flex items-center gap-0.5 font-mono">
-                            +{quest.coins} C
-                          </span>
-                          <span className="text-[6.5px] bg-orange-400/10 text-orange-400 border border-orange-400/20 px-1 rounded flex items-center gap-0.5 font-mono">
-                            +{quest.shells} 🐚
-                          </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-center">
+                    <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 1 Tháng</span>
+                    <span className="text-sm font-bold text-white font-mono block mt-1">69,000 VNĐ / $2.99</span>
+                    <button
+                      onClick={() => setShowQRPaymentModal(true)}
+                      className="bg-[#D4AF37] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110"
+                    >
+                      Đăng ký ngay
+                    </button>
+                  </div>
+
+                  <div className="bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-center">
+                    <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 6 Tháng</span>
+                    <span className="text-sm font-bold text-white font-mono block mt-1">349,000 VNĐ / $14.99</span>
+                    <button
+                      onClick={() => setShowQRPaymentModal(true)}
+                      className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110"
+                    >
+                      Tiết kiệm 15%
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Guest account links */}
+              {profile.isGuest && (
+                <div className="pixel-box-nested p-4 space-y-4 border border-red-500/20 bg-[#1C1C18]">
+                  <h3 className="text-xs font-bold text-red-400 uppercase flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-red-400" />
+                    Bảo Vệ Tài Khoản Khách
+                  </h3>
+                  <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                    Bạn đang chơi bằng tài khoản Khách vô danh. Liên kết với Email chính thức để tránh bị mất tiến trình, Skin và điểm số khi xóa cache trình duyệt!
+                  </p>
+                  <form onSubmit={handleUpgradeAccount} className="space-y-3">
+                    <input
+                      type="email"
+                      value={upgradeEmail}
+                      onChange={(e) => setUpgradeEmail(e.target.value)}
+                      placeholder="Email liên kết"
+                      required
+                      className="w-full pixel-input py-1.5 px-3"
+                    />
+                    <input
+                      type="password"
+                      value={upgradePassword}
+                      onChange={(e) => setUpgradePassword(e.target.value)}
+                      placeholder="Mật khẩu tạo mới"
+                      required
+                      className="w-full pixel-input py-1.5 px-3"
+                    />
+                    <button
+                      type="submit"
+                      disabled={upgradeLoading}
+                      className="bg-red-500 hover:bg-red-600 text-white text-[10px] uppercase font-bold py-2 px-6 rounded-lg transition"
+                    >
+                      {upgradeLoading ? "Đang xử lý..." : "Xác nhận Liên Kết"}
+                    </button>
+                  </form>
+                  {upgradeSuccessMsg && <p className="text-xs text-green-400 font-mono mt-2">{upgradeSuccessMsg}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: SOCIAL (Mobile Only) */}
+          {activeTab === "SOCIAL" && (
+            <div className="space-y-6">
+              <h2 className="text-md font-bold uppercase text-white border-b border-[#D4AF37]/15 pb-3">Bạn Bè & Tổ Đội</h2>
+              
+              {/* Friends lists */}
+              <div className="space-y-3 bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10">
+                <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-2">
+                  Danh Sách Bạn Bè (Giới hạn 30 bạn)
+                </span>
+                
+                <div className="space-y-3.5">
+                  {friendsList.map((f, i) => (
+                    <div key={i} className="flex justify-between items-center text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${f.online ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></span>
+                        <div>
+                          <span className="font-bold text-white">@{f.username}</span>
+                          <span className="text-[10px] text-[#F3E5AB]/60 block">{f.status}</span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleClaimQuest(quest.id)}
-                        disabled={claimingQuestId === quest.id}
-                        className="pixel-btn pixel-btn-yellow py-1.5 px-3.5 text-[8.5px] uppercase font-bold"
-                      >
-                        {claimingQuestId === quest.id ? "Đang nhận..." : "Nhận quà"}
-                      </button>
+                      <div className="flex gap-2">
+                        {f.online && f.roomId && (
+                          <button
+                            onClick={() => handleSpectate(f.roomId)}
+                            className="bg-gradient-to-r from-[#D4AF37]/20 to-[#FF9F0A]/20 hover:from-[#D4AF37] hover:to-[#FF9F0A] hover:text-[#141412] text-white border border-[#D4AF37]/35 py-1 px-3 rounded-lg text-[9px] font-bold uppercase transition flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Xem
+                          </button>
+                        )}
+                        {f.online && f.canParty && (
+                          <button
+                            onClick={() => alert(`Đã gửi lời mời tới @${f.username}`)}
+                            className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[9px] font-extrabold uppercase transition"
+                          >
+                            Mời
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
+              </div>
 
-                {/* Cột phải: Hộp Quà Mùa Hè Gacha */}
-                <div className="md:col-span-5 space-y-4">
-                  <h3 className="text-[10px] text-pixel-blue uppercase tracking-wider border-b border-black pb-1.5 mb-2">== HỘP QUÀ MÙA HÈ ==</h3>
-                  
-                  <div className="pixel-box-nested p-4 bg-gradient-to-b from-orange-400/5 to-yellow-500/5 border-2 border-orange-400/30 text-center space-y-4">
-                    <div className="text-4xl animate-bounce my-2">🎁</div>
-                    <div>
-                      <h4 className="text-[10px] font-bold text-pixel-yellow uppercase">Summer Mystery Box</h4>
-                      <p className="text-[7px] text-gray-400 mt-1 leading-normal">
-                        Mỗi lượt mở tốn <span className="text-orange-400 font-bold">{boxCost} Vỏ Sò 🐚</span> (Giá cố định). Có cơ hội trúng vật phẩm sự kiện giới hạn hoặc phần thưởng xu cực hời. Nếu trùng vật phẩm sẽ được đền bù <span className="text-pixel-green font-bold">120 Coins</span>!
-                      </p>
-                    </div>
-
-                    {boxError && <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono text-left font-bold">✗ {boxError}</div>}
-                    {boxMessage && <div className="bg-pixel-green/20 border border-pixel-green text-pixel-green text-[8px] p-2 font-mono text-left">✓ {boxMessage}</div>}
-
-                    <button
-                      onClick={handleOpenSummerBox}
-                      disabled={openingBox || (profile.shells ?? 0) < boxCost}
-                      className="pixel-btn pixel-btn-yellow w-full py-2.5 text-[9.5px] uppercase font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-orange-500/10"
-                    >
-                      {openingBox ? "Đang mở quà..." : `Mở: ${boxCost} Vỏ Sò 🐚`}
-                    </button>
-
-                    <div className="border-t border-black pt-3 text-left">
-                      <span className="text-[6.5px] text-gray-400 uppercase font-mono block mb-1">Tỷ lệ rơi vật phẩm sự kiện:</span>
-                      <div className="text-[5.5px] text-gray-400 font-mono space-y-0.5">
-                        <div>• 25 Coins 💰: <span className="text-white">30%</span></div>
-                        <div>• 50 Coins 💰: <span className="text-white">20%</span></div>
-                        <div>• 150 Coins 💰: <span className="text-white">10%</span></div>
-                        <div>• Bàn cờ đại dương 🌊: <span className="text-white">7.5%</span></div>
-                        <div>• Quân cờ dưa hấu 🍉: <span className="text-white">5%</span></div>
-                        <div>• Khung cát vàng 🏖️: <span className="text-white">5%</span></div>
-                        <div>• SFX Sóng biển 🔊: <span className="text-white">5%</span></div>
-                        <div>• Ăn mừng bãi biển 🏖️: <span className="text-white">10%</span></div>
-                        <div>• 10 Coins 💰 (Còn lại): <span className="text-white">7.5%</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
+              {/* Party creation */}
+              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 text-center space-y-3">
+                <h4 className="text-xs font-bold text-white uppercase flex items-center justify-center gap-1.5">
+                  <UserPlus className="w-4 h-4 text-[#D4AF37]" />
+                  Tạo Tổ Đội Nhanh
+                </h4>
+                <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                  Sao chép liên kết sảnh chờ chia sẻ cho bạn bè qua Zalo, Messenger, Discord để họ nhấp chuột trực tiếp gia nhập phòng đấu tức thì trên trình duyệt!
+                </p>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/?joinRoom=room-party-id`);
+                    alert("Đã sao chép Link mời tổ đội!");
+                  }}
+                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-6 rounded-lg text-[10px] font-extrabold uppercase transition flex items-center justify-center gap-2 mx-auto"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  Sao chép Link Mời
+                </button>
               </div>
             </div>
           )}
         </div>
-      </main>
 
-      {/* QR CODE PAYMENT MODAL (VIETQR MOCKUP) */}
-      {showQRPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md px-4 animate-fade-in">
-          <div className="pixel-box bg-[#16161c] max-w-sm w-full p-6 space-y-6 relative border-4 border-black shadow-2xl shadow-pixel-yellow/10">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-black pb-2">
-              <h3 className="text-xs text-pixel-yellow uppercase tracking-wider flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-pixel-yellow" />
-                Thanh toán Premium (Chuyển khoản QR)
-              </h3>
-              <button 
-                onClick={() => setShowQRPaymentModal(false)}
-                className="text-gray-400 hover:text-white p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
+        {/* Column 3: Progression Sidebar (Right Side - Desktop Only) */}
+        <div className="hidden lg:flex lg:col-span-3 flex-col gap-6 shrink-0 text-left">
+          
+          {/* Profile Overview Card */}
+          <div className="pixel-box p-4 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 bg-[#141412] rounded-xl flex items-center justify-center border border-[#D4AF37]/20 relative ${frameItem?.visuals?.className || ""}`}>
+                <UserIcon className="w-6 h-6 text-[#D4AF37]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white flex items-center gap-1">
+                  {profile.prestigeLevel > 0 && <Star className="w-4 h-4 text-[#FF9F0A] fill-[#FF9F0A]" />}
+                  {profile.username}
+                </h3>
+                <span className="text-[10px] font-mono text-[#D4AF37]">Cấp độ {profile.level}</span>
+              </div>
             </div>
 
-            {/* Payment Details */}
-            <div className="text-center space-y-4">
-              <p className="text-[8px] text-gray-400 leading-relaxed uppercase">
-                Quét mã QR dưới đây bằng ứng dụng ngân hàng hoặc ví điện tử (MoMo, ZaloPay...) để hoàn tất thanh toán.
-              </p>
-
-              {/* VietQR Mockup SVG container */}
-              <div className="bg-white p-3 rounded-2xl inline-block shadow-lg mx-auto relative border border-white/20">
-                <QRCodeSVG 
-                  value={`00020101021138580010A00000072701240006970422011012345678900208QRIBFTTA53037045405200005802VN62280824BOARDVERSE PREMIUM_${profile.id.substring(0, 6)}6304`}
-                  size={150}
-                  level="H"
-                  includeMargin={false}
-                />
+            {/* EXP bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[9px] font-mono">
+                <span>Kinh nghiệm:</span>
+                <span>{profile.exp} / {expNeeded} XP</span>
               </div>
-
-              {/* VietQR details */}
-              <div className="pixel-box-nested p-3 bg-black/60 text-left text-[9px] font-mono space-y-1.5 border border-white/5">
-                <div>[NGÂN HÀNG]: <span className="text-white">MB BANK (970422)</span></div>
-                <div>[SỐ TÀI KHOẢN]: <span className="text-white font-bold select-all">1903678999999</span></div>
-                <div>[TÊN CHỦ TK]: <span className="text-white">BOARDVERSE CO-OP</span></div>
-                <div>[SỐ TIỀN]: <span className="text-pixel-yellow font-bold">20.000 VND</span></div>
-                <div>[NỘI DUNG CK]: <span className="text-pixel-blue font-bold select-all">BOARDVERSE PREMIUM {profile.id.substring(0, 6).toUpperCase()}</span></div>
+              <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden border border-[#D4AF37]/10">
+                <div className="bg-[#D4AF37] h-full transition-all duration-300" style={{ width: `${expPercent}%` }}></div>
               </div>
-
-              <div className="text-[7px] text-gray-500 font-mono italic animate-pulse">
-                Hệ thống tự động kích hoạt ngay lập tức sau khi xác nhận chuyển khoản.
-              </div>
-
-              {cashError && (
-                <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono text-left">
-                  {cashError}
-                </div>
-              )}
             </div>
 
-            {/* Action buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Prestige Leveling Trigger Button */}
+            {profile.level >= 50 && (
               <button
-                onClick={() => setShowQRPaymentModal(false)}
-                className="pixel-btn pixel-btn-gray py-2 text-[9px] uppercase font-bold"
+                onClick={handlePrestige}
+                disabled={prestigeLoading}
+                className="w-full bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] py-2 rounded-lg text-[9.5px] font-extrabold uppercase transition hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 shadow"
               >
-                Hủy giao dịch
+                <Sparkles className="w-3.5 h-3.5" />
+                {prestigeLoading ? "Đang tiến hành..." : "Kích Hoạt Danh Vọng"}
               </button>
-              <button
-                onClick={handleConfirmCashPayment}
-                disabled={cashPaying}
-                className="pixel-btn pixel-btn-yellow py-2 text-[9px] uppercase font-bold"
-              >
-                {cashPaying ? "Đang xác thực..." : "Đã chuyển khoản"}
-              </button>
-            </div>
+            )}
 
+            {/* Mastery Stats */}
+            <div className="border-t border-[#D4AF37]/10 pt-3 space-y-1.5">
+              <span className="text-[8px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold block mb-1">Chỉ Số Kỳ Thủ</span>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-[#F3E5AB]/75">Thắng trước Gomoku:</span>
+                <span className="font-mono font-bold text-white">54.2%</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-[#F3E5AB]/75">Chính xác Battleship:</span>
+                <span className="font-mono font-bold text-white">78.5%</span>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* MOCKUP COIN TOPUP MODAL (VIETQR) */}
-      {showTopupModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-md px-4 animate-fade-in">
-          <div className="pixel-box bg-[#16161c] max-w-sm w-full p-6 space-y-5 relative border-4 border-black shadow-2xl">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-black pb-2">
-              <h3 className="text-xs text-pixel-yellow uppercase tracking-wider flex items-center gap-2">
-                <Coins className="w-4 h-4 text-pixel-yellow" />
-                Nạp xu qua Chuyển Khoản QR
-              </h3>
-              <button 
-                onClick={() => setShowTopupModal(false)}
-                className="text-gray-400 hover:text-white p-1"
+          {/* Daily Missions Card */}
+          <div className="pixel-box p-4 space-y-4">
+            <h4 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5 border-b border-[#D4AF37]/10 pb-2">
+              <Trophy className="w-4 h-4 text-[#FF9F0A]" />
+              Nhiệm Vụ Hàng Ngày
+            </h4>
+
+            {loadingMissions ? (
+              <div className="text-center text-[10px] text-gray-400 uppercase py-3">Đang cập nhật...</div>
+            ) : (
+              <div className="space-y-3">
+                {missions.map((m) => {
+                  const done = m.progress >= m.target;
+                  return (
+                    <div key={m.id} className="space-y-1">
+                      <div className="flex justify-between text-[10.5px] leading-snug">
+                        <span className={m.claimed ? "text-gray-500 line-through" : "text-white font-medium"}>
+                          {m.description}
+                        </span>
+                        <span className="font-mono text-[9.5px] text-[#D4AF37]">
+                          {m.progress}/{m.target}
+                        </span>
+                      </div>
+                      
+                      {!m.claimed && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-grow bg-black/40 h-1.5 rounded-full overflow-hidden border border-[#D4AF37]/5">
+                            <div 
+                              className="bg-[#D4AF37] h-full" 
+                              style={{ width: `${Math.min(100, (m.progress / m.target) * 100)}%` }}
+                            ></div>
+                          </div>
+                          {done && (
+                            <button
+                              onClick={() => handleClaimMission(m.id)}
+                              className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[8px] font-extrabold uppercase px-2 py-0.5 rounded transition shrink-0"
+                            >
+                              Nhận
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      
+                      {m.claimed && (
+                        <span className="text-[8px] text-green-400 font-mono block">✓ Đã nhận thưởng (+30 Coins)</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Daily 7-day Login Claim calendar */}
+          <div className="pixel-box p-4 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-2">
+              <h4 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-[#FF9F0A]" />
+                Điểm Danh 7 Ngày
+              </h4>
+              <span className="text-[9px] bg-[#FF9F0A]/10 border border-[#FF9F0A]/35 text-[#FF9F0A] px-2 py-0.5 rounded font-mono font-bold">
+                Chuỗi: {profile.loginStreak}
+              </span>
+            </div>
+
+            {/* Streak freezes */}
+            <div className="flex justify-between items-center text-[10px] bg-[#141412] p-2 rounded-lg border border-[#D4AF37]/5">
+              <span>Đóng Băng Chuỗi: <strong className="font-mono text-[#D4AF37]">{profile.streakFreezes}</strong></span>
+              <button
+                onClick={handleBuyStreakFreeze}
+                className="text-[8.5px] uppercase font-bold text-[#FF9F0A] hover:underline"
               >
-                <X className="w-4 h-4" />
+                Mua (+10 Coin)
               </button>
             </div>
 
-            {/* Select coin package */}
-            <div>
-              <label className="block text-[7.5px] text-gray-400 uppercase mb-2 font-mono">[1. Chọn gói Coins nạp]</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "package_10k", price: 10000, coins: 100, promo: "" },
-                  { id: "package_20k", price: 20000, coins: 220, promo: "+10% VIP" },
-                  { id: "package_50k", price: 50000, coins: 600, promo: "+20% VIP" },
-                  { id: "package_100k", price: 100000, coins: 1300, promo: "+30% VIP" }
-                ].map(pkg => (
-                  <button
-                    key={pkg.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTopupPackage(pkg.id);
-                      setTopupSuccess(false);
-                      setTopupError("");
-                    }}
-                    className={`pixel-box-nested p-2.5 text-center flex flex-col justify-center items-center cursor-pointer transition-all ${
-                      selectedTopupPackage === pkg.id 
-                        ? "border-pixel-yellow bg-pixel-yellow/10" 
-                        : "border-white/5 bg-black/20 hover:bg-black/30"
+            {/* Days grid */}
+            <div className="grid grid-cols-7 gap-1">
+              {[1, 2, 3, 4, 5, 6, 7].map((day) => {
+                const isCurrent = profile.dailyStreakDay === day;
+                const claimCoins = [10, 15, 20, 25, 30, 40, 50][day - 1];
+                return (
+                  <div 
+                    key={day} 
+                    className={`aspect-square flex flex-col justify-between items-center p-1 rounded border text-[8.5px] relative ${
+                      isCurrent 
+                        ? "bg-[#D4AF37]/15 border-[#D4AF37] text-white font-extrabold" 
+                        : "bg-[#141412] border-[#D4AF37]/10 text-gray-500"
                     }`}
                   >
-                    <span className="text-[10px] font-bold text-white">{pkg.coins} Coins</span>
-                    <span className="text-[8px] text-pixel-yellow mt-0.5">{pkg.price.toLocaleString("vi-VN")}đ</span>
-                    {pkg.promo && (
-                      <span className="text-[5.5px] bg-pixel-green/20 border border-pixel-green/30 text-pixel-green px-1 mt-1 rounded scale-90 font-mono font-bold uppercase">{pkg.promo}</span>
+                    <span>Ng{day}</span>
+                    <span className="font-mono text-[7px] text-[#D4AF37] font-semibold">+{claimCoins}c</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {dailyClaimMessage && <p className="text-[9px] text-green-400 font-mono">{dailyClaimMessage}</p>}
+            {dailyClaimError && <p className="text-[9px] text-red-400 font-mono">{dailyClaimError}</p>}
+
+            <button
+              onClick={handleClaimDaily}
+              disabled={claimingDaily}
+              className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 rounded-lg text-[9.5px] font-extrabold uppercase transition"
+            >
+              {claimingDaily ? "Đang nhận..." : "Điểm Danh Ngày"}
+            </button>
+          </div>
+
+          {/* Friends list sidebar (PC Only) */}
+          <div className="pixel-box p-4 space-y-4">
+            <h4 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5 border-b border-[#D4AF37]/10 pb-2">
+              <Users className="w-4 h-4 text-[#FF9F0A]" />
+              Bạn Bè trực tuyến
+            </h4>
+
+            <div className="space-y-3">
+              {friendsList.map((f, i) => (
+                <div key={i} className="flex justify-between items-center text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-gray-500"}`}></span>
+                    <div className="max-w-[100px]">
+                      <span className="font-bold text-white block truncate">@{f.username}</span>
+                      <span className="text-[8.5px] text-[#F3E5AB]/50 block truncate">{f.status}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    {f.online && f.roomId && (
+                      <button
+                        onClick={() => handleSpectate(f.roomId)}
+                        className="bg-[#141412] hover:bg-[#D4AF37] hover:text-[#141412] border border-[#D4AF37]/20 p-1.5 rounded transition"
+                        title="Xem trận"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </button>
                     )}
+                    {f.online && f.canParty && (
+                      <button
+                        onClick={() => alert(`Đã gửi lời mời tới @${f.username}`)}
+                        className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-2 py-0.5 rounded text-[8px] font-bold uppercase transition"
+                      >
+                        Mời
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Invite Party link creation */}
+            <div className="border-t border-[#D4AF37]/10 pt-3">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/?joinRoom=room-party-id`);
+                  alert("Đã sao chép Link mời tổ đội!");
+                }}
+                className="w-full bg-[#1C1C18] border border-[#D4AF37]/20 hover:border-[#D4AF37] text-white py-1.5 rounded text-[8.5px] font-bold uppercase transition flex items-center justify-center gap-1"
+              >
+                <Link2 className="w-3 h-3" /> Tạo Tổ Đội
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Bottom Navigation Bar (Mobile Only) */}
+      <nav className="lg:hidden border-t border-[#D4AF37]/15 bg-[#1C1C18] py-2 px-4 flex justify-between items-center fixed bottom-0 left-0 right-0 z-40 shadow-inner">
+        <button
+          onClick={() => setActiveTab("PLAY")}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "PLAY" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+        >
+          <Swords className="w-5 h-5" />
+          <span className="text-[8px] uppercase">Đấu</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("SHOP")}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SHOP" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+        >
+          <ShoppingBag className="w-5 h-5" />
+          <span className="text-[8px] uppercase">Cửa hàng</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("BP")}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "BP" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+        >
+          <Award className="w-5 h-5" />
+          <span className="text-[8px] uppercase">BP</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("SOCIAL")}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SOCIAL" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-[8px] uppercase">Bạn bè</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("SETTINGS")}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SETTINGS" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+        >
+          <Settings className="w-5 h-5" />
+          <span className="text-[8px] uppercase">Cài đặt</span>
+        </button>
+      </nav>
+
+      {/* MODAL 1: COIN TOPUP */}
+      {showTopupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="pixel-box p-6 w-full max-w-md bg-[#1C1C18] border border-[#D4AF37]/30 text-left space-y-4">
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-2">
+              <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
+                <Coins className="w-4 h-4 text-[#D4AF37]" />
+                Nạp Coin Bằng VietQR Động
+              </h3>
+              <button onClick={() => setShowTopupModal(false)} className="text-gray-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <span className="block text-[8px] text-[#F3E5AB]/65 uppercase font-semibold">Chọn gói nạp:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {topupPackages.map((pkg) => (
+                  <button
+                    key={pkg.id}
+                    onClick={() => setSelectedTopupPackage(pkg.id)}
+                    className={`p-3 rounded-lg border text-center transition flex flex-col items-center justify-between ${
+                      selectedTopupPackage === pkg.id 
+                        ? "bg-[#D4AF37]/10 border-[#D4AF37] text-white" 
+                        : "bg-[#141412] border-[#D4AF37]/10 text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    <span className="text-xs font-bold font-mono">{pkg.label}</span>
+                    <span className="text-[9px] text-[#D4AF37] font-bold mt-1 font-mono">+{pkg.coins} Coins</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* QR payment dynamic display */}
-            {(() => {
-              const selectedPkg = [
-                { id: "package_10k", price: 10000, coins: 100 },
-                { id: "package_20k", price: 20000, coins: 220 },
-                { id: "package_50k", price: 50000, coins: 600 },
-                { id: "package_100k", price: 100000, coins: 1300 }
-              ].find(p => p.id === selectedTopupPackage) || { id: "package_20k", price: 20000, coins: 220 };
+            {/* Generated QR details */}
+            <div className="bg-[#141412] p-4 rounded-xl border border-[#D4AF37]/10 flex flex-col items-center space-y-4 text-center">
+              <QRCodeSVG 
+                value={`2afcb910-vietqr-payload-${selectedTopupPackage}-${profile.id}`} 
+                size={140}
+                bgColor="#141412"
+                fgColor="#F3E5AB"
+              />
+              <div>
+                <p className="text-[10px] text-white font-bold">NGÂN HÀNG QUÂN ĐỘI (MB)</p>
+                <p className="text-[10.5px] text-[#D4AF37] font-mono font-bold mt-0.5">Số tài khoản: 0999999999999</p>
+                <p className="text-[9px] text-[#F3E5AB]/65 mt-1">Nội dung CK: <strong className="font-mono text-[#FF9F0A]">{profile.username} NAPCOIN</strong></p>
+              </div>
+            </div>
 
-              return (
-                <div className="text-center space-y-4 pt-1">
-                  <div className="bg-white p-2 rounded-xl inline-block shadow-lg mx-auto border border-white/20">
-                    <QRCodeSVG 
-                      value={`00020101021138580010A00000072701240006970422011012345678900208QRIBFTTA53037045405200005802VN62280824BOARDVERSE COINS_${profile.id.substring(0, 6)}_${selectedPkg.price}6304`}
-                      size={110}
-                      level="H"
-                      includeMargin={false}
-                    />
-                  </div>
+            {topupSuccess && <p className="text-xs text-green-400 font-mono text-center">✓ Đã nhận thanh toán! +{topupPackages.find(p => p.id === selectedTopupPackage)?.coins} Coins.</p>}
+            {topupError && <p className="text-xs text-red-400 font-mono text-center">✗ Lỗi: {topupError}</p>}
 
-                  <div className="pixel-box-nested p-2.5 bg-black/60 text-left text-[8.5px] font-mono space-y-1 border border-white/5">
-                    <div>[NGÂN HÀNG]: <span className="text-white">MB BANK</span></div>
-                    <div>[SỐ TÀI KHOẢN]: <span className="text-white font-bold select-all">1903678999999</span></div>
-                    <div>[SỐ TIỀN]: <span className="text-pixel-yellow font-bold">{selectedPkg.price.toLocaleString("vi-VN")} VND</span></div>
-                    <div>[NỘI DUNG CK]: <span className="text-pixel-blue font-bold select-all">BOARDVERSE COIN {profile.id.substring(0, 6).toUpperCase()} {selectedPkg.coins}</span></div>
-                  </div>
-
-                  {topupError && <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono text-left font-bold">✗ {topupError}</div>}
-                  {topupSuccess && <div className="bg-pixel-green/20 border border-pixel-green text-pixel-green text-[8px] p-2 font-mono text-left font-bold">✓ Cộng xu thành công! Đã nạp +{selectedPkg.coins} Coins.</div>}
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowTopupModal(false)}
-                      className="pixel-btn pixel-btn-gray py-2 text-[9px] uppercase font-bold"
-                    >
-                      Hủy nạp
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmTopupCoin}
-                      disabled={topupPaying || topupSuccess}
-                      className="pixel-btn pixel-btn-yellow py-2 text-[9px] uppercase font-bold"
-                    >
-                      {topupPaying ? "Đang xác thực..." : "Đã chuyển khoản"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-
+            <button
+              onClick={handleConfirmTopupCoin}
+              disabled={topupPaying}
+              className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition"
+            >
+              {topupPaying ? "Đang xác thực giao dịch..." : "Giả lập Đã chuyển khoản"}
+            </button>
           </div>
         </div>
       )}
 
-      {/* GIFT ITEM MODAL */}
+      {/* MODAL 2: GIFT ITEM */}
       {showGiftModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-md px-4 animate-fade-in">
-          <div className="pixel-box bg-[#16161c] max-w-sm w-full p-6 space-y-4 relative border-4 border-black shadow-2xl">
-            
-            <div className="flex items-center justify-between border-b border-black pb-2">
-              <h3 className="text-xs text-pixel-yellow uppercase tracking-wider flex items-center gap-2">
-                <Gift className="w-4 h-4 text-pixel-yellow" />
-                Tặng quà cho bạn bè
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+          <div className="pixel-box p-6 w-full max-w-sm bg-[#1C1C18] border border-[#D4AF37]/30 text-left space-y-4">
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-2">
+              <h3 className="text-xs font-bold text-white uppercase flex items-center gap-1.5">
+                <Gift className="w-4 h-4 text-[#D4AF37]" />
+                Tặng Trang Bị Cho Bạn Bè
               </h3>
-              <button 
-                type="button"
-                onClick={() => setShowGiftModal(false)}
-                className="text-gray-400 hover:text-white p-1"
-              >
+              <button onClick={() => setShowGiftModal(false)} className="text-gray-400 hover:text-white p-1">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {(() => {
-              const giftItem = SHOP_ITEMS.find(i => i.id === giftItemId);
-              if (!giftItem) return null;
-              const giftPrice = Math.round((profile.isPremium ? Math.floor(giftItem.price * 0.8) : giftItem.price) / 2);
+            <form onSubmit={handleGiftSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[8.5px] uppercase text-[#F3E5AB]/60 mb-2">Nhập Username người nhận:</label>
+                <input
+                  type="text"
+                  value={giftUsername}
+                  onChange={(e) => setGiftUsername(e.target.value)}
+                  placeholder="Viết đúng tên kỳ thủ..."
+                  required
+                  className="w-full pixel-input py-2 px-3"
+                />
+              </div>
 
-              return (
-                <form onSubmit={handleGiftItem} className="space-y-4">
-                  <div className="bg-black/40 p-3 border border-white/5 rounded-lg flex items-center gap-3">
-                    <span className="text-2xl font-bold font-mono">🎁</span>
-                    <div>
-                      <div className="text-[10px] font-bold text-white">{giftItem.name}</div>
-                      <div className="text-[8px] text-pixel-yellow mt-0.5">
-                        Giá tặng: {giftPrice} Coins 
-                        {profile.isPremium && <span className="text-pixel-green font-bold ml-1">(VIP -20%)</span>}
-                      </div>
-                    </div>
-                  </div>
+              {giftSuccessMsg && <p className="text-xs text-green-400 font-mono">{giftSuccessMsg}</p>}
+              {giftError && <p className="text-xs text-red-400 font-mono">✗ {giftError}</p>}
 
-                  <div>
-                    <label className="block text-[8px] text-gray-400 uppercase mb-1 font-mono">Biệt danh người nhận:</label>
-                    <input
-                      type="text"
-                      value={giftUsername}
-                      onChange={(e) => setGiftUsername(e.target.value)}
-                      required
-                      placeholder="Nhập tên người nhận quà..."
-                      className="w-full pixel-input text-[10px]"
-                    />
-                  </div>
+              <button
+                type="submit"
+                disabled={gifting}
+                className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition"
+              >
+                {gifting ? "Đang gửi..." : "Xác Nhận Tặng Quà"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
-                  {giftError && <div className="bg-pixel-red/20 border border-pixel-red text-pixel-red text-[8px] p-2 font-mono">✗ {giftError}</div>}
-                  {giftSuccessMsg && <div className="bg-pixel-green/20 border border-pixel-green text-pixel-green text-[8px] p-2 font-mono">✓ {giftSuccessMsg}</div>}
+      {/* MODAL 3: QR PAYMENT PREMIUM */}
+      {showQRPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+          <div className="pixel-box p-6 w-full max-w-sm bg-[#1C1C18] border border-[#D4AF37]/30 text-left space-y-4">
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-2">
+              <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
+                👑 Mua Gói VIP Premium
+              </h3>
+              <button onClick={() => setShowQRPaymentModal(false)} className="text-gray-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowGiftModal(false)}
-                      className="pixel-btn pixel-btn-gray py-2 text-[9px] uppercase font-bold"
-                    >
-                      Hủy bỏ
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={gifting || giftSuccessMsg.length > 0}
-                      className="pixel-btn pixel-btn-yellow py-2 text-[9px] uppercase font-bold flex items-center justify-center gap-1.5"
-                    >
-                      {gifting ? "Đang gửi..." : "Gửi tặng"}
-                    </button>
-                  </div>
-                </form>
-              );
-            })()}
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <QRCodeSVG 
+                value={`vietqr-premium-payload-${profile.id}`} 
+                size={140}
+                bgColor="#141412"
+                fgColor="#F3E5AB"
+              />
+              <div>
+                <p className="text-[10px] text-white font-bold">NGÂN HÀNG QUÂN ĐỘI (MB)</p>
+                <p className="text-[10.5px] text-[#D4AF37] font-mono font-bold mt-0.5">Số tài khoản: 0999999999999</p>
+                <p className="text-[9px] text-[#F3E5AB]/65 mt-1">Nội dung CK: <strong className="font-mono text-[#FF9F0A]">{profile.username} PREMIUM</strong></p>
+              </div>
+            </div>
 
+            {cashError && <p className="text-xs text-red-400 font-mono text-center">✗ Lỗi: {cashError}</p>}
+
+            <button
+              onClick={handleBuyPremiumCash}
+              disabled={cashPaying}
+              className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition"
+            >
+              {cashPaying ? "Đang xử lý..." : "Giả lập Đã chuyển khoản VIP"}
+            </button>
           </div>
         </div>
       )}

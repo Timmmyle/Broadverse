@@ -94,9 +94,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
   const [botShots, setBotShots] = useState<any[]>([]);
   const [sunkShipsMy, setSunkShipsMy] = useState<string[]>([]);
   const [sunkShipsBot, setSunkShipsBot] = useState<string[]>([]);
-  const [clusterCharge, setClusterCharge] = useState(0); // tối đa 2
-  const [crossCharge, setCrossCharge] = useState(0);     // tối đa 3
-  const [radarCount, setRadarCount] = useState(1);       // số lượt quét Rada còn lại
+  const [energy, setEnergy] = useState(50); // Năng lượng chiến thuật (0 - 100, khởi đầu từ 50)
   const [radarResults, setRadarResults] = useState<any[]>([]); // { x, y, count }
   const [localTurn, setLocalTurn] = useState<"PLAYER" | "BOT">("PLAYER");
   const [localStatus, setLocalStatus] = useState<"PLAYING" | "FINISHED">("PLAYING");
@@ -146,9 +144,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
       setBotShots([]);
       setSunkShipsMy([]);
       setSunkShipsBot([]);
-      setClusterCharge(0);
-      setCrossCharge(0);
-      setRadarCount(1);
+      setEnergy(50);
       setRadarResults([]);
       setLocalTurn("PLAYER");
       setLocalStatus("PLAYING");
@@ -457,16 +453,17 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     // Kiểm tra xem ô này đã bắn trước đó chưa
     if (myShots.some(s => s.x === x && s.y === y)) return;
 
-    // Kiểm tra vũ khí đặc biệt
+    // Kiểm tra vũ khí đặc biệt và trừ năng lượng tương ứng
+    let currentEnergy = energy;
     if (activeWeapon === "CLUSTER") {
-      if (clusterCharge < 2) return;
-      setClusterCharge(0);
-    } else if (activeWeapon === "CROSS") {
-      if (crossCharge < 3) return;
-      setCrossCharge(0);
+      if (currentEnergy < 50) return;
+      currentEnergy -= 50;
+    } else if (activeWeapon === "CROSS") { // Đội bay thám thính
+      if (currentEnergy < 40) return;
+      currentEnergy -= 40;
     } else if (activeWeapon === "RADAR") {
-      if (radarCount < 1) return;
-      setRadarCount(prev => prev - 1);
+      if (currentEnergy < 30) return;
+      currentEnergy -= 30;
     }
 
     // Tính các ô bị tác động
@@ -474,6 +471,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     if (activeWeapon === "NORMAL") {
       targetCoords.push({ x, y });
     } else if (activeWeapon === "CLUSTER") {
+      // Bom chùm ảnh hưởng 2x2
       for (let dx = 0; dx < 2; dx++) {
         for (let dy = 0; dy < 2; dy++) {
           const cx = x + dx;
@@ -482,12 +480,11 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         }
       }
     } else if (activeWeapon === "CROSS") {
+      // Đội bay thám thính quét 3 ô ngang
       const offsets = [
         { dx: 0, dy: 0 },
         { dx: -1, dy: 0 },
-        { dx: 1, dy: 0 },
-        { dx: 0, dy: -1 },
-        { dx: 0, dy: 1 },
+        { dx: 1, dy: 0 }
       ];
       for (const offset of offsets) {
         const cx = x + offset.dx;
@@ -515,6 +512,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         }
       }
       setRadarResults(prev => [...prev, { x, y, count: radarHitCount }]);
+      setEnergy(currentEnergy);
       // Radar chuyển lượt đi
       setLocalTurn("BOT");
       triggerBotMove(myShots, botShots, sunkShipsMy);
@@ -542,24 +540,21 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
       if (shotResult.hit) {
         anyHit = true;
         
-        // Sạc đạn đặc biệt (chỉ tăng khi dùng đạn thường bắn trúng)
-        if (activeWeapon === "NORMAL") {
-          setClusterCharge(prev => Math.min(2, prev + 1));
-          setCrossCharge(prev => Math.min(3, prev + 1));
-        }
+        // Hồi năng lượng (+15 khi bắn trúng)
+        currentEnergy = Math.min(100, currentEnergy + 15);
 
         if (shotResult.sunk && shotResult.shipId) {
           sunkList.push(shotResult.shipId);
-          // Cập nhật các ô đạn đã trúng trước đó của tàu này thành chìm hẳn (sunk: true)
           newShots.forEach(s => {
             if (s.shipId === shotResult.shipId) s.sunk = true;
           });
-          // Hồi 1 Rada
-          setRadarCount(prev => prev + 1);
+          // Hồi năng lượng (+30 khi chìm tàu)
+          currentEnergy = Math.min(100, currentEnergy + 30);
         }
       }
     }
 
+    setEnergy(currentEnergy);
     setMyShots(newShots);
     setSunkShipsBot(sunkList);
     setActiveWeapon("NORMAL");
@@ -755,9 +750,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     setBotShots([]);
     setSunkShipsMy([]);
     setSunkShipsBot([]);
-    setClusterCharge(0);
-    setCrossCharge(0);
-    setRadarCount(1);
+    setEnergy(50);
     setRadarResults([]);
     setLocalTurn("PLAYER");
     setLocalStatus("PLAYING");
@@ -794,18 +787,10 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     ? sunkShipsBot
     : (room ? (profile.id === room.playerXId ? JSON.parse(room.board).sunkO : JSON.parse(room.board).sunkX) : []);
 
-  // Dữ liệu sạc đạn đặc biệt (Online)
-  const currentClusterCharge = mode === "BOT" 
-    ? clusterCharge 
-    : (room ? (profile.id === room.playerXId ? JSON.parse(room.board).clusterChargeX : JSON.parse(room.board).clusterChargeO) : 0);
-
-  const currentCrossCharge = mode === "BOT" 
-    ? crossCharge 
-    : (room ? (profile.id === room.playerXId ? JSON.parse(room.board).crossChargeX : JSON.parse(room.board).crossChargeO) : 0);
-
-  const currentRadarCount = mode === "BOT" 
-    ? radarCount 
-    : (room ? (profile.id === room.playerXId ? JSON.parse(room.board).radarX : JSON.parse(room.board).radarO) : 1);
+  // Dữ liệu Năng lượng đặc biệt (Online & Offline)
+  const currentEnergy = mode === "BOT" 
+    ? energy 
+    : (room ? (profile.id === room.playerXId ? (JSON.parse(room.board).energyX ?? 50) : (JSON.parse(room.board).energyO ?? 50)) : 50);
 
   const currentRadarResults = mode === "BOT"
     ? radarResults
@@ -826,10 +811,8 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
       return hx === x && hy === y;
     } else if (activeWeapon === "CLUSTER") {
       return x >= hx && x < hx + 2 && y >= hy && y < hy + 2;
-    } else if (activeWeapon === "CROSS") {
-      return (x === hx && y === hy) ||
-             (Math.abs(x - hx) === 1 && y === hy) ||
-             (x === hx && Math.abs(y - hy) === 1);
+    } else if (activeWeapon === "CROSS") { // Đội bay thám thính quét 3 ô ngang
+      return y === hy && Math.abs(x - hx) <= 1;
     } else if (activeWeapon === "RADAR") {
       return Math.abs(x - hx) <= 1 && Math.abs(y - hy) <= 1;
     }
@@ -1230,58 +1213,75 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                 </div>
               </div>
 
-              {/* Special weapons charge counters */}
-              <div className="flex gap-3 shrink-0">
-                {/* Cluster weapon indicator */}
-                <button
-                  disabled={!isMyTurn || currentClusterCharge < 2}
-                  onClick={() => setActiveWeapon(activeWeapon === "CLUSTER" ? "NORMAL" : "CLUSTER")}
-                  className={`border p-2 rounded-sm flex flex-col items-center gap-1.5 relative transition-all ${
-                    activeWeapon === "CLUSTER" 
-                      ? "border-yellow-400 bg-yellow-400 bg-opacity-20 text-yellow-300 scale-105" 
-                      : (currentClusterCharge >= 2 ? "border-yellow-600 bg-yellow-950 bg-opacity-20 text-yellow-500 cursor-pointer animate-pulse" : "border-slate-800 text-gray-600 cursor-not-allowed")
-                  }`}
-                >
-                  <span className="text-[7px] font-bold uppercase tracking-wider block">Đạn Chùm</span>
-                  <div className="flex items-center gap-1 text-[8px] font-bold">
-                    <Zap className="w-3 h-3 text-yellow-400" />
-                    <span>{currentClusterCharge}/2 sạc</span>
+              {/* HỆ THỐNG NĂNG LƯỢNG & KỸ NĂNG */}
+              <div className="flex flex-col space-y-3 w-full md:w-auto md:max-w-xs shrink-0">
+                {/* Thanh tiến trình năng lượng */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[7px] font-extrabold text-[#F3E5AB] uppercase tracking-wider">
+                    <span>Năng lượng chiến thuật</span>
+                    <span className="text-[#FF9F0A]">{currentEnergy}/100</span>
                   </div>
-                </button>
+                  <div className="w-full bg-[#141412] h-2.5 rounded-full border border-[#D4AF37]/15 overflow-hidden p-0.5">
+                    <div 
+                      className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full rounded-full transition-all duration-300 shadow-[0_0_6px_#FF9F0A]"
+                      style={{ width: `${currentEnergy}%` }}
+                    />
+                  </div>
+                </div>
 
-                {/* Cross weapon indicator */}
-                <button
-                  disabled={!isMyTurn || currentCrossCharge < 3}
-                  onClick={() => setActiveWeapon(activeWeapon === "CROSS" ? "NORMAL" : "CROSS")}
-                  className={`border p-2 rounded-sm flex flex-col items-center gap-1.5 relative transition-all ${
-                    activeWeapon === "CROSS" 
-                      ? "border-yellow-400 bg-yellow-400 bg-opacity-20 text-yellow-300 scale-105" 
-                      : (currentCrossCharge >= 3 ? "border-yellow-600 bg-yellow-950 bg-opacity-20 text-yellow-500 cursor-pointer animate-pulse" : "border-slate-800 text-gray-600 cursor-not-allowed")
-                  }`}
-                >
-                  <span className="text-[7px] font-bold uppercase tracking-wider block">Đạn Chữ Thập</span>
-                  <div className="flex items-center gap-1 text-[8px] font-bold">
-                    <Zap className="w-3 h-3 text-yellow-400" />
-                    <span>{currentCrossCharge}/3 sạc</span>
-                  </div>
-                </button>
+                {/* Các kỹ năng kích hoạt */}
+                <div className="flex gap-2 justify-end">
+                  {/* Rada quét 3x3 */}
+                  <button
+                    disabled={!isMyTurn || currentEnergy < 30}
+                    onClick={() => setActiveWeapon(activeWeapon === "RADAR" ? "NORMAL" : "RADAR")}
+                    className={`border p-1.5 rounded-lg flex flex-col items-center justify-center min-w-[70px] relative transition-all ${
+                      activeWeapon === "RADAR" 
+                        ? "border-cyan-400 bg-cyan-400/20 text-cyan-300 scale-105 shadow-[0_0_8px_rgba(34,211,238,0.3)] font-bold" 
+                        : (currentEnergy >= 30 ? "border-cyan-600 bg-cyan-950/20 text-cyan-500 cursor-pointer hover:border-cyan-400" : "border-slate-900 text-slate-700 cursor-not-allowed opacity-50")
+                    }`}
+                  >
+                    <span className="text-[6px] font-extrabold uppercase tracking-wide block">Quét Rada</span>
+                    <div className="flex items-center gap-0.5 text-[7px] font-bold mt-1">
+                      <Eye className="w-2.5 h-2.5" />
+                      <span>30 NL</span>
+                    </div>
+                  </button>
 
-                {/* Radar sweep indicator */}
-                <button
-                  disabled={!isMyTurn || currentRadarCount < 1}
-                  onClick={() => setActiveWeapon(activeWeapon === "RADAR" ? "NORMAL" : "RADAR")}
-                  className={`border p-2 rounded-sm flex flex-col items-center gap-1.5 relative transition-all ${
-                    activeWeapon === "RADAR" 
-                      ? "border-cyan-400 bg-cyan-400 bg-opacity-20 text-cyan-300 scale-105" 
-                      : (currentRadarCount >= 1 ? "border-cyan-600 bg-cyan-950 bg-opacity-20 text-cyan-500 cursor-pointer" : "border-slate-800 text-gray-600 cursor-not-allowed")
-                  }`}
-                >
-                  <span className="text-[7px] font-bold uppercase tracking-wider block">Rada Quét</span>
-                  <div className="flex items-center gap-1 text-[8px] font-bold">
-                    <Eye className="w-3 h-3 text-cyan-400" />
-                    <span>{currentRadarCount} quét</span>
-                  </div>
-                </button>
+                  {/* Scout plane / Thám thính 3 ô */}
+                  <button
+                    disabled={!isMyTurn || currentEnergy < 40}
+                    onClick={() => setActiveWeapon(activeWeapon === "CROSS" ? "NORMAL" : "CROSS")}
+                    className={`border p-1.5 rounded-lg flex flex-col items-center justify-center min-w-[70px] relative transition-all ${
+                      activeWeapon === "CROSS" 
+                        ? "border-[#FF9F0A] bg-[#FF9F0A]/20 text-[#FF9F0A] scale-105 shadow-[0_0_8px_rgba(255,159,10,0.3)] font-bold" 
+                        : (currentEnergy >= 40 ? "border-[#FF9F0A]/60 bg-[#FF9F0A]/5 text-[#FF9F0A]/70 cursor-pointer hover:border-[#FF9F0A]" : "border-slate-900 text-slate-700 cursor-not-allowed opacity-50")
+                    }`}
+                  >
+                    <span className="text-[6px] font-extrabold uppercase tracking-wide block">Thám Thính</span>
+                    <div className="flex items-center gap-0.5 text-[7px] font-bold mt-1">
+                      <Zap className="w-2.5 h-2.5 text-[#FF9F0A]" />
+                      <span>40 NL</span>
+                    </div>
+                  </button>
+
+                  {/* Cluster Bomb / Bom chùm */}
+                  <button
+                    disabled={!isMyTurn || currentEnergy < 50}
+                    onClick={() => setActiveWeapon(activeWeapon === "CLUSTER" ? "NORMAL" : "CLUSTER")}
+                    className={`border p-1.5 rounded-lg flex flex-col items-center justify-center min-w-[70px] relative transition-all ${
+                      activeWeapon === "CLUSTER" 
+                        ? "border-red-400 bg-red-400/20 text-red-300 scale-105 shadow-[0_0_8px_rgba(248,113,113,0.3)] font-bold" 
+                        : (currentEnergy >= 50 ? "border-red-600 bg-red-950/20 text-red-500 cursor-pointer hover:border-red-400 animate-pulse" : "border-slate-900 text-slate-700 cursor-not-allowed opacity-50")
+                    }`}
+                  >
+                    <span className="text-[6px] font-extrabold uppercase tracking-wide block">Bom Chùm</span>
+                    <div className="flex items-center gap-0.5 text-[7px] font-bold mt-1">
+                      <Zap className="w-2.5 h-2.5 text-red-500" />
+                      <span>50 NL</span>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
 

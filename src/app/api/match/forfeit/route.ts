@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { addExp, calculateElo, addBattlePassExp, DailyMission } from "@/lib/progression";
 
 // Công thức tính thưởng
 function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: boolean = false) {
@@ -8,11 +9,11 @@ function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: bool
   let exp = 0;
 
   if (outcome === "WIN") {
-    coins = 10 + 2 * level;
-    exp = 5 + Math.round(level * 0.20);
+    coins = 20 + 2 * level;
+    exp = 350 + 10 * level;
   } else {
-    coins = Math.round(5 + 1.5 * level);
-    exp = 2;
+    coins = Math.round(10 + 1 * level);
+    exp = 120 + 5 * level;
   }
 
   // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
@@ -24,16 +25,24 @@ function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: bool
   return { coins, exp };
 }
 
-function addExpAndCalculateLevel(currentLevel: number, currentExp: number, expGained: number) {
-  let level = currentLevel;
-  let exp = currentExp + expGained;
-
-  while (exp >= 100 + level * 5) {
-    exp -= (100 + level * 5);
-    level += 1;
+// Cập nhật tiến trình nhiệm vụ
+function updatePlayerMissions(missionsJson: string, gameType: string, actionType: "WIN_GAME" | "PLAY_GAME", amount = 1) {
+  if (!missionsJson || missionsJson === "[]") return missionsJson;
+  try {
+    const missions: DailyMission[] = JSON.parse(missionsJson);
+    let updated = false;
+    for (const m of missions) {
+      if (m.claimed) continue;
+      if (m.type === actionType && (!m.gameType || m.gameType === gameType)) {
+        m.progress = Math.min(m.target, m.progress + amount);
+        updated = true;
+      }
+    }
+    return JSON.stringify(missions);
+  } catch (e) {
+    console.error(e);
+    return missionsJson;
   }
-
-  return { level, exp };
 }
 
 export async function POST(req: Request) {
@@ -46,7 +55,7 @@ export async function POST(req: Request) {
     }
 
     const playerId = user.id;
-    const { roomId, action } = await req.json(); // action: "SURRENDER" (tự đầu hàng) hoặc "CLAIM_TIMEOUT" (đối thủ AFK quá lâu)
+    const { roomId, action } = await req.json(); // action: "SURRENDER" hoặc "CLAIM_TIMEOUT"
 
     const result = await prisma.$transaction(async (tx) => {
       const room = await tx.gameRoom.findUnique({
@@ -76,17 +85,13 @@ export async function POST(req: Request) {
       let loserId = "";
 
       if (action === "SURRENDER") {
-        // Người gọi đầu hàng là người thua
         loserId = playerId;
         winnerId = isPlayerX ? room.playerOId! : room.playerXId;
       } else if (action === "CLAIM_TIMEOUT") {
-        // Kiểm tra xem đối thủ có thực sự AFK không? 
-        // Ở đây để đơn giản cho client, client sẽ đo lường thời gian không có nước đi (ví dụ: >60 giây kể từ updatedAt của phòng)
         const secondsSinceLastUpdate = (Date.now() - new Date(room.updatedAt).getTime()) / 1000;
         if (secondsSinceLastUpdate < 55) {
           throw new Error("Chưa đủ thời gian 60 giây để xử thua đối thủ");
         }
-        // Người gọi yêu cầu xử thắng là người thắng
         winnerId = playerId;
         loserId = isPlayerX ? room.playerOId! : room.playerXId;
       } else {
@@ -103,8 +108,43 @@ export async function POST(req: Request) {
       const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
       const loserCoinsGained = loserRewards.coins;
 
-      const winnerNewStats = addExpAndCalculateLevel(winner.level, winner.exp, winnerRewards.exp);
-      const loserNewStats = addExpAndCalculateLevel(loser.level, loser.exp, loserRewards.exp);
+      // Cộng EXP mới
+      const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
+      const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
+
+      // Cập nhật Elo cho game tương ứng
+      const isGomoku = room.gameType === "CARO";
+      const isBattleship = room.gameType === "BATTLESHIP";
+      
+      let winnerElo = 1000;
+      let loserElo = 1000;
+      let eloField = "";
+
+      if (isGomoku) {
+        winnerElo = winner.eloGomoku;
+        loserElo = loser.eloGomoku;
+        eloField = "eloGomoku";
+      } else if (isBattleship) {
+        winnerElo = winner.eloBattleship;
+        loserElo = loser.eloBattleship;
+        eloField = "eloBattleship";
+      } else {
+        winnerElo = winner.eloTicTacToe;
+        loserElo = loser.eloTicTacToe;
+        eloField = "eloTicTacToe";
+      }
+
+      const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
+      const newLoserElo = calculateElo(loserElo, winnerElo, 0);
+
+      // Cập nhật Battle Pass
+      const winBPMatch = addBattlePassExp(winner.battlePassLevel, winner.battlePassExp, winner.isPremium ? 172 : 150);
+      const loseBPMatch = addBattlePassExp(loser.battlePassLevel, loser.battlePassExp, loser.isPremium ? 57 : 50);
+
+      // Cập nhật Nhiệm vụ hàng ngày
+      const winnerMissions = updatePlayerMissions(winner.dailyMissions, room.gameType, "PLAY_GAME");
+      const loserMissions = updatePlayerMissions(loser.dailyMissions, room.gameType, "PLAY_GAME");
+      const winnerWinMissions = updatePlayerMissions(winnerMissions, room.gameType, "WIN_GAME");
 
       // Cập nhật người thắng
       await tx.user.update({
@@ -113,6 +153,10 @@ export async function POST(req: Request) {
           coins: { increment: winnerCoinsGained },
           level: winnerNewStats.level,
           exp: winnerNewStats.exp,
+          [eloField]: newWinnerElo,
+          battlePassLevel: winBPMatch.level,
+          battlePassExp: winBPMatch.exp,
+          dailyMissions: winnerWinMissions,
         }
       });
 
@@ -123,6 +167,10 @@ export async function POST(req: Request) {
           coins: { increment: loserCoinsGained },
           level: loserNewStats.level,
           exp: loserNewStats.exp,
+          [eloField]: newLoserElo,
+          battlePassLevel: loseBPMatch.level,
+          battlePassExp: loseBPMatch.exp,
+          dailyMissions: loserMissions,
         }
       });
 

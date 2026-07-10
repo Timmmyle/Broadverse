@@ -17,8 +17,20 @@ model User {
   coins             Int      @default(100)
   shells            Int      @default(0)             // Điểm vỏ sò sự kiện mùa hè
   boxOpenings       Int      @default(0)             // Số lần mở hộp quà sự kiện
-  level             Int      @default(1)
-  exp               Int      @default(0)
+  level                 Int      @default(1)
+  exp                   Int      @default(0)
+  prestigeLevel         Int      @default(0)
+  eloTicTacToe          Int      @default(1000)
+  eloGomoku             Int      @default(1000)
+  eloBattleship         Int      @default(1000)
+  loginStreak           Int      @default(0)
+  dailyStreakDay        Int      @default(1)
+  streakFreezes         Int      @default(0)
+  dailyMissions         String   @default("[]")
+  lastMissionGenerated  DateTime?
+  battlePassLevel       Int      @default(1)
+  battlePassExp         Int      @default(0)
+  masteryStats          String   @default("{}")
   avatarUrl             String?
   lastClaimedDaily      DateTime?                         // Ngày cuối cùng điểm danh nhận quà
   referredBy            String?                         // Username người giới thiệu

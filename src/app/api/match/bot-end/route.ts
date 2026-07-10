@@ -1,18 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { addExp, DailyMission } from "@/lib/progression";
 
-// Cộng EXP và tính toán lên cấp (Level up)
-function addExpAndCalculateLevel(currentLevel: number, currentExp: number, expGained: number) {
-  let level = currentLevel;
-  let exp = currentExp + expGained;
-
-  while (exp >= 100 + level * 5) {
-    exp -= (100 + level * 5);
-    level += 1;
+// Cập nhật tiến trình nhiệm vụ của người chơi
+function updatePlayerMissions(missionsJson: string, gameType: string, actionType: "WIN_GAME" | "PLAY_GAME", amount = 1) {
+  if (!missionsJson || missionsJson === "[]") return missionsJson;
+  try {
+    const missions: DailyMission[] = JSON.parse(missionsJson);
+    let updated = false;
+    for (const m of missions) {
+      if (m.claimed) continue;
+      if (m.type === actionType && (!m.gameType || m.gameType === gameType)) {
+        m.progress = Math.min(m.target, m.progress + amount);
+        updated = true;
+      }
+    }
+    return JSON.stringify(missions);
+  } catch (e) {
+    console.error(e);
+    return missionsJson;
   }
-
-  return { level, exp };
 }
 
 export async function POST(req: Request) {
@@ -24,7 +32,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { outcome } = await req.json(); // outcome: "WIN" | "LOSE" | "DRAW"
+    const { outcome, gameType } = await req.json(); // outcome: "WIN" | "LOSE" | "DRAW", gameType?: "CARO" | "TIC_TAC_TOE" | "BATTLESHIP"
+    const currentGameType = gameType || "CARO";
 
     const profile = await prisma.user.findUnique({
       where: { id: user.id },
@@ -39,11 +48,11 @@ export async function POST(req: Request) {
     let expGained = 0;
 
     if (outcome === "WIN") {
-      coinsGained = 2;
-      expGained = 5;
+      coinsGained = 5;
+      expGained = 150; // Thích ứng với lượng EXP lớn hơn của công thức mới
     } else {
-      coinsGained = 1;
-      expGained = 1;
+      coinsGained = 2;
+      expGained = 50;
     }
 
     // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
@@ -52,8 +61,14 @@ export async function POST(req: Request) {
       expGained = expGained * 2;
     }
 
+    // Cập nhật nhiệm vụ hàng ngày
+    let updatedMissions = updatePlayerMissions(profile.dailyMissions, currentGameType, "PLAY_GAME");
+    if (outcome === "WIN") {
+      updatedMissions = updatePlayerMissions(updatedMissions, currentGameType, "WIN_GAME");
+    }
+
     const updatedProfile = await prisma.$transaction(async (tx) => {
-      const newStats = addExpAndCalculateLevel(profile.level, profile.exp, expGained);
+      const newStats = addExp(profile.level, profile.exp, expGained);
 
       return await tx.user.update({
         where: { id: user.id },
@@ -61,6 +76,7 @@ export async function POST(req: Request) {
           coins: { increment: coinsGained },
           level: newStats.level,
           exp: newStats.exp,
+          dailyMissions: updatedMissions,
         },
       });
     });

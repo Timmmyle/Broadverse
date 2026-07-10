@@ -1,7 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { checkTicTacToeWin, checkCaroWin, decryptShips, encryptShips, validateShipPlacement, checkBattleshipShot } from "@/lib/gameLogic";
+import { 
+  checkTicTacToeWin, 
+  checkCaroWin, 
+  decryptShips, 
+  encryptShips, 
+  validateShipPlacement, 
+  checkBattleshipShot, 
+  isRenjuForbidden 
+} from "@/lib/gameLogic";
+import { addExp, calculateElo, addBattlePassExp, DailyMission } from "@/lib/progression";
 
 // Công thức tính thưởng
 function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPremium: boolean = false) {
@@ -9,12 +18,12 @@ function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPrem
   let exp = 0;
 
   if (outcome === "WIN") {
-    coins = 10 + 2 * level;
-    exp = 5 + Math.round(level * 0.20);
+    coins = 20 + 2 * level;
+    exp = 350 + 10 * level;
   } else {
     // LOSE hoặc DRAW
-    coins = Math.round(5 + 1.5 * level);
-    exp = 2;
+    coins = Math.round(10 + 1 * level);
+    exp = 120 + 5 * level;
   }
 
   // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
@@ -26,17 +35,24 @@ function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPrem
   return { coins, exp };
 }
 
-// Logic nâng cấp độ (Level up)
-function addExpAndCalculateLevel(currentLevel: number, currentExp: number, expGained: number) {
-  let level = currentLevel;
-  let exp = currentExp + expGained;
-
-  while (exp >= 100 + level * 5) {
-    exp -= (100 + level * 5);
-    level += 1;
+// Cập nhật tiến trình nhiệm vụ của người chơi
+function updatePlayerMissions(missionsJson: string, gameType: string, actionType: "WIN_GAME" | "PLAY_GAME" | "HIT_SHIP", amount = 1) {
+  if (!missionsJson || missionsJson === "[]") return missionsJson;
+  try {
+    const missions: DailyMission[] = JSON.parse(missionsJson);
+    let updated = false;
+    for (const m of missions) {
+      if (m.claimed) continue;
+      if (m.type === actionType && (!m.gameType || m.gameType === gameType)) {
+        m.progress = Math.min(m.target, m.progress + amount);
+        updated = true;
+      }
+    }
+    return JSON.stringify(missions);
+  } catch (e) {
+    console.error(e);
+    return missionsJson;
   }
-
-  return { level, exp };
 }
 
 export async function POST(req: Request) {
@@ -65,6 +81,7 @@ export async function POST(req: Request) {
         throw new Error("Phòng game không tồn tại");
       }
 
+      // --- GAME BATTLESHIP (TÀU CHIẾN) ---
       if (room.gameType === "BATTLESHIP") {
         if (room.status !== "PLAYING" && room.status !== "WAITING") {
           throw new Error("Trận đấu đã kết thúc");
@@ -107,6 +124,10 @@ export async function POST(req: Request) {
             boardObj.phase = "PLAYING";
             nextStatus = "PLAYING";
             nextTurnPlayerId = room.playerXId; // Người chơi X đi trước
+            
+            // Khởi tạo năng lượng (bắt đầu từ 50)
+            boardObj.energyX = 50;
+            boardObj.energyO = 50;
           }
 
           const updatedRoom = await tx.gameRoom.update({
@@ -157,21 +178,19 @@ export async function POST(req: Request) {
           }
 
           const opponentShips = decryptShips(opponentShipsEnc);
-
-          // Xác định danh sách toạ độ bắn dựa trên vũ khí
           const targetCoords: { x: number; y: number }[] = [];
+
+          // Sử dụng năng lượng thay cho điểm đạn giới hạn
+          let currentEnergy = isPlayerX ? boardObj.energyX : boardObj.energyO;
 
           if (weapon === "NORMAL") {
             targetCoords.push({ x: targetX, y: targetY });
           } else if (weapon === "CLUSTER") {
-            const charge = isPlayerX ? boardObj.clusterChargeX : boardObj.clusterChargeO;
-            if (charge < 2) throw new Error("Chưa sạc đủ Đạn Chùm (cần 2 điểm)");
+            if (currentEnergy < 50) throw new Error("Không đủ Năng lượng! Kỹ năng Bom Chùm cần 50 Năng lượng.");
             
-            // Khấu trừ sạc
-            if (isPlayerX) boardObj.clusterChargeX = 0;
-            else boardObj.clusterChargeO = 0;
+            // Trừ năng lượng
+            currentEnergy -= 50;
 
-            // Vùng 2x2 từ (targetX, targetY)
             for (let dx = 0; dx < 2; dx++) {
               for (let dy = 0; dy < 2; dy++) {
                 const cx = targetX + dx;
@@ -181,21 +200,15 @@ export async function POST(req: Request) {
                 }
               }
             }
-          } else if (weapon === "CROSS") {
-            const charge = isPlayerX ? boardObj.crossChargeX : boardObj.crossChargeO;
-            if (charge < 3) throw new Error("Chưa sạc đủ Đạn Chữ Thập (cần 3 điểm)");
+          } else if (weapon === "CROSS") { // Đội bay thám thính do thám 3 ô
+            if (currentEnergy < 40) throw new Error("Không đủ Năng lượng! Kỹ năng Đội Bay Thám Thính cần 40 Năng lượng.");
+            
+            currentEnergy -= 40;
 
-            // Khấu trừ sạc
-            if (isPlayerX) boardObj.crossChargeX = 0;
-            else boardObj.crossChargeO = 0;
-
-            // Vùng hình chữ thập
             const offsets = [
               { dx: 0, dy: 0 },
               { dx: -1, dy: 0 },
-              { dx: 1, dy: 0 },
-              { dx: 0, dy: -1 },
-              { dx: 0, dy: 1 },
+              { dx: 1, dy: 0 }
             ];
             for (const offset of offsets) {
               const cx = targetX + offset.dx;
@@ -205,21 +218,17 @@ export async function POST(req: Request) {
               }
             }
           } else if (weapon === "RADAR") {
-            const radarCount = isPlayerX ? boardObj.radarX : boardObj.radarO;
-            if (radarCount < 1) throw new Error("Không còn lượt quét Radar");
+            if (currentEnergy < 30) throw new Error("Không đủ Năng lượng! Kỹ năng Quét Rada cần 30 Năng lượng.");
 
-            // Khấu trừ radar
-            if (isPlayerX) boardObj.radarX--;
-            else boardObj.radarO--;
+            currentEnergy -= 30;
 
-            // Quét rada 3x3 quanh (targetX, targetY)
+            // Quét rada 3x3
             let shipCellsCount = 0;
             for (let dx = -1; dx <= 1; dx++) {
               for (let dy = -1; dy <= 1; dy++) {
                 const cx = targetX + dx;
                 const cy = targetY + dy;
                 if (cx >= 0 && cx < 10 && cy >= 0 && cy < 10) {
-                  // Check if this cell is occupied by opponent ship
                   const occupies = opponentShips.some(ship => {
                     for (let i = 0; i < ship.size; i++) {
                       const sx = ship.vertical ? ship.x : ship.x + i;
@@ -235,7 +244,10 @@ export async function POST(req: Request) {
 
             myRadarResults.push({ x: targetX, y: targetY, count: shipCellsCount });
 
-            // Radar là kỹ năng phụ trợ, không gây sát thương nên luôn chuyển lượt
+            // Lưu năng lượng cập nhật
+            if (isPlayerX) boardObj.energyX = currentEnergy;
+            else boardObj.energyO = currentEnergy;
+
             const nextTurnPlayerId = isPlayerX ? room.playerOId! : room.playerXId;
             const updatedRoom = await tx.gameRoom.update({
               where: { id: roomId },
@@ -251,13 +263,13 @@ export async function POST(req: Request) {
             };
           }
 
-          // Xử lý các phát bắn gây sát thương (NORMAL, CLUSTER, CROSS)
+          // Xử lý bắn trúng
           let anyHit = false;
+          let hitsCount = 0;
 
           for (const coord of targetCoords) {
-            // Check if already shot
             const alreadyShot = myShots.some((s: any) => s.x === coord.x && s.y === coord.y);
-            if (alreadyShot) continue; // Bỏ qua ô đã bắn trước đó
+            if (alreadyShot) continue;
 
             const shotResult = checkBattleshipShot(coord.x, coord.y, opponentShips, myShots);
             
@@ -271,40 +283,33 @@ export async function POST(req: Request) {
 
             if (shotResult.hit) {
               anyHit = true;
-
-              // Tăng điểm sạc đạn đặc biệt (chỉ khi dùng đạn thường bắn trúng)
-              if (weapon === "NORMAL") {
-                if (isPlayerX) {
-                  boardObj.clusterChargeX = Math.min(2, boardObj.clusterChargeX + 1);
-                  boardObj.crossChargeX = Math.min(3, boardObj.crossChargeX + 1);
-                } else {
-                  boardObj.clusterChargeO = Math.min(2, boardObj.clusterChargeO + 1);
-                  boardObj.crossChargeO = Math.min(3, boardObj.crossChargeO + 1);
-                }
-              }
+              hitsCount++;
+              
+              // Hồi năng lượng (+15 mỗi phát trúng)
+              currentEnergy = Math.min(100, currentEnergy + 15);
 
               if (shotResult.sunk && shotResult.shipId) {
                 opponentSunkShips.push(shotResult.shipId);
-
-                // Cập nhật tất cả các phát bắn của tàu đã chìm thành sunk = true
+                
                 myShots.forEach((s: any) => {
-                  if (s.shipId === shotResult.shipId) {
-                    s.sunk = true;
-                  }
+                  if (s.shipId === shotResult.shipId) s.sunk = true;
                 });
 
-                // Hồi 1 lượt quét Rada cho người bắn
-                if (isPlayerX) boardObj.radarX++;
-                else boardObj.radarO++;
+                // Hồi năng lượng (+30 khi chìm tàu)
+                currentEnergy = Math.min(100, currentEnergy + 30);
               }
             }
           }
 
-          // Kiểm tra xem đã thắng cuộc chưa (đối thủ chìm đủ 5 tàu)
-          const hasWon = opponentSunkShips.length === 5;
+          // Cập nhật năng lượng
+          if (isPlayerX) boardObj.energyX = currentEnergy;
+          else boardObj.energyO = currentEnergy;
 
-          if (hasWon) {
-            // --- Xử lý người thắng và thua cuộc ---
+          const isGameOver = opponentSunkShips.length === 5;
+          const updatedBoardStr = JSON.stringify(boardObj);
+
+          if (isGameOver) {
+            // Trận đấu kết thúc
             const winner = isPlayerX ? room.playerX : room.playerO!;
             const loser = isPlayerX ? room.playerO! : room.playerX;
 
@@ -314,8 +319,24 @@ export async function POST(req: Request) {
             const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
             const loserCoinsGained = loserRewards.coins;
 
-            const winnerNewStats = addExpAndCalculateLevel(winner.level, winner.exp, winnerRewards.exp);
-            const loserNewStats = addExpAndCalculateLevel(loser.level, loser.exp, loserRewards.exp);
+            // Tiến trình EXP mới
+            const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
+            const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
+
+            // Cập nhật Elo Battleship
+            const winnerElo = winner.eloBattleship;
+            const loserElo = loser.eloBattleship;
+            const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
+            const newLoserElo = calculateElo(loserElo, winnerElo, 0);
+
+            // Tiến trình Battle Pass
+            const winBPMatch = addBattlePassExp(winner.battlePassLevel, winner.battlePassExp, winner.isPremium ? 172 : 150);
+            const loseBPMatch = addBattlePassExp(loser.battlePassLevel, loser.battlePassExp, loser.isPremium ? 57 : 50);
+
+            // Cập nhật nhiệm vụ hàng ngày
+            const winnerMissions = updatePlayerMissions(winner.dailyMissions, "BATTLESHIP", "PLAY_GAME");
+            const loserMissions = updatePlayerMissions(loser.dailyMissions, "BATTLESHIP", "PLAY_GAME");
+            const winnerHitMissions = updatePlayerMissions(winnerMissions, "BATTLESHIP", "HIT_SHIP", hitsCount);
 
             await tx.user.update({
               where: { id: winner.id },
@@ -323,7 +344,11 @@ export async function POST(req: Request) {
                 coins: { increment: winnerCoinsGained },
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
-              },
+                eloBattleship: newWinnerElo,
+                battlePassLevel: winBPMatch.level,
+                battlePassExp: winBPMatch.exp,
+                dailyMissions: winnerHitMissions,
+              }
             });
 
             await tx.user.update({
@@ -332,17 +357,21 @@ export async function POST(req: Request) {
                 coins: { increment: loserCoinsGained },
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
-              },
+                eloBattleship: newLoserElo,
+                battlePassLevel: loseBPMatch.level,
+                battlePassExp: loseBPMatch.exp,
+                dailyMissions: loserMissions,
+              }
             });
 
             const updatedRoom = await tx.gameRoom.update({
               where: { id: roomId },
               data: {
-                board: JSON.stringify(boardObj),
+                board: updatedBoardStr,
                 status: "FINISHED",
                 winnerId: winner.id,
                 turnPlayerId: null,
-              },
+              }
             });
 
             return {
@@ -353,23 +382,28 @@ export async function POST(req: Request) {
               rewards: {
                 [winner.id]: { outcome: "WIN", coins: winnerCoinsGained, exp: winnerRewards.exp, levelUp: winnerNewStats.level > winner.level },
                 [loser.id]: { outcome: "LOSE", coins: loserCoinsGained, exp: loserRewards.exp, levelUp: loserNewStats.level > loser.level },
-              },
+              }
             };
           } else {
-            // Không thắng: Chuyển lượt đi
-            // Nếu có bắn trúng (anyHit === true), giữ nguyên lượt đi (Chain-shot rules).
-            // Nếu trượt (anyHit === false), chuyển lượt sang đối thủ.
-            let nextTurnPlayerId = room.turnPlayerId;
-            if (!anyHit) {
-              nextTurnPlayerId = isPlayerX ? room.playerOId! : room.playerXId;
+            // Chuyển lượt đi
+            const nextTurnPlayerId = anyHit ? playerId : (isPlayerX ? room.playerOId! : room.playerXId);
+            
+            // Cập nhật nhiệm vụ bắn trúng cho X/O (nếu có bắn trúng)
+            if (hitsCount > 0) {
+              const currentMissions = isPlayerX ? room.playerX.dailyMissions : room.playerO!.dailyMissions;
+              const updatedMissions = updatePlayerMissions(currentMissions, "BATTLESHIP", "HIT_SHIP", hitsCount);
+              await tx.user.update({
+                where: { id: playerId },
+                data: { dailyMissions: updatedMissions }
+              });
             }
 
             const updatedRoom = await tx.gameRoom.update({
               where: { id: roomId },
               data: {
-                board: JSON.stringify(boardObj),
+                board: updatedBoardStr,
                 turnPlayerId: nextTurnPlayerId,
-              },
+              }
             });
 
             return {
@@ -379,7 +413,7 @@ export async function POST(req: Request) {
           }
         }
       } else {
-        // --- TIC-TAC-TOE & CARO (CŨ) ---
+        // --- GAME TIC-TAC-TOE & GOMOKU (CARO) ---
         if (room.status !== "PLAYING") {
           throw new Error("Trận đấu đã kết thúc hoặc chưa sẵn sàng");
         }
@@ -404,8 +438,79 @@ export async function POST(req: Request) {
           throw new Error("Vị trí này đã được đánh trước đó");
         }
 
-        // Xác định quân cờ (X hay O) của người chơi hiện tại
         const symbol = playerId === room.playerXId ? "X" : "O";
+
+        // --- KIỂM TRA LUẬT CẤM RENJU (CHO RANK BẠCH KIM GOMOKU TRỞ LÊN) ---
+        if (room.gameType === "CARO" && symbol === "X" && room.playerX.eloGomoku >= 1200) {
+          const renjuCheck = isRenjuForbidden(board, pos, "X");
+          if (renjuCheck.forbidden) {
+            // Quân Đen vi phạm luật cấm Renju -> Xử thua ngay lập tức!
+            const winner = room.playerO!;
+            const loser = room.playerX;
+
+            const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
+            const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
+
+            const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
+            const loserCoinsGained = loserRewards.coins;
+
+            const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
+            const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
+
+            // Cập nhật Elo Gomoku
+            const winnerElo = winner.eloGomoku;
+            const loserElo = loser.eloGomoku;
+            const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
+            const newLoserElo = calculateElo(loserElo, winnerElo, 0);
+
+            // Cập nhật Database
+            await tx.user.update({
+              where: { id: winner.id },
+              data: {
+                coins: { increment: winnerCoinsGained },
+                level: winnerNewStats.level,
+                exp: winnerNewStats.exp,
+                eloGomoku: newWinnerElo,
+              }
+            });
+
+            await tx.user.update({
+              where: { id: loser.id },
+              data: {
+                coins: { increment: loserCoinsGained },
+                level: loserNewStats.level,
+                exp: loserNewStats.exp,
+                eloGomoku: newLoserElo,
+              }
+            });
+
+            board[pos] = "X"; // Ghi nhận nước đi vi phạm lên bàn cờ
+
+            const updatedRoom = await tx.gameRoom.update({
+              where: { id: roomId },
+              data: {
+                board: JSON.stringify(board),
+                status: "FINISHED",
+                winnerId: winner.id,
+                turnPlayerId: null,
+              }
+            });
+
+            return {
+              room: updatedRoom,
+              finished: true,
+              winnerId: winner.id,
+              wager: room.wager,
+              renjuViolated: true,
+              rewards: {
+                [winner.id]: { outcome: "WIN", coins: winnerCoinsGained, exp: winnerRewards.exp, levelUp: winnerNewStats.level > winner.level },
+                [loser.id]: { outcome: "LOSE", coins: loserCoinsGained, exp: loserRewards.exp, levelUp: loserNewStats.level > loser.level },
+              }
+            };
+          }
+        }
+
+        // Đặt quân cờ
         board[pos] = symbol;
 
         // Kiểm tra thắng cuộc
@@ -416,50 +521,66 @@ export async function POST(req: Request) {
           hasWon = checkCaroWin(board, pos, symbol);
         }
 
-        // Kiểm tra hòa cuộc (Draw - hết ô trống)
         const isDraw = !hasWon && board.every((cell) => cell !== "");
-
-        // Cập nhật trạng thái bàn cờ
         const updatedBoardStr = JSON.stringify(board);
 
         if (hasWon) {
-          // --- Xử lý người chơi thắng cuộc và thua cuộc ---
           const winner = playerId === room.playerXId ? room.playerX : room.playerO!;
           const loser = playerId === room.playerXId ? room.playerO! : room.playerX;
 
-          // Tính toán thưởng
           const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
           const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
 
-          // Cộng cược cho người thắng (nhận lại cược của mình + cược đối thủ)
           const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
           const loserCoinsGained = loserRewards.coins;
 
-          // Nâng cấp level
-          const winnerNewStats = addExpAndCalculateLevel(winner.level, winner.exp, winnerRewards.exp);
-          const loserNewStats = addExpAndCalculateLevel(loser.level, loser.exp, loserRewards.exp);
+          const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
+          const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
 
-          // Cập nhật Database cho người thắng
+          // Cập nhật Elo theo game
+          const isGomoku = room.gameType === "CARO";
+          const winnerElo = isGomoku ? winner.eloGomoku : winner.eloTicTacToe;
+          const loserElo = isGomoku ? loser.eloGomoku : loser.eloTicTacToe;
+          const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
+          const newLoserElo = calculateElo(loserElo, winnerElo, 0);
+
+          // Cập nhật BP EXP
+          const winBPMatch = addBattlePassExp(winner.battlePassLevel, winner.battlePassExp, winner.isPremium ? 172 : 150);
+          const loseBPMatch = addBattlePassExp(loser.battlePassLevel, loser.battlePassExp, loser.isPremium ? 57 : 50);
+
+          // Cập nhật nhiệm vụ hàng ngày
+          const winnerMissions = updatePlayerMissions(winner.dailyMissions, room.gameType, "PLAY_GAME");
+          const loserMissions = updatePlayerMissions(loser.dailyMissions, room.gameType, "PLAY_GAME");
+          const winnerWinMissions = updatePlayerMissions(winnerMissions, room.gameType, "WIN_GAME");
+
           await tx.user.update({
             where: { id: winner.id },
             data: {
               coins: { increment: winnerCoinsGained },
               level: winnerNewStats.level,
               exp: winnerNewStats.exp,
+              eloGomoku: isGomoku ? newWinnerElo : undefined,
+              eloTicTacToe: !isGomoku ? newWinnerElo : undefined,
+              battlePassLevel: winBPMatch.level,
+              battlePassExp: winBPMatch.exp,
+              dailyMissions: winnerWinMissions,
             }
           });
 
-          // Cập nhật Database cho người thua
           await tx.user.update({
             where: { id: loser.id },
             data: {
               coins: { increment: loserCoinsGained },
               level: loserNewStats.level,
               exp: loserNewStats.exp,
+              eloGomoku: isGomoku ? newLoserElo : undefined,
+              eloTicTacToe: !isGomoku ? newLoserElo : undefined,
+              battlePassLevel: loseBPMatch.level,
+              battlePassExp: loseBPMatch.exp,
+              dailyMissions: loserMissions,
             }
           });
 
-          // Cập nhật phòng đấu thành kết thúc
           const updatedRoom = await tx.gameRoom.update({
             where: { id: roomId },
             data: {
@@ -480,21 +601,25 @@ export async function POST(req: Request) {
               [loser.id]: { outcome: "LOSE", coins: loserCoinsGained, exp: loserRewards.exp, levelUp: loserNewStats.level > loser.level },
             }
           };
-
         } else if (isDraw) {
-          // --- Xử lý hòa cuộc ---
           const playerX = room.playerX;
           const playerO = room.playerO!;
 
           const rewardsX = calculateReward("DRAW", playerX.level, playerX.isPremium);
           const rewardsO = calculateReward("DRAW", playerO.level, playerO.isPremium);
 
-          // Trả lại cược
           const coinsGainedX = rewardsX.coins + room.wager;
           const coinsGainedO = rewardsO.coins + room.wager;
 
-          const newStatsX = addExpAndCalculateLevel(playerX.level, playerX.exp, rewardsX.exp);
-          const newStatsO = addExpAndCalculateLevel(playerO.level, playerO.exp, rewardsO.exp);
+          const newStatsX = addExp(playerX.level, playerX.exp, rewardsX.exp);
+          const newStatsO = addExp(playerO.level, playerO.exp, rewardsO.exp);
+
+          // Cập nhật Elo Draw
+          const isGomoku = room.gameType === "CARO";
+          const eloX = isGomoku ? playerX.eloGomoku : playerX.eloTicTacToe;
+          const eloO = isGomoku ? playerO.eloGomoku : playerO.eloTicTacToe;
+          const newEloX = calculateElo(eloX, eloO, 0.5);
+          const newEloO = calculateElo(eloO, eloX, 0.5);
 
           await tx.user.update({
             where: { id: playerX.id },
@@ -502,6 +627,8 @@ export async function POST(req: Request) {
               coins: { increment: coinsGainedX },
               level: newStatsX.level,
               exp: newStatsX.exp,
+              eloGomoku: isGomoku ? newEloX : undefined,
+              eloTicTacToe: !isGomoku ? newEloX : undefined,
             }
           });
 
@@ -511,6 +638,8 @@ export async function POST(req: Request) {
               coins: { increment: coinsGainedO },
               level: newStatsO.level,
               exp: newStatsO.exp,
+              eloGomoku: isGomoku ? newEloO : undefined,
+              eloTicTacToe: !isGomoku ? newEloO : undefined,
             }
           });
 
@@ -534,9 +663,8 @@ export async function POST(req: Request) {
               [playerO.id]: { outcome: "DRAW", coins: coinsGainedO, exp: rewardsO.exp, levelUp: newStatsO.level > playerO.level },
             }
           };
-
         } else {
-          // --- Tiếp tục trận đấu, chuyển lượt ---
+          // Tiếp tục chuyển lượt
           const nextTurnPlayerId = playerId === room.playerXId ? room.playerOId! : room.playerXId;
 
           const updatedRoom = await tx.gameRoom.update({

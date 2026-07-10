@@ -193,3 +193,108 @@ export function checkBattleshipShot(
   return { hit: true, shipId: hitShip.id, sunk };
 }
 
+/**
+ * Kiểm tra xem nước đi của quân Đen (đi trước) có vi phạm luật cấm Renju hay không
+ * Luật cấm Renju bao gồm: Double 3 (Đôi ba), Double 4 (Đôi bốn), và Overline (Quá 5 quân cờ liên tiếp)
+ */
+export function isRenjuForbidden(board: string[], lastPos: number, symbol: string): { forbidden: boolean; reason?: string } {
+  const SIZE = 12;
+  const lastRow = Math.floor(lastPos / SIZE);
+  const lastCol = lastPos % SIZE;
+
+  const directions = [
+    [0, 1],   // Ngang
+    [1, 0],   // Dọc
+    [1, 1],   // Chéo xuống phải
+    [1, -1]   // Chéo xuống trái
+  ];
+
+  // 1. Kiểm tra Overline (lớn hơn 5 quân cờ liên tiếp)
+  for (const [dr, dc] of directions) {
+    let count = 1;
+    // Chiều thuận
+    for (let i = 1; i < 7; i++) {
+      const r = lastRow + i * dr;
+      const c = lastCol + i * dc;
+      if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) break;
+      if (board[r * SIZE + c] === symbol) count++;
+      else break;
+    }
+    // Chiều nghịch
+    for (let i = 1; i < 7; i++) {
+      const r = lastRow - i * dr;
+      const c = lastCol - i * dc;
+      if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) break;
+      if (board[r * SIZE + c] === symbol) count++;
+      else break;
+    }
+    if (count >= 6) {
+      return { forbidden: true, reason: "Overline (Hàng cờ quá 5 quân)" };
+    }
+  }
+
+  // 2. Kiểm tra Double Three (Đôi 3) & Double Four (Đôi 4)
+  let threeCount = 0;
+  let fourCount = 0;
+
+  for (const [dr, dc] of directions) {
+    const tempBoard = [...board];
+    tempBoard[lastPos] = symbol;
+
+    const lineCells: { r: number; c: number; val: string }[] = [];
+    for (let i = -4; i <= 4; i++) {
+      const r = lastRow + i * dr;
+      const c = lastCol + i * dc;
+      if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) {
+        lineCells.push({ r, c, val: tempBoard[r * SIZE + c] });
+      } else {
+        lineCells.push({ r, c, val: "OUT" });
+      }
+    }
+
+    let isFour = false;
+    let isOpenThree = false;
+
+    // Xem xét các cửa sổ dài 5 ô chứa nước đi mới ở giữa (vị trí index 4)
+    for (let start = 0; start <= 4; start++) {
+      const window = lineCells.slice(start, start + 5);
+      if (window.some(cell => cell.val === "OUT")) continue;
+
+      const symbolCount = window.filter(c => c.val === symbol).length;
+      const emptyCount = window.filter(c => c.val === "").length;
+
+      if (symbolCount === 4 && emptyCount === 1) {
+        isFour = true;
+      }
+    }
+
+    // Xem xét các cửa sổ dài 6 ô chứa nước đi mới (đầu & đuôi là ô trống, ở giữa chứa 3 quân)
+    for (let start = 0; start <= 3; start++) {
+      const window = lineCells.slice(start, start + 6);
+      if (window.some(cell => cell.val === "OUT")) continue;
+
+      const head = window[0].val;
+      const tail = window[5].val;
+      const inner = window.slice(1, 5);
+      const innerSymbolCount = inner.filter(c => c.val === symbol).length;
+      const innerEmptyCount = inner.filter(c => c.val === "").length;
+
+      if (head === "" && tail === "" && innerSymbolCount === 3 && innerEmptyCount === 1) {
+        isOpenThree = true;
+      }
+    }
+
+    if (isFour) fourCount++;
+    if (isOpenThree) threeCount++;
+  }
+
+  if (threeCount >= 2) {
+    return { forbidden: true, reason: "Double Three (Lỗi đôi ba)" };
+  }
+  if (fourCount >= 2) {
+    return { forbidden: true, reason: "Double Four (Lỗi đôi bốn)" };
+  }
+
+  return { forbidden: false };
+}
+

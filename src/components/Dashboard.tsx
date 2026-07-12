@@ -712,11 +712,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       <header className="border-b border-[#D4AF37]/15 py-4 px-6 bg-[#1C1C18] flex justify-between items-center sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] flex items-center justify-center">
-            <span className="font-bold text-[#141412] text-lg font-mono">G</span>
+            <span className="font-bold text-[#141412] text-lg font-mono">V</span>
           </div>
           <div>
-            <h1 className="text-md font-bold uppercase tracking-wider text-white">Gridline</h1>
-            <p className="text-[7.5px] text-[#FF9F0A] tracking-wider uppercase font-semibold">Chạm Lưới, Đấu Trí</p>
+            <h1 className="text-md font-bold uppercase tracking-wider text-white">vuiga.com</h1>
+            <p className="text-[7.5px] text-[#FF9F0A] tracking-wider uppercase font-semibold">Đấu Trí Trại Gà Vui Vẻ</p>
           </div>
         </div>
 
@@ -1434,22 +1434,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 </div>
               </div>
 
-              {/* Reset Mùa Giải Card (Test) */}
-              <div className="pixel-box-nested p-4 space-y-4 border border-[#FF9F0A]/35 bg-[#1C1C18]">
-                <h3 className="text-xs font-extrabold text-[#FF9F0A] uppercase flex items-center gap-1.5">
-                  🔄 Chu Kỳ Mùa Giải & Đua Rank
-                </h3>
-                <p className="text-[10px] text-[#F3E5AB]/85 leading-relaxed">
-                  Mùa giải kéo dài **60 ngày**. Khi kết thúc mùa, rank hiện tại của bạn sẽ bị **giảm đi 2 cấp**, Battle Pass reset về cấp 1, đồng thời nhận thưởng hạt giống Trứng 🥚 và Trứng Vàng ✨ dựa trên thành tích cao nhất.
-                </p>
-                <button
-                  onClick={handleResetSeason}
-                  disabled={resetSeasonLoading}
-                  className="bg-gradient-to-r from-[#FF9F0A]/20 to-[#E53935]/20 hover:from-[#FF9F0A] hover:to-[#E53935] hover:text-[#141412] text-white border border-[#FF9F0A]/35 text-[9px] uppercase font-bold py-2 px-6 rounded-lg transition"
-                >
-                  {resetSeasonLoading ? "Đang tiến hành..." : "Reset Thử Nghiệm Mùa Giải (Lùi 2 Rank)"}
-                </button>
-              </div>
 
               {/* Guest account links */}
               {profile.isGuest && (

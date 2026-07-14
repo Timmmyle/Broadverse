@@ -121,10 +121,14 @@ model Party {
   id        String        @id @default(uuid())
   leaderId  String        @unique
   gameType  String?       // "CARO", "TIC_TAC_TOE", "BATTLESHIP"
+  wager     Int           @default(0)
+  level     Int           @default(1)    // Cấp độ tổ đội hiện tại
+  exp       Int           @default(0)    // Kinh nghiệm tích lũy tổ đội
   status    String        @default("LOBBY") // "LOBBY", "MATCHMAKING", "IN_GAME"
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   members   PartyMember[]
+  missions  PartyMission[]
 }
 
 model PartyMember {
@@ -133,6 +137,18 @@ model PartyMember {
   userId    String   @unique
   joinedAt  DateTime @default(now())
   party     Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model PartyMission {
+  id           String   @id @default(uuid())
+  partyId      String
+  title        String
+  type         String   // "WIN_GAMES", "PLAY_GAMES", "TOTAL_MOVES"
+  targetValue  Int
+  currentValue Int      @default(0)
+  rewardCoins  Int      @default(20)   // Thưởng xu cho mỗi thành viên khi hoàn thành
+  rewardExp    Int      @default(50)   // EXP cộng vào tổ đội để lên cấp
+  party        Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
 }
 
 // 3. Hệ thống Chuồng Gà (Guild / Coop)

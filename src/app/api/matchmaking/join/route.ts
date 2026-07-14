@@ -126,16 +126,32 @@ export async function POST(req: Request) {
 
     // Chạy Transaction để tránh race condition khi hai người cùng ghép trận một lúc
     const result = await prisma.$transaction(async (tx) => {
+      // Lấy danh sách ID những người chơi có liên hệ BLOCKED với userId hiện tại
+      const blockedRelations = await tx.friendship.findMany({
+        where: {
+          OR: [
+            { userId: userId },
+            { friendId: userId }
+          ],
+          status: "BLOCKED"
+        },
+        select: {
+          userId: true,
+          friendId: true
+        }
+      });
+      const blockedIds = blockedRelations.map(r => r.userId === userId ? r.friendId : r.userId);
+
       // Tìm đối thủ trong hàng chờ thỏa mãn điều kiện
       // - Cùng loại game
       // - Cùng mức cược
-      // - Không phải bản thân
+      // - Không phải bản thân và không nằm trong danh sách chặn (BLOCKED)
       // - Chênh lệch level tối đa 3 cấp
       const opponent = await tx.matchmakingQueue.findFirst({
         where: {
           gameType,
           wager: numericWager,
-          playerId: { not: userId },
+          playerId: { notIn: [userId, ...blockedIds] },
           level: {
             gte: userLevel - 3,
             lte: userLevel + 3,

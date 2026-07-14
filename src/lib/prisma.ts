@@ -49,9 +49,52 @@ export const prisma = basePrisma.$extends({
                 }
               });
               console.log(`[PrismaExtension] Đã tự động tạo MatchHistory cho trận đấu: ${result.id}`);
+
+              // --- LOGIC LÊN CẤP TỔ ĐỘI ---
+              // Kiểm tra xem hai người chơi có ở chung một tổ đội không
+              if (result.playerXId && result.playerOId) {
+                const memberX = await basePrisma.partyMember.findUnique({
+                  where: { userId: result.playerXId }
+                });
+                const memberO = await basePrisma.partyMember.findUnique({
+                  where: { userId: result.playerOId }
+                });
+
+                if (memberX && memberO && memberX.partyId === memberO.partyId) {
+                  const partyId = memberX.partyId;
+                  const party = await basePrisma.party.findUnique({
+                    where: { id: partyId }
+                  });
+
+                  if (party) {
+                    // Cả đội thi đấu cùng nhau: +15 EXP hoàn thành, +40 EXP nếu có thắng cuộc (không hòa)
+                    const isDraw = result.draw === true;
+                    const expGained = isDraw ? 15 : 40;
+
+                    let newExp = party.exp + expGained;
+                    let newLevel = party.level;
+                    let expNeeded = newLevel * 100; // 100 EXP * cấp độ hiện tại để lên cấp
+
+                    while (newExp >= expNeeded) {
+                      newExp -= expNeeded;
+                      newLevel += 1;
+                      expNeeded = newLevel * 100;
+                    }
+
+                    await basePrisma.party.update({
+                      where: { id: partyId },
+                      data: {
+                        level: newLevel,
+                        exp: newExp
+                      }
+                    });
+                    console.log(`[PartyLeveling] Tổ đội ${partyId} nhận +${expGained} EXP. Cấp độ mới: ${newLevel} (${newExp}/${expNeeded} XP)`);
+                  }
+                }
+              }
             }
           } catch (err) {
-            console.error("Lỗi tự động ghi MatchHistory trong Prisma extension:", err);
+            console.error("Lỗi tự động ghi MatchHistory/Tổ đội trong Prisma extension:", err);
           }
         }
         return result;

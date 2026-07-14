@@ -141,6 +141,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   };
 
   const handleAcceptFriendRequest = async (friendId: string) => {
+    if (!profile) return;
     try {
       const res = await fetch("/api/friends/action", {
         method: "POST",
@@ -149,6 +150,23 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       });
       const data = await res.json();
       if (res.ok) {
+        // Gửi thông báo real-time tới người gửi kết bạn
+        const senderUserId = data.friendship.userId;
+        const channel = supabase.channel(`user_notifications_${senderUserId}`);
+        await channel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await channel.send({
+              type: "broadcast",
+              event: "friend_accept",
+              payload: {
+                accepterId: profile.id,
+                accepterUsername: profile.username
+              }
+            });
+            supabase.removeChannel(channel);
+          }
+        });
+
         alert(data.message || "Đã chấp nhận kết bạn!");
         fetchFriends();
       } else {
@@ -176,7 +194,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   };
 
   const handleSendFriendRequest = async () => {
-    if (!addFriendUsername.trim()) return;
+    if (!profile || !addFriendUsername.trim()) return;
     setAddFriendLoading(true);
     try {
       const res = await fetch("/api/friends/action", {
@@ -186,6 +204,23 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       });
       const data = await res.json();
       if (res.ok) {
+        // Gửi thông báo real-time tới người nhận kết bạn
+        const targetUserId = data.friendship.friendId;
+        const channel = supabase.channel(`user_notifications_${targetUserId}`);
+        await channel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await channel.send({
+              type: "broadcast",
+              event: "friend_request",
+              payload: {
+                senderId: profile.id,
+                senderUsername: profile.username
+              }
+            });
+            supabase.removeChannel(channel);
+          }
+        });
+
         alert(data.message || "Đã gửi yêu cầu kết bạn!");
         setAddFriendUsername("");
         fetchFriends();
@@ -549,6 +584,90 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       }
     };
   }, []);
+
+  // 1. Theo dõi thay đổi activeParty để lắng nghe sự kiện Realtime của tổ đội
+  useEffect(() => {
+    if (!activeParty) return;
+
+    const partyChannel = supabase.channel(`party_${activeParty.id}`);
+    partyChannel
+      .on("broadcast", { event: "party_update" }, () => {
+        fetchCurrentParty();
+      })
+      .on("broadcast", { event: "party_disband" }, () => {
+        setActiveParty(null);
+        setPartyMembers([]);
+        alert("Tổ đội đã bị giải tán");
+      })
+      .on("broadcast", { event: "party_match_start" }, (payload: any) => {
+        const { roomId, gameType } = payload.payload;
+        fetch("/api/match/join-friend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId })
+        })
+          .then(res => {
+            if (res.ok) {
+              onSelectGame(gameType, "FRIEND", { roomId });
+            }
+          })
+          .catch(err => console.error(err));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(partyChannel);
+    };
+  }, [activeParty]);
+
+  // 2. Lắng nghe lời mời tổ đội, yêu cầu kết bạn real-time & quản lý Presence (trực tuyến)
+  useEffect(() => {
+    if (!profile) return;
+
+    // Tải dữ liệu ban đầu
+    fetchCurrentParty();
+    fetchFriends();
+
+    // Lắng nghe các thông báo real-time cá nhân
+    const inviteChannel = supabase.channel(`user_notifications_${profile.id}`);
+    inviteChannel
+      .on("broadcast", { event: "party_invite" }, (payload: any) => {
+        setActiveInvite(payload.payload);
+      })
+      .on("broadcast", { event: "friend_request" }, () => {
+        // Tải lại danh sách bạn bè thời gian thực khi có người gửi kết bạn
+        fetchFriends();
+      })
+      .on("broadcast", { event: "friend_accept" }, (payload: any) => {
+        // Tải lại danh sách bạn bè khi đối phương đồng ý kết bạn
+        fetchFriends();
+        alert(`@${payload.payload.accepterUsername} đã đồng ý kết bạn!`);
+      })
+      .subscribe();
+
+    // Đồng bộ Presence trực tuyến
+    const presenceChannel = supabase.channel("lobby_presence");
+    presenceChannel
+      .on("presence", { event: "sync" }, () => {
+        const state = presenceChannel.presenceState();
+        const onlineIds = new Set(Object.keys(state));
+        setOnlineUsers(onlineIds);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await presenceChannel.track({
+            userId: profile.id,
+            username: profile.username,
+            onlineAt: new Date().toISOString()
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(inviteChannel);
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [profile]);
 
   if (!profile) return null;
 

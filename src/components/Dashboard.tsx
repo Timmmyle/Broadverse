@@ -105,6 +105,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
   // Trạng thái hệ thống Bạn Bè (Friendship) & Tổ Đội (Party)
   const [friends, setFriends] = useState<any[]>([]);
+  const [pendingFriends, setPendingFriends] = useState<any[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [addFriendUsername, setAddFriendUsername] = useState("");
@@ -130,11 +131,47 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       if (res.ok) {
         const data = await res.json();
         setFriends(data.friends || []);
+        setPendingFriends(data.pendingRequests || []);
       }
     } catch (err) {
       console.error("Lỗi lấy danh sách bạn bè:", err);
     } finally {
       setLoadingFriends(false);
+    }
+  };
+
+  const handleAcceptFriendRequest = async (friendId: string) => {
+    try {
+      const res = await fetch("/api/friends/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "ACCEPT", friendId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || "Đã chấp nhận kết bạn!");
+        fetchFriends();
+      } else {
+        alert(data.error || "Không thể chấp nhận kết bạn");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRejectFriendRequest = async (friendId: string) => {
+    try {
+      const res = await fetch("/api/friends/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REMOVE", friendId })
+      });
+      if (res.ok) {
+        alert("Đã từ chối yêu cầu kết bạn!");
+        fetchFriends();
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -1138,6 +1175,27 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     Hủy tìm trận
                   </button>
                 </div>
+              ) : activeParty ? (
+                <div className="bg-yellow-500/5 border-2 border-[#D4AF37]/35 p-6 rounded-xl text-center space-y-4 animate-fade-in">
+                  <div className="w-12 h-12 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto">
+                    <Users className="w-6 h-6 text-[#D4AF37]" />
+                  </div>
+                  <div className="space-y-2 max-w-sm mx-auto">
+                    <h4 className="text-xs font-bold text-white uppercase">Bạn Đang Ở Trong Chuồng Gà (Tổ Đội)</h4>
+                    <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                      Để cày nhiệm vụ, thay đổi loại cờ hoặc bắt đầu thách đấu cùng thành viên trong Chuồng, vui lòng sử dụng bảng điều khiển của Chuồng Gà.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveTab("SOCIAL");
+                      setSocialSubTab("GUILD");
+                    }}
+                    className="pixel-btn pixel-btn-yellow py-2 px-8 text-[10px] font-bold uppercase transition"
+                  >
+                    Vào Chuồng Gà Của Tôi
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-6">
                   {/* Revenge Widget */}
@@ -1775,6 +1833,37 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       )}
                     </div>
 
+                    {/* Lời mời kết bạn chờ duyệt */}
+                    {pendingFriends.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-[#D4AF37]/10 space-y-2">
+                        <span className="block text-[8px] text-yellow-500 uppercase tracking-wider font-semibold animate-pulse">Lời mời kết bạn đang chờ ({pendingFriends.length})</span>
+                        <div className="space-y-2">
+                          {pendingFriends.map((req) => (
+                            <div key={req.id} className="flex justify-between items-center text-xs bg-[#D4AF37]/5 p-2.5 rounded-lg border border-[#D4AF37]/15">
+                              <div>
+                                <span className="font-bold text-white block">@{req.username}</span>
+                                <span className="text-[9px] text-[#F3E5AB]/50 block">Lv.{req.level || 1} • ELO: {req.eloGomoku || 1000}</span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => handleAcceptFriendRequest(req.id)}
+                                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[9px] font-bold transition"
+                                >
+                                  Đồng ý
+                                </button>
+                                <button
+                                  onClick={() => handleRejectFriendRequest(req.id)}
+                                  className="bg-black/40 hover:bg-black/80 text-red-400 py-1 px-3 rounded-lg text-[9px] font-bold transition"
+                                >
+                                  Từ chối
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Form Kết bạn bằng Username */}
                     <div className="mt-4 pt-4 border-t border-[#D4AF37]/10 space-y-2">
                       <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">Kết bạn bằng Username</span>
@@ -1797,28 +1886,28 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     </div>
                   </div>
 
-                  {/* Cấu hình / Trạng thái tổ đội của tôi */}
+                  {/* Trạng thái Chuồng Gà (Tổ đội) của tôi */}
                   {activeParty ? (
                     <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 text-center space-y-3">
                       <h4 className="text-xs font-bold text-white uppercase flex items-center justify-center gap-1.5">
                         <Users className="w-4 h-4 text-[#D4AF37]" />
-                        Tổ Đội Đang Hoạt Động
+                        Chuồng Gà Đang Hoạt Động
                       </h4>
                       <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
-                        Bạn đang ở trong tổ đội. Click vào bên dưới để chuyển đến sảnh Đấu chính để chuẩn bị bắt đầu!
+                        Bạn đang ở trong Chuồng Gà. Hãy chuyển qua trang quản lý Chuồng Gà để mời bạn bè, cày nhiệm vụ nâng cấp và bắt đầu đấu cờ!
                       </p>
                       <div className="flex gap-2 justify-center">
                         <button
-                          onClick={() => setActiveTab("PLAY")}
+                          onClick={() => setSocialSubTab("GUILD")}
                           className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] font-bold"
                         >
-                          Vào sảnh chờ
+                          Vào Chuồng Gà
                         </button>
                         <button
                           onClick={handleLeaveParty}
                           className="pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2 px-4 text-[10px] font-bold"
                         >
-                          Rời đội
+                          Rời Chuồng
                         </button>
                       </div>
                     </div>
@@ -1826,16 +1915,16 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 text-center space-y-3">
                       <h4 className="text-xs font-bold text-white uppercase flex items-center justify-center gap-1.5">
                         <UserPlus className="w-4 h-4 text-[#D4AF37]" />
-                        Tạo Tổ Đội
+                        Tạo Chuồng Gà
                       </h4>
                       <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
-                        Khởi tạo sảnh tổ đội để cùng đồng đội nhận EXP thưởng thêm, làm nhiệm vụ thăng cấp và thách đấu cược Trứng!
+                        Tạo Chuồng Gà để cùng bạn bè nhận EXP thưởng thêm, làm nhiệm vụ thăng cấp và thách đấu cược Trứng!
                       </p>
                       <button
                         onClick={handleCreateParty}
                         className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] font-bold"
                       >
-                        Tạo Tổ Đội
+                        Tạo Chuồng Gà
                       </button>
                     </div>
                   )}
@@ -1897,58 +1986,259 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
               {/* Sub-tab: GUILD (Chuồng Gà - Chicken Coop) */}
               {socialSubTab === "GUILD" && (
-                <div className="space-y-6">
+                <div className="space-y-6 animate-fade-in">
                   {/* Guild overview */}
                   <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/20 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gradient-to-br from-[#1C1C18] to-[#D4AF37]/5">
                     <div className="text-left space-y-1">
                       <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                        Chicken Coop (Guild)
+                        BẢNG ĐIỀU KHIỂN CHUỒNG GÀ (TỔ ĐỘI)
                       </span>
-                      <h3 className="text-base font-extrabold text-white">🏡 Kê Vương Đất Việt</h3>
+                      <h3 className="text-base font-extrabold text-white">🏡 Chuồng Gà Đồng Đội</h3>
                       <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
-                        Cùng đồng đội chuồng gà cày cuốc, hoàn thành nhiệm vụ chuồng và đua top thế giới!
+                        Cùng các chiến hữu trong Chuồng cày cuốc nhiệm vụ co-op, nhận thêm vàng thưởng và tích lũy cấp Chuồng!
                       </p>
                     </div>
-                    <div className="text-center bg-black/40 px-4 py-2 rounded-lg border border-[#D4AF37]/10 shrink-0 font-mono">
-                      <span className="text-[9px] text-[#F3E5AB]/50 block">CẤP CHUỒNG</span>
-                      <span className="text-lg font-bold text-[#D4AF37]">Lvl 12</span>
-                    </div>
+                    {activeParty && (
+                      <div className="text-center bg-black/40 px-4 py-2 rounded-lg border border-[#D4AF37]/10 shrink-0 font-mono">
+                        <span className="text-[9px] text-[#F3E5AB]/50 block">CẤP CHUỒNG</span>
+                        <span className="text-lg font-bold text-[#D4AF37]">Lv.{activeParty.level || 1}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Guild Stats & Missions */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-3">
-                      <h4 className="text-xs font-bold text-white uppercase border-b border-[#D4AF37]/5 pb-1">Nhiệm Vụ Chuồng Gà</h4>
-                      <div className="space-y-2 text-[10.5px]">
-                        <div className="flex justify-between">
-                          <span>Tổng thắng 50 trận cờ tuần:</span>
-                          <span className="font-mono text-[#D4AF37]">34/50</span>
-                        </div>
-                        <div className="w-full bg-black/30 h-1.5 rounded-full overflow-hidden border border-[#D4AF37]/5">
-                          <div className="bg-[#D4AF37] h-full" style={{ width: "68%" }}></div>
-                        </div>
-                        <span className="text-[8px] text-[#F3E5AB]/50 block mt-1">Phần thưởng tuần: +200 🥚 & +20 ✨ cho mỗi thành viên.</span>
+                  {!activeParty ? (
+                    /* CHƯA CÓ CHUỒNG */
+                    <div className="bg-[#1C1C18] p-6 rounded-xl border border-[#D4AF37]/10 text-center space-y-4">
+                      <div className="w-12 h-12 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto">
+                        <UserPlus className="w-6 h-6 text-[#D4AF37]" />
                       </div>
+                      <div className="space-y-2 max-w-sm mx-auto">
+                        <h4 className="text-xs font-bold text-white uppercase">Bạn Chưa Gia Nhập Chuồng Gà</h4>
+                        <p className="text-[10px] text-[#F3E5AB]/70 leading-relaxed">
+                          Tạo ngay một Chuồng Gà để mời bạn bè cày nhiệm vụ cùng nhau, tích lũy điểm kinh nghiệm và thách đấu nhóm.
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleCreateParty}
+                        className="pixel-btn pixel-btn-yellow py-2.5 px-8 text-xs font-bold"
+                      >
+                        Khởi Tạo Chuồng Gà Mới
+                      </button>
                     </div>
+                  ) : (
+                    /* ĐÃ GIA NHẬP CHUỒNG GÀ */
+                    <div className="space-y-6">
+                      {/* EXP & Cấp độ */}
+                      <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-2">
+                        <div className="flex justify-between text-xs font-bold">
+                          <span className="text-white">Điểm EXP tích lũy Chuồng Gà</span>
+                          <span className="text-[#D4AF37] font-mono">
+                            {activeParty.exp || 0} / {(activeParty.level || 1) * 100} EXP
+                          </span>
+                        </div>
+                        <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden border border-[#D4AF37]/10">
+                          <div 
+                            className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, Math.floor(((activeParty.exp || 0) / ((activeParty.level || 1) * 100)) * 100))}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-[8.5px] text-[#F3E5AB]/50">Mỗi cấp Chuồng Gà tăng thêm +10% EXP cá nhân nhận được sau các ván đấu cày cuốc!</p>
+                      </div>
 
-                    <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-3">
-                      <h4 className="text-xs font-bold text-white uppercase border-b border-[#D4AF37]/5 pb-1">Xếp Hạng Thành Viên</h4>
-                      <div className="space-y-2 text-[10.5px] max-h-[120px] overflow-y-auto">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-[#FF9F0A] font-bold">🥇 @KỳThủGà (Chủ chuồng)</span>
-                          <span className="font-mono">2500 elo</span>
+                      {/* Hai cột cấu hình & danh sách */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Cột 1: Cấu hình game cày cuốc và nút Bắt đầu tìm trận */}
+                        <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4 text-left">
+                          <span className="block text-[8.5px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-1">
+                            Hành động & Cấu hình Đấu
+                          </span>
+                          
+                          {/* Loại game */}
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] text-[#F3E5AB]/50">Chế độ cày nhiệm vụ:</label>
+                            {activeParty.leaderId === profile.id ? (
+                              <div className="grid grid-cols-3 gap-1.5">
+                                {["CARO", "BATTLESHIP", "TIC_TAC_TOE"].map((game) => (
+                                  <button
+                                    key={game}
+                                    onClick={() => handleUpdatePartyConfig(game, activeParty.wager)}
+                                    className={`text-[8.5px] py-1 px-2 rounded-lg font-bold border transition ${
+                                      activeParty.gameType === game
+                                        ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]"
+                                        : "bg-black/30 border-[#D4AF37]/20 text-[#F3E5AB]/70 hover:border-[#D4AF37]"
+                                    }`}
+                                  >
+                                    {game === "CARO" ? "Gomoku" : game === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs font-bold text-white bg-black/30 p-2 rounded-lg border border-[#D4AF37]/10">
+                                {activeParty.gameType === "CARO" ? "Gomoku" : activeParty.gameType === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Mức cược Trứng */}
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] text-[#F3E5AB]/50">Mức cược Trứng (mỗi thành viên):</label>
+                            {activeParty.leaderId === profile.id ? (
+                              <div className="grid grid-cols-4 gap-1.5">
+                                {[0, 10, 50, 100].map((w) => (
+                                  <button
+                                    key={w}
+                                    onClick={() => handleUpdatePartyConfig(activeParty.gameType || "CARO", w)}
+                                    className={`text-[9px] py-1 rounded-lg font-bold border transition ${
+                                      activeParty.wager === w
+                                        ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]"
+                                        : "bg-black/30 border-[#D4AF37]/20 text-[#F3E5AB]/70 hover:border-[#D4AF37]"
+                                    }`}
+                                  >
+                                    {w} 🥚
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs font-bold text-white bg-black/30 p-2 rounded-lg border border-[#D4AF37]/10">
+                                {activeParty.wager || 0} Trứng
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Nút Tìm trận ngay */}
+                          <div className="pt-2 flex gap-2">
+                            {activeParty.leaderId === profile.id ? (
+                              <button
+                                onClick={handleStartPartyMatchmaking}
+                                className="flex-1 bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(212,175,55,0.2)] animate-pulse"
+                              >
+                                <Play className="w-4 h-4 fill-black" /> Bắt đầu cày trận
+                              </button>
+                            ) : (
+                              <div className="flex-1 text-center py-2.5 px-4 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-lg text-xs font-bold animate-pulse">
+                                Chờ chủ chuồng bắt đầu cày trận...
+                              </div>
+                            )}
+                            <button
+                              onClick={handleLeaveParty}
+                              className="bg-black/30 hover:bg-black/75 border border-red-500/30 text-red-500 hover:text-white py-2.5 px-4 rounded-lg text-xs font-bold transition"
+                            >
+                              Rời Chuồng
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-gray-300 font-bold">🥈 @GàLửa99 (Phó chuồng)</span>
-                          <span className="font-mono">2200 elo</span>
+
+                        {/* Cột 2: Thành viên & Mời bạn */}
+                        <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4 text-left">
+                          <span className="block text-[8.5px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-1">
+                            Thành Viên Trong Chuồng ({partyMembers.length}/5)
+                          </span>
+                          
+                          <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                            {partyMembers.map((member) => {
+                              const isLeader = activeParty.leaderId === member.userId;
+                              const memberProfile = member.profile;
+                              return (
+                                <div key={member.id} className="flex justify-between items-center text-xs bg-black/20 p-2 rounded-lg border border-[#D4AF37]/5">
+                                  <div className="flex items-center gap-2">
+                                    <div className="relative">
+                                      <div className="w-8 h-8 rounded-full bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center text-white text-[10px] font-bold">
+                                        {memberProfile?.username?.substring(0, 2).toUpperCase() || "..."}
+                                      </div>
+                                      {isLeader && (
+                                        <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[7px] font-extrabold px-1 rounded-full border border-black" title="Chủ chuồng">
+                                          👑
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-white block">@{memberProfile?.username || "Đang tải..."}</span>
+                                      <span className="text-[9px] text-[#F3E5AB]/50 block">Lv.{memberProfile?.level || 1} • ELO: {memberProfile?.eloGomoku || 1000}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {activeParty.leaderId === profile.id && member.userId !== profile.id && (
+                                    <button
+                                      onClick={() => handleKickMember(member.userId)}
+                                      className="text-red-500 hover:text-white bg-red-500/10 hover:bg-red-500 border border-red-500/20 rounded p-1 transition"
+                                      title="Trục xuất khỏi chuồng"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Mời nhanh bạn bè online vào chuồng */}
+                          {activeParty.leaderId === profile.id && (
+                            <div className="pt-2 border-t border-[#D4AF37]/5 space-y-2">
+                              <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Mời bạn vào Chuồng:</span>
+                              <div className="flex gap-1.5 overflow-x-auto pb-1 max-w-full">
+                                {friends.filter(f => onlineUsers.has(f.id)).length === 0 ? (
+                                  <span className="text-[9px] text-[#F3E5AB]/40">Không có bạn bè trực tuyến</span>
+                                ) : (
+                                  friends.filter(f => onlineUsers.has(f.id)).map(f => (
+                                    <button
+                                      key={f.id}
+                                      onClick={() => handleInviteFriend(f.id, f.username)}
+                                      className="bg-[#D4AF37]/10 hover:bg-[#D4AF37] border border-[#D4AF37]/25 text-[#D4AF37] hover:text-[#141412] py-1 px-2.5 rounded text-[8px] font-bold shrink-0 transition"
+                                    >
+                                      + Mời @{f.username}
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex justify-between items-center text-xs text-[#D4AF37] bg-black/30 px-1 py-0.5 rounded">
-                          <span>🥉 @{profile.username} (Bạn)</span>
-                          <span className="font-mono">{profile.eloGomoku} elo</span>
+                      </div>
+
+                      {/* Nhiệm vụ Chuồng Gà tuần */}
+                      <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-3 text-left">
+                        <span className="block text-[8.5px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-1">
+                          Nhiệm Vụ Chuồng Gà Tuần
+                        </span>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="bg-black/30 p-3 rounded-lg border border-[#D4AF37]/5 flex flex-col justify-between space-y-2">
+                            <div>
+                              <span className="text-[8px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">Chung Sức</span>
+                              <h5 className="text-xs font-bold text-white mt-1">Cả đội thắng 5 trận cùng nhau</h5>
+                              <p className="text-[10px] text-[#F3E5AB]/60">Đấu co-op cược Trứng để hoàn tất.</p>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] font-bold">
+                                <span className="text-[#F3E5AB]/50">Tiến độ: 2 / 5</span>
+                                <span className="text-yellow-500">+100 EXP • +30 Trứng</span>
+                              </div>
+                              <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-yellow-500 h-full" style={{ width: "40%" }}></div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="bg-black/30 p-3 rounded-lg border border-[#D4AF37]/5 flex flex-col justify-between space-y-2">
+                            <div>
+                              <span className="text-[8px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">Kiên Trì</span>
+                              <h5 className="text-xs font-bold text-white mt-1">Cả đội chơi 10 trận cùng nhau</h5>
+                              <p className="text-[10px] text-[#F3E5AB]/60">Chơi hoàn thành game không kể thắng thua.</p>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-[10px] font-bold">
+                                <span className="text-[#F3E5AB]/50">Tiến độ: 6 / 10</span>
+                                <span className="text-yellow-500">+120 EXP • +40 Trứng</span>
+                              </div>
+                              <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-yellow-500 h-full" style={{ width: "60%" }}></div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>

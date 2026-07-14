@@ -38,7 +38,30 @@ export async function GET() {
       }
     });
 
-    return NextResponse.json({ friends: friendsList });
+    // Lấy tất cả yêu cầu kết bạn PENDING gửi đến user hiện tại
+    const pendingFriendships = await prisma.friendship.findMany({
+      where: {
+        friendId: user.id,
+        status: "PENDING"
+      }
+    });
+
+    const pendingSenderIds = pendingFriendships.map(f => f.userId);
+
+    const pendingRequests = await prisma.user.findMany({
+      where: {
+        id: { in: pendingSenderIds }
+      },
+      select: {
+        id: true,
+        username: true,
+        avatarUrl: true,
+        eloGomoku: true,
+        level: true
+      }
+    });
+
+    return NextResponse.json({ friends: friendsList, pendingRequests });
   } catch (error: any) {
     console.error("Lỗi lấy danh sách bạn bè:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

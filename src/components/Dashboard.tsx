@@ -1329,27 +1329,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     Hủy tìm trận
                   </button>
                 </div>
-              ) : activeParty ? (
-                <div className="bg-yellow-500/5 border-2 border-[#D4AF37]/35 p-6 rounded-xl text-center space-y-4 animate-fade-in">
-                  <div className="w-12 h-12 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto">
-                    <Users className="w-6 h-6 text-[#D4AF37]" />
-                  </div>
-                  <div className="space-y-2 max-w-sm mx-auto">
-                    <h4 className="text-xs font-bold text-white uppercase">Bạn Đang Ở Trong Chuồng Gà (Tổ Đội)</h4>
-                    <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
-                      Để cày nhiệm vụ, thay đổi loại cờ hoặc bắt đầu thách đấu cùng thành viên trong Chuồng, vui lòng sử dụng bảng điều khiển của Chuồng Gà.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setActiveTab("SOCIAL");
-                      setSocialSubTab("GUILD");
-                    }}
-                    className="pixel-btn pixel-btn-yellow py-2 px-8 text-[10px] font-bold uppercase transition"
-                  >
-                    Vào Chuồng Gà Của Tôi
-                  </button>
-                </div>
               ) : (
                 <div className="space-y-6">
                   {/* Revenge Widget */}

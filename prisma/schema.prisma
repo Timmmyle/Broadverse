@@ -61,6 +61,9 @@ model User {
   
   gamesAsX          GameRoom[] @relation("PlayerX")
   gamesAsO          GameRoom[] @relation("PlayerO")
+  friendships       Friendship[] @relation("UserFriendships")
+  historyAsX        MatchHistory[] @relation("HistoryPlayerX")
+  historyAsO        MatchHistory[] @relation("HistoryPlayerO")
 }
 
 model MatchmakingQueue {
@@ -93,6 +96,108 @@ model GameRoom {
   playerO      User?    @relation("PlayerO", fields: [playerOId], references: [id])
 
   @@index([status])
+  @@index([playerXId])
+  @@index([playerOId])
+}
+
+// 1. Hệ thống Bạn Bè (Friendship)
+model Friendship {
+  id        String   @id @default(uuid())
+  userId    String
+  friendId  String
+  status    String   // "PENDING" (chờ duyệt), "ACCEPTED" (đã kết bạn), "BLOCKED" (chặn)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation("UserFriendships", fields: [userId], references: [id])
+  
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
+}
+
+// 2. Hệ thống Tổ Đội (Party)
+model Party {
+  id        String        @id @default(uuid())
+  leaderId  String        @unique
+  gameType  String?       // "CARO", "TIC_TAC_TOE", "BATTLESHIP"
+  status    String        @default("LOBBY") // "LOBBY", "MATCHMAKING", "IN_GAME"
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  members   PartyMember[]
+}
+
+model PartyMember {
+  id        String   @id @default(uuid())
+  partyId   String
+  userId    String   @unique
+  joinedAt  DateTime @default(now())
+  party     Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+// 3. Hệ thống Chuồng Gà (Guild / Coop)
+model Guild {
+  id        String        @id @default(uuid())
+  name      String        @unique
+  level     Int           @default(1)
+  xp        Int           @default(0)
+  motd      String?       // Thông báo của ngày (Message of the Day)
+  createdAt DateTime      @default(now())
+  members   GuildMember[]
+  missions  GuildMission[]
+}
+
+model GuildMember {
+  id        String   @id @default(uuid())
+  guildId   String
+  userId    String   @unique
+  role      String   @default("MEMBER") // "LEADER" (Chủ chuồng), "OFFICER" (Phó chuồng), "MEMBER"
+  joinedAt  DateTime @default(now())
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+}
+
+model GuildMission {
+  id           String   @id @default(uuid())
+  guildId      String
+  title        String
+  type         String   // "WIN_GAMES", "PLAY_GAMES"
+  targetValue  Int
+  currentValue Int      @default(0)
+  rewardEggs   Int      @default(100)
+  weeklyReset  Boolean  @default(true)
+  guild        Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+}
+
+// 4. Hệ thống Chat lâu dài (Dùng cho Direct Messages & Tin nhắn offline của Chuồng Gà)
+model ChatMessage {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String?  // Nếu gửi riêng tư cho bạn bè
+  guildId    String?  // Nếu gửi vào chat của Chuồng Gà
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([guildId])
+}
+
+// 5. Bảng lịch sử trận đấu MatchHistory
+model MatchHistory {
+  id         String   @id @default(uuid())
+  gameType   String   // "TIC_TAC_TOE" hoặc "CARO"
+  playerXId  String
+  playerOId  String
+  winnerId   String?
+  draw       Boolean  @default(false)
+  wager      Int      @default(0)
+  expGained  Int      @default(0)
+  createdAt  DateTime @default(now())
+  endedAt    DateTime @default(now())
+
+  playerX      User     @relation("HistoryPlayerX", fields: [playerXId], references: [id])
+  playerO      User     @relation("HistoryPlayerO", fields: [playerOId], references: [id])
+
   @@index([playerXId])
   @@index([playerOId])
 }

@@ -20,9 +20,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const { profile, signOutUser, refreshProfile } = useAuth();
   const supabase = createClient();
 
-  // Tab chính trên PC: "PLAY" | "SHOP" | "SETTINGS" | "EVENT"
+  // Tab chính trên PC: "PLAY" | "SHOP" | "SETTINGS"
   // Trên Mobile, 4 tab bottom bar sẽ map tới các view: "PLAY" (Đấu), "SHOP" (Cửa hàng), "BP" (Battle Pass), "SOCIAL" (Cá nhân & Bạn bè)
-  const [activeTab, setActiveTab] = useState<"PLAY" | "SHOP" | "SETTINGS" | "EVENT" | "BP" | "SOCIAL">("PLAY");
+  const [activeTab, setActiveTab] = useState<"PLAY" | "SHOP" | "SETTINGS" | "BP" | "SOCIAL">("PLAY");
   
   // Trạng thái lọc Cửa hàng
   const [shopCategory, setShopCategory] = useState<"ALL" | "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI">("ALL");
@@ -293,47 +293,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  // Trạng thái sự kiện hè & Gửi tặng vật phẩm
-  const [boxMessage, setBoxMessage] = useState("");
-
-  const handleClaimQuest = async (questId: string) => {
-    try {
-      const res = await fetch("/api/user/event/claim-quest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questId }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.message);
-        await refreshProfile();
-      } else {
-        alert(data.error || "Nhận thưởng thất bại!");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi kết nối máy chủ.");
-    }
-  };
-
-  const handleOpenSummerBox = async () => {
-    try {
-      const res = await fetch("/api/user/event/open-box", {
-        method: "POST"
-      });
-      const data = await res.json();
-      if (res.ok) {
-        alert(data.message);
-        setBoxMessage(data.message);
-        await refreshProfile();
-      } else {
-        alert(data.error || "Mở rương thất bại!");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi kết nối máy chủ.");
-    }
-  };
+  // Gửi tặng vật phẩm
 
   const handleGiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -805,13 +765,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           >
             <Award className="w-4 h-4" />
             Battle Pass
-          </button>
-          <button 
-            onClick={() => setActiveTab("EVENT")}
-            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "EVENT" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-          >
-            <Calendar className="w-4 h-4 text-[#FF9F0A] animate-pulse" />
-            Sự kiện hè 🍉
           </button>
           <button 
             onClick={() => setActiveTab("SOCIAL")}
@@ -1305,69 +1258,6 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </div>
           )}
 
-          {/* TAB: EVENT (SỰ KIỆN LIVEOP) */}
-          {activeTab === "EVENT" && (
-            <div className="space-y-6">
-              <div className="border-b border-[#D4AF37]/15 pb-3">
-                <h2 className="text-lg font-bold uppercase text-white">Sự Kiện Lễ Hội Mùa Hè 🍉</h2>
-                <p className="text-[10px] text-[#F3E5AB]/75">
-                  Làm các nhiệm vụ đặc thù để thu thập vỏ sò 🐚 đổi lấy Rương Quà May Mắn chứa Skin phiên bản giới hạn!
-                </p>
-              </div>
-
-              {/* Event quests */}
-              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4">
-                <h3 className="text-xs font-extrabold text-white uppercase border-b border-[#D4AF37]/10 pb-2">
-                  Chuỗi Nhiệm Vụ Kiếm Vỏ Sò
-                </h3>
-
-                <div className="space-y-3 text-xs">
-                  {/* Quest 1 */}
-                  <div className="flex justify-between items-center bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/5">
-                    <div>
-                      <h4 className="font-bold text-white">1. Đăng nhập ngày lễ</h4>
-                      <p className="text-[10px] text-[#F3E5AB]/60">Phần thưởng: 20 Coins, 15 Vỏ sò 🐚</p>
-                    </div>
-                    <button
-                      onClick={() => handleClaimQuest("quest_daily")}
-                      className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[9.5px] uppercase font-bold py-1.5 px-3 rounded transition"
-                    >
-                      Nhận
-                    </button>
-                  </div>
-
-                  {/* Quest 2 */}
-                  <div className="flex justify-between items-center bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/5">
-                    <div>
-                      <h4 className="font-bold text-white">2. Thắng 3 trận cờ bất kỳ</h4>
-                      <p className="text-[10px] text-[#F3E5AB]/60">Phần thưởng: 50 Coins, 40 Vỏ sò 🐚</p>
-                    </div>
-                    <button
-                      onClick={() => handleClaimQuest("quest_win_3")}
-                      className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[9.5px] uppercase font-bold py-1.5 px-3 rounded transition"
-                    >
-                      Nhận
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Lootbox redemption */}
-              <div className="bg-[#1C1C18] p-6 rounded-xl border border-[#FF9F0A]/20 text-center space-y-4">
-                <h3 className="text-sm font-extrabold text-white uppercase">Cửa Hàng Sự Kiện: Rương Thần Kỳ</h3>
-                <p className="text-[11px] text-[#F3E5AB]/75 max-w-sm mx-auto leading-relaxed">
-                  Tiêu hao <span className="text-[#FF9F0A] font-bold">80 Vỏ sò 🐚</span> để quay thưởng mở Rương Thần Kỳ nhận ngay skin quân cờ Hổ phách hoặc soundpack MC ảo.
-                </p>
-                <button
-                  onClick={handleOpenSummerBox}
-                  className="bg-[#FF9F0A] hover:bg-[#D4AF37] text-[#141412] py-2.5 px-8 rounded-lg uppercase text-xs font-extrabold transition"
-                >
-                  Mở Rương (80 Vỏ sò)
-                </button>
-                {boxMessage && <p className="text-xs text-green-400 font-mono mt-2">{boxMessage}</p>}
-              </div>
-            </div>
-          )}
 
           {/* TAB: SETTINGS (TÀI KHOẢN & CÀI ĐẶT) */}
           {activeTab === "SETTINGS" && (

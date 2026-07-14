@@ -11,17 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Query finished game rooms where user was playerX or playerO
-    const matches = await prisma.gameRoom.findMany({
+    // Query MatchHistory where user was playerX or playerO
+    const matches = await prisma.matchHistory.findMany({
       where: {
-        status: "FINISHED",
         OR: [
           { playerXId: user.id },
           { playerOId: user.id }
         ]
       },
       orderBy: {
-        updatedAt: "desc"
+        endedAt: "desc"
       },
       take: 10,
       include: {

@@ -103,13 +103,325 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
-  // Mock Friends list (đơn giản hóa theo tài liệu)
-  const [friendsList] = useState([
-    { username: "KỳThủPro", status: "Đang đấu Gomoku", online: true, roomId: "mock-gomoku-room-id" },
-    { username: "BoardKing", status: "Đang ở sảnh chờ", online: true, canParty: true },
-    { username: "LãoNgoanĐồng", status: "Ngoại tuyến 2 giờ", online: false },
-    { username: "Guest_4920", status: "Ngoại tuyến", online: false }
-  ]);
+  // Trạng thái hệ thống Bạn Bè (Friendship) & Tổ Đội (Party)
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [addFriendUsername, setAddFriendUsername] = useState("");
+  const [addFriendLoading, setAddFriendLoading] = useState(false);
+
+  // Tổ đội
+  const [activeParty, setActiveParty] = useState<any | null>(null);
+  const [partyMembers, setPartyMembers] = useState<any[]>([]);
+  const [loadingParty, setLoadingParty] = useState(false);
+  
+  // Lời mời tổ đội đang chờ
+  const [activeInvite, setActiveInvite] = useState<{
+    partyId: string;
+    senderUsername: string;
+    gameType: string;
+    wager: number;
+  } | null>(null);
+
+  const fetchFriends = async () => {
+    setLoadingFriends(true);
+    try {
+      const res = await fetch("/api/friends/list");
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data.friends || []);
+      }
+    } catch (err) {
+      console.error("Lỗi lấy danh sách bạn bè:", err);
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
+  const handleSendFriendRequest = async () => {
+    if (!addFriendUsername.trim()) return;
+    setAddFriendLoading(true);
+    try {
+      const res = await fetch("/api/friends/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SEND", friendUsername: addFriendUsername.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || "Đã gửi yêu cầu kết bạn!");
+        setAddFriendUsername("");
+        fetchFriends();
+      } else {
+        alert(data.error || "Không thể gửi yêu cầu kết bạn");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối gửi kết bạn");
+    } finally {
+      setAddFriendLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn hủy kết bạn?")) return;
+    try {
+      const res = await fetch("/api/friends/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REMOVE", friendId })
+      });
+      if (res.ok) {
+        alert("Đã hủy kết bạn thành công");
+        fetchFriends();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleBlockUser = async (friendId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn chặn người chơi này?")) return;
+    try {
+      const res = await fetch("/api/friends/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "BLOCK", friendId })
+      });
+      if (res.ok) {
+        alert("Đã chặn thành công. Bạn sẽ không bị ghép trận với người này nữa.");
+        fetchFriends();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchCurrentParty = async () => {
+    setLoadingParty(true);
+    try {
+      const res = await fetch("/api/party/current");
+      if (res.ok) {
+        const data = await res.json();
+        setActiveParty(data.party);
+        setPartyMembers(data.party?.members || []);
+      }
+    } catch (err) {
+      console.error("Lỗi lấy thông tin tổ đội:", err);
+    } finally {
+      setLoadingParty(false);
+    }
+  };
+
+  const handleCreateParty = async () => {
+    try {
+      const res = await fetch("/api/party/create", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setActiveParty(data.party);
+        fetchCurrentParty();
+        alert("Khởi tạo tổ đội thành công!");
+      } else {
+        alert(data.error || "Không thể tạo tổ đội");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleJoinParty = async (partyId: string) => {
+    try {
+      const res = await fetch("/api/party/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ partyId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setActiveParty(data.party);
+        fetchCurrentParty();
+        alert("Đã gia nhập tổ đội thành công!");
+      } else {
+        alert(data.error || "Không thể gia nhập tổ đội");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleLeaveParty = async () => {
+    if (!profile) return;
+    try {
+      const res = await fetch("/api/party/leave", { method: "POST" });
+      if (res.ok) {
+        if (activeParty && activeParty.leaderId === profile.id) {
+          const channel = supabase.channel(`party_${activeParty.id}`);
+          await channel.subscribe(async (status) => {
+            if (status === "SUBSCRIBED") {
+              await channel.send({
+                type: "broadcast",
+                event: "party_disband",
+                payload: {}
+              });
+              supabase.removeChannel(channel);
+            }
+          });
+        } else if (activeParty) {
+          const channel = supabase.channel(`party_${activeParty.id}`);
+          await channel.subscribe(async (status) => {
+            if (status === "SUBSCRIBED") {
+              await channel.send({
+                type: "broadcast",
+                event: "party_update",
+                payload: {}
+              });
+              supabase.removeChannel(channel);
+            }
+          });
+        }
+        setActiveParty(null);
+        setPartyMembers([]);
+        alert("Đã rời tổ đội");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleKickMember = async (targetUserId: string) => {
+    if (!confirm("Trục xuất thành viên này khỏi tổ đội?")) return;
+    try {
+      const res = await fetch("/api/party/kick", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId })
+      });
+      if (res.ok) {
+        const channel = supabase.channel(`party_${activeParty.id}`);
+        await channel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await channel.send({
+              type: "broadcast",
+              event: "party_update",
+              payload: {}
+            });
+            supabase.removeChannel(channel);
+          }
+        });
+        fetchCurrentParty();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdatePartyConfig = async (gameType: string, wager: number) => {
+    try {
+      const res = await fetch("/api/party/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameType, wager })
+      });
+      if (res.ok) {
+        const channel = supabase.channel(`party_${activeParty.id}`);
+        await channel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await channel.send({
+              type: "broadcast",
+              event: "party_update",
+              payload: {}
+            });
+            supabase.removeChannel(channel);
+          }
+        });
+        fetchCurrentParty();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleInviteFriend = async (friendId: string, friendUsername: string) => {
+    if (!profile) return;
+    try {
+      let currentPartyId = activeParty?.id;
+      if (!currentPartyId) {
+        const createRes = await fetch("/api/party/create", { method: "POST" });
+        if (createRes.ok) {
+          const createData = await createRes.json();
+          currentPartyId = createData.party.id;
+          setActiveParty(createData.party);
+          fetchCurrentParty();
+        } else {
+          alert("Không thể tạo tổ đội để mời bạn bè");
+          return;
+        }
+      }
+      
+      const channel = supabase.channel(`user_notifications_${friendId}`);
+      await channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.send({
+            type: "broadcast",
+            event: "party_invite",
+            payload: {
+              partyId: currentPartyId,
+              senderUsername: profile.username,
+              gameType: activeParty?.gameType || "CARO",
+              wager: activeParty?.wager || 0
+            }
+          });
+          alert(`Đã gửi lời mời tham gia tổ đội tới @${friendUsername}`);
+          supabase.removeChannel(channel);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối mời bạn");
+    }
+  };
+
+  const handleStartPartyMatchmaking = async () => {
+    if (!activeParty) return;
+    try {
+      const createRes = await fetch("/api/match/create-friend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameType: activeParty.gameType || "CARO",
+          wager: activeParty.wager || 0
+        })
+      });
+      
+      if (createRes.ok) {
+        const roomData = await createRes.json();
+        const roomId = roomData.id;
+        
+        const channel = supabase.channel(`party_${activeParty.id}`);
+        await channel.subscribe(async (status) => {
+          if (status === "SUBSCRIBED") {
+            await channel.send({
+              type: "broadcast",
+              event: "party_match_start",
+              payload: {
+                roomId,
+                gameType: activeParty.gameType || "CARO"
+              }
+            });
+            supabase.removeChannel(channel);
+          }
+        });
+        
+        onSelectGame(activeParty.gameType as any, "FRIEND", { roomId });
+      } else {
+        const errData = await createRes.json();
+        alert(errData.error || "Không thể bắt đầu ghép trận");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối bắt đầu trận tổ đội");
+    }
+  };
 
   const fetchLeaderboard = async () => {
     setLoadingLeaderboard(true);
@@ -1418,59 +1730,115 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       Danh Sách Bạn Bè (Giới hạn 30 bạn)
                     </span>
                     
-                    <div className="space-y-3.5">
-                      {friendsList.map((f, i) => (
-                        <div key={i} className="flex justify-between items-center text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${f.online ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></span>
-                            <div>
-                              <span className="font-bold text-white">@{f.username}</span>
-                              <span className="text-[10px] text-[#F3E5AB]/60 block">{f.status}</span>
+                    <div className="space-y-3">
+                      {friends.length === 0 ? (
+                        <p className="text-[10px] text-[#F3E5AB]/50 text-center py-4">Chưa có bạn bè nào. Hãy gửi lời mời kết bạn bên dưới!</p>
+                      ) : (
+                        friends.map((f) => {
+                          const isOnline = onlineUsers.has(f.id);
+                          return (
+                            <div key={f.id} className="flex justify-between items-center text-xs bg-black/20 p-2.5 rounded-lg border border-[#D4AF37]/5 animate-fade-in">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isOnline ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></span>
+                                <div>
+                                  <span className="font-bold text-white block">@{f.username}</span>
+                                  <span className="text-[9.5px] text-[#F3E5AB]/60 block">
+                                    {isOnline ? "Trực tuyến" : "Ngoại tuyến"} • ELO: {f.eloGomoku || 1000} • Lv.{f.level || 1}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5">
+                                {isOnline && (
+                                  <button
+                                    onClick={() => handleInviteFriend(f.id, f.username)}
+                                    className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[9px] font-bold transition"
+                                  >
+                                    Mời
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleBlockUser(f.id)}
+                                  className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 py-1 px-2 rounded-lg text-[9px] font-bold transition"
+                                >
+                                  Chặn
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveFriend(f.id)}
+                                  className="bg-black/30 hover:bg-black/70 text-[#F3E5AB]/60 hover:text-white border border-[#D4AF37]/10 py-1 px-2 rounded-lg text-[9px] font-bold transition"
+                                >
+                                  Hủy
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            {f.online && f.roomId && (
-                              <button
-                                onClick={() => handleSpectate(f.roomId)}
-                                className="bg-gradient-to-r from-[#D4AF37]/20 to-[#FF9F0A]/20 hover:from-[#D4AF37] hover:to-[#FF9F0A] hover:text-[#141412] text-white border border-[#D4AF37]/35 py-1 px-3 rounded-lg text-[9px] font-bold uppercase transition flex items-center gap-1"
-                              >
-                                <Eye className="w-3.5 h-3.5" /> Xem
-                              </button>
-                            )}
-                            {f.online && f.canParty && (
-                              <button
-                                onClick={() => alert(`Đã gửi lời mời tới @${f.username}`)}
-                                className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[9px] font-extrabold uppercase transition"
-                              >
-                                Mời
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Form Kết bạn bằng Username */}
+                    <div className="mt-4 pt-4 border-t border-[#D4AF37]/10 space-y-2">
+                      <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">Kết bạn bằng Username</span>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={addFriendUsername}
+                          onChange={(e) => setAddFriendUsername(e.target.value)}
+                          placeholder="Nhập chính xác username người chơi..."
+                          className="flex-1 pixel-input text-xs py-1.5 px-3 rounded-lg"
+                        />
+                        <button
+                          onClick={handleSendFriendRequest}
+                          disabled={addFriendLoading}
+                          className="pixel-btn pixel-btn-yellow text-[10px] py-1.5 px-4 font-bold"
+                        >
+                          {addFriendLoading ? "Đang gửi..." : "Gửi lời mời"}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Party creation */}
-                  <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 text-center space-y-3">
-                    <h4 className="text-xs font-bold text-white uppercase flex items-center justify-center gap-1.5">
-                      <UserPlus className="w-4 h-4 text-[#D4AF37]" />
-                      Tạo Tổ Đội Nhanh
-                    </h4>
-                    <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
-                      Sao chép liên kết sảnh chờ chia sẻ cho bạn bè để gia nhập phòng đấu tức thì trên trình duyệt!
-                    </p>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/?joinRoom=room-party-id`);
-                        alert("Đã sao chép Link mời tổ đội!");
-                      }}
-                      className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-6 rounded-lg text-[10px] font-extrabold uppercase transition flex items-center justify-center gap-2 mx-auto"
-                    >
-                      <Link2 className="w-3.5 h-3.5" />
-                      Sao chép Link Mời
-                    </button>
-                  </div>
+                  {/* Cấu hình / Trạng thái tổ đội của tôi */}
+                  {activeParty ? (
+                    <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 text-center space-y-3">
+                      <h4 className="text-xs font-bold text-white uppercase flex items-center justify-center gap-1.5">
+                        <Users className="w-4 h-4 text-[#D4AF37]" />
+                        Tổ Đội Đang Hoạt Động
+                      </h4>
+                      <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                        Bạn đang ở trong tổ đội. Click vào bên dưới để chuyển đến sảnh Đấu chính để chuẩn bị bắt đầu!
+                      </p>
+                      <div className="flex gap-2 justify-center">
+                        <button
+                          onClick={() => setActiveTab("PLAY")}
+                          className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] font-bold"
+                        >
+                          Vào sảnh chờ
+                        </button>
+                        <button
+                          onClick={handleLeaveParty}
+                          className="pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2 px-4 text-[10px] font-bold"
+                        >
+                          Rời đội
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 text-center space-y-3">
+                      <h4 className="text-xs font-bold text-white uppercase flex items-center justify-center gap-1.5">
+                        <UserPlus className="w-4 h-4 text-[#D4AF37]" />
+                        Tạo Tổ Đội
+                      </h4>
+                      <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                        Khởi tạo sảnh tổ đội để cùng đồng đội nhận EXP thưởng thêm, làm nhiệm vụ thăng cấp và thách đấu cược Trứng!
+                      </p>
+                      <button
+                        onClick={handleCreateParty}
+                        className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] font-bold"
+                      >
+                        Tạo Tổ Đội
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1775,36 +2143,36 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </h4>
 
             <div className="space-y-3">
-              {friendsList.map((f, i) => (
-                <div key={i} className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-gray-500"}`}></span>
-                    <div className="max-w-[100px]">
-                      <span className="font-bold text-white block truncate">@{f.username}</span>
-                      <span className="text-[8.5px] text-[#F3E5AB]/50 block truncate">{f.status}</span>
+              {friends.length === 0 ? (
+                <div className="text-[10px] text-[#F3E5AB]/40 text-center py-2">Chưa có bạn bè</div>
+              ) : (
+                friends.slice(0, 10).map((f) => {
+                  const isOnline = onlineUsers.has(f.id);
+                  return (
+                    <div key={f.id} className="flex justify-between items-center text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isOnline ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></span>
+                        <div className="max-w-[100px]">
+                          <span className="font-bold text-white block truncate">@{f.username}</span>
+                          <span className="text-[8.5px] text-[#F3E5AB]/50 block truncate">
+                            {isOnline ? "Trực tuyến" : "Ngoại tuyến"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {isOnline && (
+                          <button
+                            onClick={() => handleInviteFriend(f.id, f.username)}
+                            className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-2 py-0.5 rounded text-[8px] font-bold transition"
+                          >
+                            Mời
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    {f.online && f.roomId && (
-                      <button
-                        onClick={() => handleSpectate(f.roomId)}
-                        className="bg-[#141412] hover:bg-[#D4AF37] hover:text-[#141412] border border-[#D4AF37]/20 p-1.5 rounded transition"
-                        title="Xem trận"
-                      >
-                        <Eye className="w-3 h-3" />
-                      </button>
-                    )}
-                    {f.online && f.canParty && (
-                      <button
-                        onClick={() => alert(`Đã gửi lời mời tới @${f.username}`)}
-                        className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-2 py-0.5 rounded text-[8px] font-bold uppercase transition"
-                      >
-                        Mời
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
 
             {/* Invite Party link creation */}
@@ -2007,6 +2375,51 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             >
               {cashPaying ? "Đang xử lý..." : "Giả lập Đã chuyển khoản VIP"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PARTY INVITATION */}
+      {activeInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="pixel-box p-6 w-full max-w-sm bg-[#1C1C18] border-2 border-[#D4AF37]/50 text-left space-y-4 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-2">
+              <h3 className="text-xs font-bold text-white uppercase flex items-center gap-1.5 animate-pulse">
+                <Swords className="w-4 h-4 text-[#D4AF37]" />
+                Thách Đấu Tổ Đội
+              </h3>
+              <button onClick={() => setActiveInvite(null)} className="text-gray-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-[#F3E5AB] leading-relaxed">
+                Người chơi <span className="text-[#D4AF37] font-bold">@{activeInvite.senderUsername}</span> mời bạn tham gia tổ đội để thi đấu game <span className="text-white font-bold">{activeInvite.gameType === "CARO" ? "Gomoku" : activeInvite.gameType === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}</span>.
+              </p>
+              <div className="bg-black/30 p-2 rounded border border-[#D4AF37]/10 flex justify-between items-center text-xs">
+                <span className="text-[#F3E5AB]/60">Mức cược tổ đội:</span>
+                <span className="text-yellow-500 font-mono font-bold">{activeInvite.wager} Trứng</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  handleJoinParty(activeInvite.partyId);
+                  setActiveInvite(null);
+                }}
+                className="flex-1 pixel-btn pixel-btn-yellow py-2.5 text-xs font-bold transition"
+              >
+                Chấp nhận
+              </button>
+              <button
+                onClick={() => setActiveInvite(null)}
+                className="flex-1 pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2.5 text-xs font-bold transition"
+              >
+                Từ chối
+              </button>
+            </div>
           </div>
         </div>
       )}

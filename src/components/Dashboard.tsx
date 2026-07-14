@@ -921,19 +921,19 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             <div className="grid grid-cols-3 gap-2">
                               <button
                                 onClick={() => setBotDifficulty("RANDOM")}
-                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "RANDOM" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "RANDOM" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                               >
                                 Ngẫu nhiên
                               </button>
                               <button
                                 onClick={() => setBotDifficulty("EASY")}
-                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "EASY" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "EASY" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                               >
                                 Dễ (Chặn)
                               </button>
                               <button
                                 onClick={() => setBotDifficulty("HARD")}
-                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "HARD" ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "HARD" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                               >
                                 Khó
                               </button>
@@ -941,7 +941,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           </div>
                           <button 
                             onClick={handlePlayBot}
-                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-extrabold gap-2"
+                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs font-bold gap-2"
                           >
                             <Play className="w-4 h-4 fill-black" /> Bắt đầu ngay
                           </button>
@@ -957,7 +957,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                 <button
                                   key={c}
                                   onClick={() => setMatchWager(c)}
-                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                                 >
                                   {c} Coin
                                 </button>
@@ -967,10 +967,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           <button
                             onClick={handleCreateFriendRoom}
                             disabled={creatingFriendLobby}
-                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-extrabold gap-2"
+                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs font-bold gap-2"
                           >
                             <Swords className="w-4 h-4" />
-                            {creatingFriendLobby ? "Đang khởi tạo..." : "Tạo Sảnh Đợi & Link Mời"}
+                            {creatingFriendLobby ? "Đang khởi tạo..." : "Tạo sảnh đợi & link mời"}
                           </button>
                         </div>
                       )}
@@ -984,7 +984,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                 <button
                                   key={c}
                                   onClick={() => setMatchWager(c)}
-                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                                 >
                                   {c} Coin
                                 </button>
@@ -993,7 +993,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           </div>
                           <button
                             onClick={handleStartMatchmaking}
-                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs uppercase font-extrabold gap-2"
+                            className="w-full pixel-btn pixel-btn-yellow py-3 text-xs font-bold gap-2"
                           >
                             <Swords className="w-4 h-4" />
                             Tìm đối thủ xếp hạng
@@ -1090,8 +1090,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3">
                       <div>
                         <div className="flex justify-between items-start">
-                          <span className="text-[7.5px] bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-0.5 rounded uppercase font-bold font-mono">
-                            {item.type}
+                          <span className="text-[8px] bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-0.5 rounded font-bold font-mono">
+                            {item.type === "SYMBOL" ? "Quân cờ" :
+                             item.type === "FRAME" ? "Khung ảnh" :
+                             item.type === "THEME" ? "Bàn cờ" :
+                             item.type === "SFX" ? "Hiệu ứng" :
+                             item.type === "EMOJI" ? "Biểu cảm" : item.type}
                           </span>
                           {!isOwned && (
                             <span className="text-[10px] text-white font-mono font-bold flex items-center gap-0.5">
@@ -1106,8 +1110,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       <div className="flex gap-2">
                         {isOwned ? (
                           isEquipped ? (
-                            <button className="w-full bg-[#D4AF37]/20 border border-[#D4AF37]/45 text-[#D4AF37] text-[9px] uppercase font-bold py-2 rounded-lg cursor-not-allowed">
-                              Đang dùng
+                            <button className="w-full bg-[#1C1C18] border border-green-500/30 text-green-400 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 cursor-not-allowed">
+                              <Check className="w-3.5 h-3.5" /> Đang dùng
                             </button>
                           ) : (
                             <button
@@ -1119,7 +1123,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                   handleEquipItem(item.id);
                                 }
                               }}
-                              className="w-full bg-[#1C1C18] border border-[#D4AF37]/30 hover:border-[#D4AF37] text-white text-[9px] uppercase font-bold py-2 rounded-lg transition"
+                              className="w-full pixel-btn pixel-btn-secondary text-[11px] font-bold py-2 rounded-lg transition"
                             >
                               Trang bị
                             </button>
@@ -1127,9 +1131,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         ) : (
                           <button
                             onClick={() => handleBuyItem(item.id)}
-                            className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[9px] uppercase font-extrabold py-2 rounded-lg transition"
+                            className="w-full pixel-btn pixel-btn-yellow text-[11px] font-bold py-2 rounded-lg transition"
                           >
-                            Mua Ngay
+                            Mua ngay
                           </button>
                         )}
                         <button

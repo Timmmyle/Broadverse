@@ -98,6 +98,28 @@ body {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
 }
 
+.pixel-btn-secondary {
+  background-color: transparent;
+  color: #D4AF37;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+}
+.pixel-btn-secondary:hover {
+  background-color: rgba(212, 175, 55, 0.08);
+  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.15);
+}
+
+.pixel-btn-owned {
+  background-color: #1C1C18;
+  color: rgba(243, 229, 171, 0.4);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  cursor: not-allowed !important;
+}
+.pixel-btn-owned:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
 .pixel-input {
   background-color: rgba(20, 20, 18, 0.8);
   color: #F3E5AB;

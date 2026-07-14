@@ -126,6 +126,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     wager: number;
   } | null>(null);
 
+  // Lời mời trực tiếp vào phòng đấu đang chờ
+  const [activeGameInvite, setActiveGameInvite] = useState<{
+    roomId: string;
+    senderUsername: string;
+    gameType: string;
+    wager: number;
+  } | null>(null);
+
   const fetchFriends = async () => {
     setLoadingFriends(true);
     try {
@@ -521,6 +529,31 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
+  const handleAcceptGameInvite = async () => {
+    if (!activeGameInvite) return;
+    try {
+      const res = await fetch("/api/match/join-friend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: activeGameInvite.roomId })
+      });
+      if (res.ok) {
+        const gameType = activeGameInvite.gameType as any;
+        const roomId = activeGameInvite.roomId;
+        setActiveGameInvite(null);
+        onSelectGame(gameType, "FRIEND", { roomId });
+      } else {
+        const errData = await res.json();
+        alert(errData.error || "Không thể tham gia phòng đấu này");
+        setActiveGameInvite(null);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối khi tham gia phòng đấu");
+      setActiveGameInvite(null);
+    }
+  };
+
   const fetchLeaderboard = async () => {
     setLoadingLeaderboard(true);
     try {
@@ -671,6 +704,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         // Tải lại danh sách bạn bè khi đối phương đồng ý kết bạn
         fetchFriends();
         alert(`@${payload.payload.accepterUsername} đã đồng ý kết bạn!`);
+      })
+      .on("broadcast", { event: "game_invite" }, (payload: any) => {
+        setActiveGameInvite(payload.payload);
       })
       .subscribe();
 
@@ -2811,6 +2847,47 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </button>
               <button
                 onClick={() => setActiveInvite(null)}
+                className="flex-1 pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2.5 text-xs font-bold transition"
+              >
+                Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeGameInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="pixel-box p-6 w-full max-w-sm bg-[#1C1C18] border border-[#FF9F0A]/30 text-left space-y-4">
+            <div className="flex justify-between items-center border-b border-[#FF9F0A]/15 pb-2">
+              <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
+                <Swords className="w-4 h-4 text-[#FF9F0A]" />
+                Thách Đấu Trực Tiếp
+              </h3>
+              <button onClick={() => setActiveGameInvite(null)} className="text-gray-400 hover:text-white p-1">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-[#F3E5AB] leading-relaxed">
+                Người chơi <span className="text-[#FF9F0A] font-bold">@{activeGameInvite.senderUsername}</span> thách đấu bạn chơi cờ <span className="text-white font-bold">{activeGameInvite.gameType === "CARO" ? "Gomoku" : activeGameInvite.gameType === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}</span>.
+              </p>
+              <div className="bg-black/30 p-2 rounded border border-[#FF9F0A]/10 flex justify-between items-center text-xs">
+                <span className="text-[#F3E5AB]/60">Mức cược trận đấu:</span>
+                <span className="text-yellow-500 font-mono font-bold">{activeGameInvite.wager} Coin</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleAcceptGameInvite}
+                className="flex-1 pixel-btn pixel-btn-yellow py-2.5 text-xs font-bold transition"
+              >
+                Chấp nhận
+              </button>
+              <button
+                onClick={() => setActiveGameInvite(null)}
                 className="flex-1 pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2.5 text-xs font-bold transition"
               >
                 Từ chối

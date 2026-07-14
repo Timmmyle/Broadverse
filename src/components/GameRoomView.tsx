@@ -123,6 +123,11 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   const [optimisticBoard, setOptimisticBoard] = useState<string[] | null>(null);
   const [optimisticTurnId, setOptimisticTurnId] = useState<string | null>(null);
 
+  // Mời bạn bè trực tuyến chơi cùng
+  const [friends, setFriends] = useState<any[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [invitingFriendId, setInvitingFriendId] = useState<string | null>(null);
+
   // Trạng thái Biểu cảm Emoji thời gian thực
   const [activeEmojiX, setActiveEmojiX] = useState<string | null>(null);
   const [activeEmojiO, setActiveEmojiO] = useState<string | null>(null);
@@ -427,6 +432,82 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       channelRef.current = null;
     };
   }, [roomId, mode]);
+
+  const fetchFriends = async () => {
+    try {
+      const res = await fetch("/api/friends/list");
+      if (res.ok) {
+        const data = await res.json();
+        setFriends(data.friends || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleInviteToGame = async (friendId: string, friendUsername: string) => {
+    if (!profile || !room) return;
+    setInvitingFriendId(friendId);
+    try {
+      const channel = supabase.channel(`user_notifications_${friendId}`);
+      await channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.send({
+            type: "broadcast",
+            event: "game_invite",
+            payload: {
+              roomId: room.id,
+              senderUsername: profile.username,
+              gameType: gameType,
+              wager: room.wager
+            }
+          });
+          alert(`Đã gửi lời mời thách đấu tới @${friendUsername}`);
+          supabase.removeChannel(channel);
+          setInvitingFriendId(null);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi kết nối mời bạn");
+      setInvitingFriendId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (mode !== "FRIEND" || !room || room.status !== "WAITING" || !profile) return;
+
+    fetchFriends();
+
+    // Subscribe to presence
+    const presenceChannel = supabase.channel("lobby_presence", {
+      config: {
+        presence: {
+          key: profile.id,
+        },
+      },
+    });
+
+    presenceChannel
+      .on("presence", { event: "sync" }, () => {
+        const state = presenceChannel.presenceState();
+        const onlineIds = new Set(Object.keys(state));
+        setOnlineUsers(onlineIds);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await presenceChannel.track({
+            userId: profile.id,
+            username: profile.username,
+            onlineAt: new Date().toISOString()
+          });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [room, mode, profile]);
 
   // 4. Lắng nghe và đếm ngược AFK (Timeout 60s)
   useEffect(() => {
@@ -908,6 +989,31 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedLink ? "Đã copy link mời!" : "Copy Link Mời Trực Tiếp"}
               </button>
+            </div>
+
+            {/* Danh sách bạn bè trực tuyến để mời trực tiếp */}
+            <div className="border-t border-black/20 pt-4 space-y-3 text-left">
+              <span className="block text-[8px] text-gray-500 uppercase tracking-wider font-semibold">Mời bạn bè trực tuyến:</span>
+              <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                {friends.length === 0 ? (
+                  <div className="text-[9px] text-gray-500 text-center py-2">Chưa có bạn bè</div>
+                ) : friends.filter(f => onlineUsers.has(f.id)).length === 0 ? (
+                  <div className="text-[9px] text-gray-500 text-center py-2">Không có bạn bè trực tuyến</div>
+                ) : (
+                  friends.filter(f => onlineUsers.has(f.id)).map((f) => (
+                    <div key={f.id} className="flex justify-between items-center bg-black/20 p-2 rounded border border-[#D4AF37]/10 text-xs">
+                      <span className="font-bold text-white truncate">@{f.username}</span>
+                      <button
+                        onClick={() => handleInviteToGame(f.id, f.username)}
+                        disabled={invitingFriendId === f.id}
+                        className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-3 py-1 rounded text-[9px] font-bold transition"
+                      >
+                        {invitingFriendId === f.id ? "Đang mời..." : "Mời đấu"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
             
             <div className="text-[8px] text-pixel-blue animate-pulse uppercase tracking-wider">

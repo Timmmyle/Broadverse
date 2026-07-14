@@ -674,8 +674,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       })
       .subscribe();
 
-    // Đồng bộ Presence trực tuyến
-    const presenceChannel = supabase.channel("lobby_presence");
+    // Đồng bộ Presence trực tuyến bằng cách cấu hình key là profile.id
+    const presenceChannel = supabase.channel("lobby_presence", {
+      config: {
+        presence: {
+          key: profile.id,
+        },
+      },
+    });
     presenceChannel
       .on("presence", { event: "sync" }, () => {
         const state = presenceChannel.presenceState();

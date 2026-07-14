@@ -115,6 +115,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [activeParty, setActiveParty] = useState<any | null>(null);
   const [partyMembers, setPartyMembers] = useState<any[]>([]);
   const [loadingParty, setLoadingParty] = useState(false);
+  const [partyMessages, setPartyMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState("");
   
   // Lời mời tổ đội đang chờ
   const [activeInvite, setActiveInvite] = useState<{
@@ -495,6 +497,30 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
+  const handleSendPartyChat = async () => {
+    if (!profile || !chatInput.trim() || !activeParty) return;
+    try {
+      const partyChannel = supabase.channel(`party_${activeParty.id}`);
+      await partyChannel.send({
+        type: "broadcast",
+        event: "party_chat",
+        payload: {
+          senderUsername: profile.username,
+          message: chatInput.trim(),
+          timestamp: new Date().toISOString()
+        }
+      });
+      setPartyMessages((prev) => [...prev, {
+        senderUsername: profile.username,
+        message: chatInput.trim(),
+        timestamp: new Date().toISOString()
+      }]);
+      setChatInput("");
+    } catch (err) {
+      console.error("Lỗi gửi tin nhắn:", err);
+    }
+  };
+
   const fetchLeaderboard = async () => {
     setLoadingLeaderboard(true);
     try {
@@ -612,6 +638,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             }
           })
           .catch(err => console.error(err));
+      })
+      .on("broadcast", { event: "party_chat" }, (payload: any) => {
+        setPartyMessages((prev) => [...prev, payload.payload]);
       })
       .subscribe();
 
@@ -2114,15 +2143,25 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       </span>
                       <h3 className="text-base font-extrabold text-white">🏡 Chuồng Gà Đồng Đội</h3>
                       <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
-                        Cùng các chiến hữu trong Chuồng cày cuốc nhiệm vụ co-op, nhận thêm vàng thưởng và tích lũy cấp Chuồng!
+                        Nơi các chiến hữu cùng Chuồng tụ họp, trò chuyện thời gian thực và cày cuốc nâng cấp Chuồng!
                       </p>
                     </div>
-                    {activeParty && (
-                      <div className="text-center bg-black/40 px-4 py-2 rounded-lg border border-[#D4AF37]/10 shrink-0 font-mono">
-                        <span className="text-[9px] text-[#F3E5AB]/50 block">CẤP CHUỒNG</span>
-                        <span className="text-lg font-bold text-[#D4AF37]">Lv.{activeParty.level || 1}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 shrink-0">
+                      {activeParty && (
+                        <div className="text-center bg-black/40 px-3 py-1.5 rounded-lg border border-[#D4AF37]/10 shrink-0 font-mono">
+                          <span className="text-[8.5px] text-[#F3E5AB]/50 block">CẤP CHUỒNG</span>
+                          <span className="text-md font-bold text-[#D4AF37]">Lv.{activeParty.level || 1}</span>
+                        </div>
+                      )}
+                      {activeParty && (
+                        <button
+                          onClick={handleLeaveParty}
+                          className="bg-black/40 hover:bg-[#FF3B30]/10 border border-[#FF3B30]/30 hover:border-[#FF3B30] text-red-500 hover:text-white px-3 py-2 rounded-lg text-[9.5px] font-bold uppercase transition"
+                        >
+                          Rời Chuồng
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {!activeParty ? (
@@ -2134,7 +2173,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       <div className="space-y-2 max-w-sm mx-auto">
                         <h4 className="text-xs font-bold text-white uppercase">Bạn Chưa Gia Nhập Chuồng Gà</h4>
                         <p className="text-[10px] text-[#F3E5AB]/70 leading-relaxed">
-                          Tạo ngay một Chuồng Gà để mời bạn bè cày nhiệm vụ cùng nhau, tích lũy điểm kinh nghiệm và thách đấu nhóm.
+                          Tạo ngay một Chuồng Gà mới và mời bạn bè vào cày chung để nâng cấp Chuồng và mở khóa nhiều phần quà!
                         </p>
                       </div>
                       <button
@@ -2161,88 +2200,51 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             style={{ width: `${Math.min(100, Math.floor(((activeParty.exp || 0) / ((activeParty.level || 1) * 100)) * 100))}%` }}
                           ></div>
                         </div>
-                        <p className="text-[8.5px] text-[#F3E5AB]/50">Mỗi cấp Chuồng Gà tăng thêm +10% EXP cá nhân nhận được sau các ván đấu cày cuốc!</p>
+                        <p className="text-[8.5px] text-[#F3E5AB]/50">Cày các ván đấu cờ tại Đấu Trường để tích lũy EXP. Mỗi cấp Chuồng Gà tăng thêm +10% EXP cá nhân nhận được!</p>
                       </div>
 
-                      {/* Hai cột cấu hình & danh sách */}
+                      {/* Hai cột: Chat thời gian thực & Thành viên */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Cột 1: Cấu hình game cày cuốc và nút Bắt đầu tìm trận */}
-                        <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4 text-left">
-                          <span className="block text-[8.5px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-1">
-                            Hành động & Cấu hình Đấu
+                        {/* Cột 1: Khung chat Chuồng Gà thời gian thực */}
+                        <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 flex flex-col h-[280px] text-left animate-fade-in">
+                          <span className="block text-[8.5px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-1 shrink-0">
+                            💬 Trò chuyện trong Chuồng
                           </span>
                           
-                          {/* Loại game */}
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] text-[#F3E5AB]/50">Chế độ cày nhiệm vụ:</label>
-                            {activeParty.leaderId === profile.id ? (
-                              <div className="grid grid-cols-3 gap-1.5">
-                                {["CARO", "BATTLESHIP", "TIC_TAC_TOE"].map((game) => (
-                                  <button
-                                    key={game}
-                                    onClick={() => handleUpdatePartyConfig(game, activeParty.wager)}
-                                    className={`text-[8.5px] py-1 px-2 rounded-lg font-bold border transition ${
-                                      activeParty.gameType === game
-                                        ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]"
-                                        : "bg-black/30 border-[#D4AF37]/20 text-[#F3E5AB]/70 hover:border-[#D4AF37]"
-                                    }`}
-                                  >
-                                    {game === "CARO" ? "Gomoku" : game === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}
-                                  </button>
-                                ))}
-                              </div>
+                          {/* Messages list */}
+                          <div className="flex-grow overflow-y-auto my-3 space-y-2 pr-1 text-xs">
+                            {partyMessages.length === 0 ? (
+                              <div className="text-[10px] text-[#F3E5AB]/30 text-center py-12">Chưa có tin nhắn nào trong Chuồng. Hãy gáy lên nào! 🐔</div>
                             ) : (
-                              <div className="text-xs font-bold text-white bg-black/30 p-2 rounded-lg border border-[#D4AF37]/10">
-                                {activeParty.gameType === "CARO" ? "Gomoku" : activeParty.gameType === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}
-                              </div>
+                              partyMessages.map((msg, i) => (
+                                <div key={i} className="space-y-0.5 bg-black/15 p-2 rounded border border-[#D4AF37]/5">
+                                  <div className="flex justify-between items-center text-[9px] text-[#F3E5AB]/50 font-bold">
+                                    <span>@{msg.senderUsername}</span>
+                                    <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  </div>
+                                  <p className="text-white break-words leading-tight">{msg.message}</p>
+                                </div>
+                              ))
                             )}
                           </div>
                           
-                          {/* Mức cược Trứng */}
-                          <div className="space-y-1.5">
-                            <label className="text-[9px] text-[#F3E5AB]/50">Mức cược Trứng (mỗi thành viên):</label>
-                            {activeParty.leaderId === profile.id ? (
-                              <div className="grid grid-cols-4 gap-1.5">
-                                {[0, 10, 50, 100].map((w) => (
-                                  <button
-                                    key={w}
-                                    onClick={() => handleUpdatePartyConfig(activeParty.gameType || "CARO", w)}
-                                    className={`text-[9px] py-1 rounded-lg font-bold border transition ${
-                                      activeParty.wager === w
-                                        ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]"
-                                        : "bg-black/30 border-[#D4AF37]/20 text-[#F3E5AB]/70 hover:border-[#D4AF37]"
-                                    }`}
-                                  >
-                                    {w} 🥚
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-xs font-bold text-white bg-black/30 p-2 rounded-lg border border-[#D4AF37]/10">
-                                {activeParty.wager || 0} Trứng
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Nút Tìm trận ngay */}
-                          <div className="pt-2 flex gap-2">
-                            {activeParty.leaderId === profile.id ? (
-                              <button
-                                onClick={handleStartPartyMatchmaking}
-                                className="flex-1 bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(212,175,55,0.2)] animate-pulse"
-                              >
-                                <Play className="w-4 h-4 fill-black" /> Bắt đầu cày trận
-                              </button>
-                            ) : (
-                              <div className="flex-1 text-center py-2.5 px-4 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-lg text-xs font-bold animate-pulse">
-                                Chờ chủ chuồng bắt đầu cày trận...
-                              </div>
-                            )}
+                          {/* Chat input box */}
+                          <div className="flex gap-1.5 shrink-0 pt-2 border-t border-[#D4AF37]/5">
+                            <input
+                              type="text"
+                              value={chatInput}
+                              onChange={(e) => setChatInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleSendPartyChat();
+                              }}
+                              placeholder="Nhập tin nhắn..."
+                              className="flex-1 pixel-input text-xs py-1.5 px-3 rounded-lg"
+                            />
                             <button
-                              onClick={handleLeaveParty}
-                              className="bg-black/30 hover:bg-black/75 border border-red-500/30 text-red-500 hover:text-white py-2.5 px-4 rounded-lg text-xs font-bold transition"
+                              onClick={handleSendPartyChat}
+                              className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-4 rounded-lg text-xs font-bold transition shrink-0"
                             >
-                              Rời Chuồng
+                              Gửi
                             </button>
                           </div>
                         </div>

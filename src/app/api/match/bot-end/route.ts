@@ -43,23 +43,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
     }
 
-    // Thưởng luyện tập với Bot nhỏ để tránh cày cuốc (exploit)
-    let coinsGained = 0;
-    let expGained = 0;
-
-    if (outcome === "WIN") {
-      coinsGained = 5;
-      expGained = 150; // Thích ứng với lượng EXP lớn hơn của công thức mới
-    } else {
-      coinsGained = 2;
-      expGained = 50;
-    }
-
-    // Áp dụng x2 EXP và 1.5x Coins cho tài khoản Premium (VIP)
-    if (profile.isPremium) {
-      coinsGained = Math.round(coinsGained * 1.5);
-      expGained = expGained * 2;
-    }
+    // Luyện tập với Bot không nhận kinh nghiệm, không tăng cấp và không tăng coin
+    const coinsGained = 0;
+    const expGained = 0;
 
     // Cập nhật nhiệm vụ hàng ngày
     let updatedMissions = updatePlayerMissions(profile.dailyMissions, currentGameType, "PLAY_GAME");

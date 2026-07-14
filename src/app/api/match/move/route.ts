@@ -15,7 +15,11 @@ import { addExp, calculateElo, addBattlePassExp, DailyMission, calculateRankUpda
 import { getTicTacToeBotMove, getCaroBotMove, getBattleshipBotMove } from "@/lib/botAi";
 
 // Công thức tính thưởng
-function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPremium: boolean = false) {
+function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPremium: boolean = false, wager: number = 0, isBot: boolean = false) {
+  if (isBot) {
+    return { coins: 0, exp: 0 };
+  }
+
   let coins = 0;
   let exp = 0;
 
@@ -32,6 +36,10 @@ function calculateReward(outcome: "WIN" | "LOSE" | "DRAW", level: number, isPrem
   if (isPremium) {
     coins = Math.round(coins * 1.5);
     exp = exp * 2;
+  }
+
+  if (wager === 0) {
+    coins = 0;
   }
 
   return { coins, exp };
@@ -324,7 +332,7 @@ export async function POST(req: Request) {
 
                       // Tính điểm thua cho Player
                       const player = room.playerX;
-                      const rewards = calculateReward("LOSE", player.level, player.isPremium);
+                      const rewards = calculateReward("LOSE", player.level, player.isPremium, room.wager, room.playerOId === "bot");
                       const coinsGained = rewards.coins;
                       const newStats = addExp(player.level, player.exp, rewards.exp);
                       const currentElo = player.eloBattleship;
@@ -434,11 +442,11 @@ export async function POST(req: Request) {
             const winner = isPlayerX ? room.playerX : room.playerO!;
             const loser = isPlayerX ? room.playerO! : room.playerX;
 
-            const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
-            const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
+            const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium, room.wager, room.playerOId === "bot");
+            const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium, room.wager, room.playerOId === "bot");
 
-            const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
-            const loserCoinsGained = loserRewards.coins;
+            const winnerCoinsGained = room.wager === 0 ? 0 : (winnerRewards.coins + room.wager * 2);
+            const loserCoinsGained = room.wager === 0 ? 0 : loserRewards.coins;
 
             // Tiến trình EXP mới
             const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
@@ -574,7 +582,7 @@ export async function POST(req: Request) {
 
                       // Tính điểm thua cho Player
                       const player = room.playerX;
-                      const rewards = calculateReward("LOSE", player.level, player.isPremium);
+                      const rewards = calculateReward("LOSE", player.level, player.isPremium, room.wager, room.playerOId === "bot");
                       const coinsGained = rewards.coins;
                       const newStats = addExp(player.level, player.exp, rewards.exp);
                       const currentElo = player.eloBattleship;
@@ -680,11 +688,11 @@ export async function POST(req: Request) {
             const winner = room.playerO!;
             const loser = room.playerX;
 
-            const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
-            const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
+            const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium, room.wager, room.playerOId === "bot");
+            const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium, room.wager, room.playerOId === "bot");
 
-            const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
-            const loserCoinsGained = loserRewards.coins;
+            const winnerCoinsGained = room.wager === 0 ? 0 : (winnerRewards.coins + room.wager * 2);
+            const loserCoinsGained = room.wager === 0 ? 0 : loserRewards.coins;
 
             const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
             const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
@@ -769,11 +777,11 @@ export async function POST(req: Request) {
           const winner = playerId === room.playerXId ? room.playerX : room.playerO!;
           const loser = playerId === room.playerXId ? room.playerO! : room.playerX;
 
-          const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
-          const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
+          const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium, room.wager, room.playerOId === "bot");
+          const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium, room.wager, room.playerOId === "bot");
 
-          const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
-          const loserCoinsGained = loserRewards.coins;
+          const winnerCoinsGained = room.wager === 0 ? 0 : (winnerRewards.coins + room.wager * 2);
+          const loserCoinsGained = room.wager === 0 ? 0 : loserRewards.coins;
 
           const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);
           const loserNewStats = addExp(loser.level, loser.exp, loserRewards.exp);
@@ -855,11 +863,11 @@ export async function POST(req: Request) {
           const playerX = room.playerX;
           const playerO = room.playerO!;
 
-          const rewardsX = calculateReward("DRAW", playerX.level, playerX.isPremium);
-          const rewardsO = calculateReward("DRAW", playerO.level, playerO.isPremium);
+          const rewardsX = calculateReward("DRAW", playerX.level, playerX.isPremium, room.wager, room.playerOId === "bot");
+          const rewardsO = calculateReward("DRAW", playerO.level, playerO.isPremium, room.wager, room.playerOId === "bot");
 
-          const coinsGainedX = rewardsX.coins + room.wager;
-          const coinsGainedO = rewardsO.coins + room.wager;
+          const coinsGainedX = room.wager === 0 ? 0 : (rewardsX.coins + room.wager);
+          const coinsGainedO = room.wager === 0 ? 0 : (rewardsO.coins + room.wager);
 
           const newStatsX = addExp(playerX.level, playerX.exp, rewardsX.exp);
           const newStatsO = addExp(playerO.level, playerO.exp, rewardsO.exp);
@@ -956,7 +964,7 @@ export async function POST(req: Request) {
             if (botWon) {
               // Bot thắng -> Người chơi thua (playerX)
               const player = room.playerX;
-              const rewards = calculateReward("LOSE", player.level, player.isPremium);
+              const rewards = calculateReward("LOSE", player.level, player.isPremium, room.wager, room.playerOId === "bot");
               const coinsGained = rewards.coins;
               const newStats = addExp(player.level, player.exp, rewards.exp);
               const isGomoku = room.gameType === "CARO";
@@ -1005,8 +1013,8 @@ export async function POST(req: Request) {
             } else if (botDraw) {
               // Hòa game
               const player = room.playerX;
-              const rewards = calculateReward("DRAW", player.level, player.isPremium);
-              const coinsGained = rewards.coins + room.wager;
+              const rewards = calculateReward("DRAW", player.level, player.isPremium, room.wager, room.playerOId === "bot");
+              const coinsGained = room.wager === 0 ? 0 : (rewards.coins + room.wager);
               const newStats = addExp(player.level, player.exp, rewards.exp);
               const isGomoku = room.gameType === "CARO";
               const currentElo = isGomoku ? player.eloGomoku : player.eloTicTacToe;

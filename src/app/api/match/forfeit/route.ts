@@ -4,7 +4,11 @@ import { NextResponse } from "next/server";
 import { addExp, calculateElo, addBattlePassExp, DailyMission, calculateRankUpdate } from "@/lib/progression";
 
 // Công thức tính thưởng
-function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: boolean = false) {
+function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: boolean = false, wager: number = 0, isBot: boolean = false) {
+  if (isBot) {
+    return { coins: 0, exp: 0 };
+  }
+
   let coins = 0;
   let exp = 0;
 
@@ -20,6 +24,10 @@ function calculateReward(outcome: "WIN" | "LOSE", level: number, isPremium: bool
   if (isPremium) {
     coins = Math.round(coins * 1.5);
     exp = exp * 2;
+  }
+
+  if (wager === 0) {
+    coins = 0;
   }
 
   return { coins, exp };
@@ -102,11 +110,11 @@ export async function POST(req: Request) {
       const loser = loserId === room.playerXId ? room.playerX : room.playerO!;
 
       // Tính thưởng
-      const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium);
-      const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium);
+      const winnerRewards = calculateReward("WIN", winner.level, winner.isPremium, room.wager, room.playerOId === "bot");
+      const loserRewards = calculateReward("LOSE", loser.level, loser.isPremium, room.wager, room.playerOId === "bot");
 
-      const winnerCoinsGained = winnerRewards.coins + room.wager * 2;
-      const loserCoinsGained = loserRewards.coins;
+      const winnerCoinsGained = room.wager === 0 ? 0 : (winnerRewards.coins + room.wager * 2);
+      const loserCoinsGained = room.wager === 0 ? 0 : loserRewards.coins;
 
       // Cộng EXP mới
       const winnerNewStats = addExp(winner.level, winner.exp, winnerRewards.exp);

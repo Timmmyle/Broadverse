@@ -128,18 +128,31 @@ export async function POST(req: Request) {
       let loserElo = 1000;
       let eloField = "";
 
+      let tierField = "rankTierTicTacToe";
+      let divisionField = "rankDivisionTicTacToe";
+      let pointsField = "rankPointsTicTacToe";
+
       if (isGomoku) {
         winnerElo = winner.eloGomoku;
         loserElo = loser.eloGomoku;
         eloField = "eloGomoku";
+        tierField = "rankTierCaro";
+        divisionField = "rankDivisionCaro";
+        pointsField = "rankPointsCaro";
       } else if (isBattleship) {
         winnerElo = winner.eloBattleship;
         loserElo = loser.eloBattleship;
         eloField = "eloBattleship";
+        tierField = "rankTierBattleship";
+        divisionField = "rankDivisionBattleship";
+        pointsField = "rankPointsBattleship";
       } else {
         winnerElo = winner.eloTicTacToe;
         loserElo = loser.eloTicTacToe;
         eloField = "eloTicTacToe";
+        tierField = "rankTierTicTacToe";
+        divisionField = "rankDivisionTicTacToe";
+        pointsField = "rankPointsTicTacToe";
       }
 
       const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
@@ -155,8 +168,8 @@ export async function POST(req: Request) {
       const winnerWinMissions = updatePlayerMissions(winnerMissions, room.gameType, "WIN_GAME");
 
       // Cập nhật Rank
-      const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
-      const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+      const winnerRank = calculateRankUpdate((winner as any)[tierField] as number, (winner as any)[divisionField] as number, (winner as any)[pointsField] as number, "WIN");
+      const loserRank = calculateRankUpdate((loser as any)[tierField] as number, (loser as any)[divisionField] as number, (loser as any)[pointsField] as number, "LOSE");
 
       // Cập nhật người thắng
       await tx.user.update({
@@ -166,6 +179,10 @@ export async function POST(req: Request) {
           level: winnerNewStats.level,
           exp: winnerNewStats.exp,
           [eloField]: newWinnerElo,
+          [tierField]: winnerRank.tier,
+          [divisionField]: winnerRank.division,
+          [pointsField]: winnerRank.rankPoints,
+          // Đồng thời cập nhật global rank để tương thích ngược
           rankTier: winnerRank.tier,
           rankDivision: winnerRank.division,
           rankPoints: winnerRank.rankPoints,
@@ -183,6 +200,10 @@ export async function POST(req: Request) {
           level: loserNewStats.level,
           exp: loserNewStats.exp,
           [eloField]: newLoserElo,
+          [tierField]: loserRank.tier,
+          [divisionField]: loserRank.division,
+          [pointsField]: loserRank.rankPoints,
+          // Đồng thời cập nhật global rank để tương thích ngược
           rankTier: loserRank.tier,
           rankDivision: loserRank.division,
           rankPoints: loserRank.rankPoints,

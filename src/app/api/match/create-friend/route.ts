@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const creatorId = user.id;
     const { gameType, wager } = await req.json();
 
-    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP"].includes(gameType)) {
+    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP", "BAU_CUA"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
     }
 
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       where: { id: creatorId },
     });
 
-    if (!profile || profile.eggs < numericWager) {
+    if (!profile || (gameType !== "BAU_CUA" && profile.eggs < numericWager)) {
       return NextResponse.json({ error: "Bạn không đủ Trứng để thiết lập mức cược này" }, { status: 400 });
     }
 
@@ -50,14 +50,30 @@ export async function POST(req: Request) {
         radarResultsX: [],
         radarResultsO: []
       });
+    } else if (gameType === "BAU_CUA") {
+      initialBoard = JSON.stringify({
+        players: [
+          {
+            id: creatorId,
+            username: profile.username,
+            avatarUrl: profile.avatarUrl,
+            ready: false
+          }
+        ],
+        status: "WAITING",
+        betLimit: numericWager,
+        bets: {},
+        dice: [],
+        history: []
+      });
     } else {
       const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
       initialBoard = JSON.stringify(Array(boardSize).fill(""));
     }
 
-    // Thực hiện trong Transaction: Khóa eggs và tạo phòng
+    // Thực hiện trong Transaction: Khóa eggs (nếu không phải Bầu Cua) và tạo phòng
     const room = await prisma.$transaction(async (tx) => {
-      if (numericWager > 0) {
+      if (numericWager > 0 && gameType !== "BAU_CUA") {
         await tx.user.update({
           where: { id: creatorId },
           data: { eggs: { decrement: numericWager } },

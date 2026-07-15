@@ -27,9 +27,23 @@ export async function POST(req: Request) {
       return NextResponse.json(room);
     }
 
-    // Nếu phòng đã đầy hoặc đã kết thúc
-    if (room.status !== "WAITING" || room.playerOId) {
-      return NextResponse.json({ error: "Phòng game này đã đầy hoặc không còn khả dụng" }, { status: 400 });
+    const isBauCua = room.gameType === "BAU_CUA";
+
+    // Kiểm tra xem đã có trong phòng chưa
+    if (isBauCua) {
+      if (room.playerOId === playerId || room.player3Id === playerId || room.player4Id === playerId) {
+        return NextResponse.json(room);
+      }
+      // Nếu phòng đã đầy hoặc không ở trạng thái WAITING
+      const isFull = room.playerOId && room.player3Id && room.player4Id;
+      if (room.status !== "WAITING" || isFull) {
+        return NextResponse.json({ error: "Phòng game này đã đầy hoặc không còn khả dụng" }, { status: 400 });
+      }
+    } else {
+      // Nếu phòng đã đầy hoặc đã kết thúc
+      if (room.status !== "WAITING" || room.playerOId) {
+        return NextResponse.json({ error: "Phòng game này đã đầy hoặc không còn khả dụng" }, { status: 400 });
+      }
     }
 
     // Kiểm tra số dư coin của người tham gia
@@ -37,30 +51,70 @@ export async function POST(req: Request) {
       where: { id: playerId },
     });
 
-    if (!profile || profile.eggs < room.wager) {
-      return NextResponse.json({ error: "Bạn không đủ Trứng để tham gia mức cược của phòng này" }, { status: 400 });
+    if (!profile) {
+      return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
     }
 
-    // Thực hiện transaction: Khóa eggs người tham gia, gán vào playerO, đổi status thành PLAYING và random lượt đi đầu
+    if (!isBauCua && profile.eggs < room.wager) {
+      return NextResponse.json({ error: "Bạn không đủ Trứng để tham gia mức cược của phòng này" }, { status: 400 });
+    }
+    if (isBauCua && profile.eggs < 1) {
+      return NextResponse.json({ error: "Bạn cần ít nhất 1 Coin để tham gia phòng Bầu Cua" }, { status: 400 });
+    }
+
+    // Thực hiện transaction: Khóa eggs người tham gia, gán vào playerO, đổi status thành PLAYING và random lượt đi đầu (nếu không phải Bầu Cua)
     const updatedRoom = await prisma.$transaction(async (tx) => {
-      if (room.wager > 0) {
+      if (!isBauCua && room.wager > 0) {
         await tx.user.update({
           where: { id: playerId },
           data: { eggs: { decrement: room.wager } },
         });
       }
 
-      const isXFirst = Math.random() > 0.5;
-      const startingPlayerId = isXFirst ? room.playerXId : playerId;
+      if (isBauCua) {
+        let joinField: "playerOId" | "player3Id" | "player4Id" | null = null;
+        if (!room.playerOId) joinField = "playerOId";
+        else if (!room.player3Id) joinField = "player3Id";
+        else if (!room.player4Id) joinField = "player4Id";
 
-      return await tx.gameRoom.update({
-        where: { id: roomId },
-        data: {
-          playerOId: playerId,
-          status: "PLAYING",
-          turnPlayerId: startingPlayerId,
-        },
-      });
+        if (!joinField) {
+          throw new Error("ROOM_FULL");
+        }
+
+        let boardObj: any = { players: [], status: "WAITING", betLimit: room.wager, bets: {}, dice: [], history: [] };
+        try {
+          boardObj = JSON.parse(room.board);
+        } catch (e) {}
+
+        if (!boardObj.players.some((p: any) => p.id === playerId)) {
+          boardObj.players.push({
+            id: playerId,
+            username: profile.username,
+            avatarUrl: profile.avatarUrl,
+            ready: false
+          });
+        }
+
+        return await tx.gameRoom.update({
+          where: { id: roomId },
+          data: {
+            [joinField]: playerId,
+            board: JSON.stringify(boardObj)
+          },
+        });
+      } else {
+        const isXFirst = Math.random() > 0.5;
+        const startingPlayerId = isXFirst ? room.playerXId : playerId;
+
+        return await tx.gameRoom.update({
+          where: { id: roomId },
+          data: {
+            playerOId: playerId,
+            status: "PLAYING",
+            turnPlayerId: startingPlayerId,
+          },
+        });
+      }
     });
 
     return NextResponse.json(updatedRoom);

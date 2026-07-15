@@ -7,6 +7,7 @@ import { checkTicTacToeWin, checkCaroWin, isRenjuForbidden } from "@/lib/gameLog
 import { getTicTacToeBotMove, getCaroBotMove } from "@/lib/botAi";
 import { SHOP_ITEMS } from "@/lib/shopItems";
 import BattleshipView from "./BattleshipView";
+import BauCuaView from "./BauCuaView";
 import { 
   ArrowLeft, Swords, Award, AlertTriangle, Clock, RefreshCw, Copy, Check, Coins
 } from "lucide-react";
@@ -14,7 +15,7 @@ import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
 
 interface GameRoomViewProps {
-  gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
+  gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA";
   mode: "BOT" | "FRIEND" | "RANDOM";
   details: {
     roomId?: string;
@@ -94,6 +95,18 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   };
 
   if (!profile) return null;
+
+  if (gameType === "BAU_CUA") {
+    return (
+      <BauCuaView
+        mode={mode}
+        details={details}
+        profile={profile}
+        onBack={onBack}
+        refreshProfile={refreshProfile}
+      />
+    );
+  }
 
   if (gameType === "BATTLESHIP") {
     return (

@@ -13,7 +13,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { getExpNeededForLevel, DailyMission, getRankFromElo, getRankFromDb, ACHIEVEMENTS } from "@/lib/progression";
 
 interface DashboardProps {
-  onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
+  onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
 }
 
 export default function Dashboard({ onSelectGame }: DashboardProps) {
@@ -62,7 +62,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // State tìm kiếm trận ngẫu nhiên
   const [matchmaking, setMatchmaking] = useState<{
     active: boolean;
-    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP";
+    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA";
     wager: number;
   } | null>(null);
 
@@ -87,7 +87,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [cashError, setCashError] = useState("");
 
   // Game Options
-  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP">("CARO");
+  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA">("CARO");
   const [selectedMode, setSelectedMode] = useState<"BOT" | "FRIEND" | "RANDOM">("BOT");
   const [botDifficulty, setBotDifficulty] = useState<"RANDOM" | "EASY" | "HARD">("EASY");
   const [matchWager, setMatchWager] = useState<number>(0);
@@ -1403,24 +1403,42 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {/* Chọn game */}
                       <div className="pixel-box-nested p-4 space-y-3">
                         <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">1. Chọn trò chơi:</span>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <button
-                            onClick={() => setSelectedGame("CARO")}
+                            onClick={() => {
+                              setSelectedGame("CARO");
+                              setMatchWager(0);
+                            }}
                             className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "CARO" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
                             Gomoku
                           </button>
                           <button
-                            onClick={() => setSelectedGame("BATTLESHIP")}
+                            onClick={() => {
+                              setSelectedGame("BATTLESHIP");
+                              setMatchWager(0);
+                            }}
                             className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "BATTLESHIP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
                             Battleship
                           </button>
                           <button
-                            onClick={() => setSelectedGame("TIC_TAC_TOE")}
+                            onClick={() => {
+                              setSelectedGame("TIC_TAC_TOE");
+                              setMatchWager(0);
+                            }}
                             className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "TIC_TAC_TOE" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                           >
                             Caro 3x3
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedGame("BAU_CUA");
+                              setMatchWager(10); // Mặc định giới hạn 10 coin cho Bầu Cua
+                            }}
+                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "BAU_CUA" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                          >
+                            Bầu Cua
                           </button>
                         </div>
                       </div>
@@ -1492,13 +1510,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           <div>
                             <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược Coin (Mỗi người):</span>
                             <div className="grid grid-cols-4 gap-2">
-                              {[0, 10, 50, 100].map((c) => (
+                              {(selectedGame === "BAU_CUA" ? [10, 50, 100, 999999] : [0, 10, 50, 100]).map((c) => (
                                 <button
                                   key={c}
                                   onClick={() => setMatchWager(c)}
                                   className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                                 >
-                                  {c} Coin
+                                  {c === 999999 ? "K.Giới Hạn" : `${c} Coin`}
                                 </button>
                               ))}
                             </div>
@@ -1519,13 +1537,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           <div>
                             <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược trận đấu (Coin):</span>
                             <div className="grid grid-cols-4 gap-2">
-                              {[0, 10, 50, 100].map((c) => (
+                              {(selectedGame === "BAU_CUA" ? [10, 50, 100, 999999] : [0, 10, 50, 100]).map((c) => (
                                 <button
                                   key={c}
                                   onClick={() => setMatchWager(c)}
                                   className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                                 >
-                                  {c} Coin
+                                  {c === 999999 ? "K.Giới Hạn" : `${c} Coin`}
                                 </button>
                               ))}
                             </div>
@@ -2444,16 +2462,70 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </button>
             )}
 
-            {/* Mastery Stats */}
-            <div className="border-t border-[#D4AF37]/10 pt-3 space-y-1.5">
-              <span className="text-[8px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold block mb-1">Chỉ Số Kỳ Thủ</span>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-[#F3E5AB]/75">Thắng trước Gomoku:</span>
-                <span className="font-mono font-bold text-white">54.2%</span>
-              </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-[#F3E5AB]/75">Chính xác Battleship:</span>
-                <span className="font-mono font-bold text-white">78.5%</span>
+            {/* Mastery Stats / Game Ranks (CS2 Style) */}
+            <div className="border-t border-[#D4AF37]/10 pt-3 space-y-2">
+              <span className="text-[8px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold block mb-1">Xếp Hạng Kỳ Thủ (CS2 Style)</span>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {/* Caro 3x3 */}
+                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Caro 3x3</span>
+                  <span className={`text-[9px] font-bold truncate ${(() => {
+                    const r = getRankFromDb(profile.rankTierTicTacToe || 1, profile.rankDivisionTicTacToe || 4, profile.rankPointsTicTacToe || 0);
+                    return r.className;
+                  })()}`}>
+                    {(() => {
+                      const r = getRankFromDb(profile.rankTierTicTacToe || 1, profile.rankDivisionTicTacToe || 4, profile.rankPointsTicTacToe || 0);
+                      return `${r.icon} ${r.name} ${r.divisionName}`;
+                    })()}
+                  </span>
+                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloTicTacToe || 1000}</span>
+                </div>
+
+                {/* Gomoku */}
+                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Gomoku</span>
+                  <span className={`text-[9px] font-bold truncate ${(() => {
+                    const r = getRankFromDb(profile.rankTierCaro || 1, profile.rankDivisionCaro || 4, profile.rankPointsCaro || 0);
+                    return r.className;
+                  })()}`}>
+                    {(() => {
+                      const r = getRankFromDb(profile.rankTierCaro || 1, profile.rankDivisionCaro || 4, profile.rankPointsCaro || 0);
+                      return `${r.icon} ${r.name} ${r.divisionName}`;
+                    })()}
+                  </span>
+                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloGomoku || 1000}</span>
+                </div>
+
+                {/* Battleship */}
+                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Battleship</span>
+                  <span className={`text-[9px] font-bold truncate ${(() => {
+                    const r = getRankFromDb(profile.rankTierBattleship || 1, profile.rankDivisionBattleship || 4, profile.rankPointsBattleship || 0);
+                    return r.className;
+                  })()}`}>
+                    {(() => {
+                      const r = getRankFromDb(profile.rankTierBattleship || 1, profile.rankDivisionBattleship || 4, profile.rankPointsBattleship || 0);
+                      return `${r.icon} ${r.name} ${r.divisionName}`;
+                    })()}
+                  </span>
+                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBattleship || 1000}</span>
+                </div>
+
+                {/* Bầu Cua */}
+                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Bầu Cua</span>
+                  <span className={`text-[9px] font-bold truncate ${(() => {
+                    const r = getRankFromDb(profile.rankTierBauCua || 1, profile.rankDivisionBauCua || 4, profile.rankPointsBauCua || 0);
+                    return r.className;
+                  })()}`}>
+                    {(() => {
+                      const r = getRankFromDb(profile.rankTierBauCua || 1, profile.rankDivisionBauCua || 4, profile.rankPointsBauCua || 0);
+                      return `${r.icon} ${r.name} ${r.divisionName}`;
+                    })()}
+                  </span>
+                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBauCua || 1000}</span>
+                </div>
               </div>
             </div>
           </div>

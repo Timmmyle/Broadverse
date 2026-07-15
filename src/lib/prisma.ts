@@ -28,7 +28,7 @@ export const prisma = basePrisma.$extends({
     gameRoom: {
       async update({ args, query }) {
         const result = await query(args);
-        if (result && result.status === "FINISHED") {
+        if (result && result.status === "FINISHED" && result.gameType !== "BAU_CUA") {
           try {
             const existing = await basePrisma.matchHistory.findUnique({
               where: { id: result.id }

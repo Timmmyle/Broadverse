@@ -337,7 +337,7 @@ export async function POST(req: Request) {
                       const newStats = addExp(player.level, player.exp, rewards.exp);
                       const currentElo = player.eloBattleship;
                       const newElo = calculateElo(currentElo, 1000, 0);
-                      const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "LOSE");
+                      const playerRank = calculateRankUpdate(player.rankTierBattleship, player.rankDivisionBattleship, player.rankPointsBattleship, "LOSE");
                       const loseBPMatch = addBattlePassExp(player.battlePassLevel, player.battlePassExp, player.isPremium ? 57 : 50);
                       const playerMissions = updatePlayerMissions(player.dailyMissions, "BATTLESHIP", "PLAY_GAME");
 
@@ -348,6 +348,10 @@ export async function POST(req: Request) {
                           level: newStats.level,
                           exp: newStats.exp,
                           eloBattleship: newElo,
+                          rankTierBattleship: playerRank.tier,
+                          rankDivisionBattleship: playerRank.division,
+                          rankPointsBattleship: playerRank.rankPoints,
+                          // Đồng thời cập nhật global rank để tương thích ngược
                           rankTier: playerRank.tier,
                           rankDivision: playerRank.division,
                           rankPoints: playerRank.rankPoints,
@@ -458,8 +462,8 @@ export async function POST(req: Request) {
             const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
             const newLoserElo = calculateElo(loserElo, winnerElo, 0);
 
-            const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
-            const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+            const winnerRank = calculateRankUpdate(winner.rankTierBattleship, winner.rankDivisionBattleship, winner.rankPointsBattleship, "WIN");
+            const loserRank = calculateRankUpdate(loser.rankTierBattleship, loser.rankDivisionBattleship, loser.rankPointsBattleship, "LOSE");
 
             // Tiến trình Battle Pass
             const winBPMatch = addBattlePassExp(winner.battlePassLevel, winner.battlePassExp, winner.isPremium ? 172 : 150);
@@ -477,6 +481,10 @@ export async function POST(req: Request) {
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
                 eloBattleship: newWinnerElo,
+                rankTierBattleship: winnerRank.tier,
+                rankDivisionBattleship: winnerRank.division,
+                rankPointsBattleship: winnerRank.rankPoints,
+                // Đồng thời cập nhật global rank để tương thích ngược
                 rankTier: winnerRank.tier,
                 rankDivision: winnerRank.division,
                 rankPoints: winnerRank.rankPoints,
@@ -493,6 +501,10 @@ export async function POST(req: Request) {
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
                 eloBattleship: newLoserElo,
+                rankTierBattleship: loserRank.tier,
+                rankDivisionBattleship: loserRank.division,
+                rankPointsBattleship: loserRank.rankPoints,
+                // Đồng thời cập nhật global rank để tương thích ngược
                 rankTier: loserRank.tier,
                 rankDivision: loserRank.division,
                 rankPoints: loserRank.rankPoints,
@@ -587,7 +599,7 @@ export async function POST(req: Request) {
                       const newStats = addExp(player.level, player.exp, rewards.exp);
                       const currentElo = player.eloBattleship;
                       const newElo = calculateElo(currentElo, 1000, 0);
-                      const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "LOSE");
+                      const playerRank = calculateRankUpdate(player.rankTierBattleship, player.rankDivisionBattleship, player.rankPointsBattleship, "LOSE");
                       const loseBPMatch = addBattlePassExp(player.battlePassLevel, player.battlePassExp, player.isPremium ? 57 : 50);
                       const playerMissions = updatePlayerMissions(player.dailyMissions, "BATTLESHIP", "PLAY_GAME");
 
@@ -598,6 +610,10 @@ export async function POST(req: Request) {
                           level: newStats.level,
                           exp: newStats.exp,
                           eloBattleship: newElo,
+                          rankTierBattleship: playerRank.tier,
+                          rankDivisionBattleship: playerRank.division,
+                          rankPointsBattleship: playerRank.rankPoints,
+                          // Đồng thời cập nhật global rank để tương thích ngược
                           rankTier: playerRank.tier,
                           rankDivision: playerRank.division,
                           rankPoints: playerRank.rankPoints,
@@ -703,8 +719,8 @@ export async function POST(req: Request) {
             const newWinnerElo = calculateElo(winnerElo, loserElo, 1);
             const newLoserElo = calculateElo(loserElo, winnerElo, 0);
 
-            const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
-            const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+            const winnerRank = calculateRankUpdate(winner.rankTierCaro, winner.rankDivisionCaro, winner.rankPointsCaro, "WIN");
+            const loserRank = calculateRankUpdate(loser.rankTierCaro, loser.rankDivisionCaro, loser.rankPointsCaro, "LOSE");
 
             // Cập nhật Database
             await tx.user.update({
@@ -714,6 +730,10 @@ export async function POST(req: Request) {
                 level: winnerNewStats.level,
                 exp: winnerNewStats.exp,
                 eloGomoku: newWinnerElo,
+                rankTierCaro: winnerRank.tier,
+                rankDivisionCaro: winnerRank.division,
+                rankPointsCaro: winnerRank.rankPoints,
+                // Đồng thời cập nhật global rank để tương thích ngược
                 rankTier: winnerRank.tier,
                 rankDivision: winnerRank.division,
                 rankPoints: winnerRank.rankPoints,
@@ -727,6 +747,10 @@ export async function POST(req: Request) {
                 level: loserNewStats.level,
                 exp: loserNewStats.exp,
                 eloGomoku: newLoserElo,
+                rankTierCaro: loserRank.tier,
+                rankDivisionCaro: loserRank.division,
+                rankPointsCaro: loserRank.rankPoints,
+                // Đồng thời cập nhật global rank để tương thích ngược
                 rankTier: loserRank.tier,
                 rankDivision: loserRank.division,
                 rankPoints: loserRank.rankPoints,
@@ -802,8 +826,12 @@ export async function POST(req: Request) {
           const loserMissions = updatePlayerMissions(loser.dailyMissions, room.gameType, "PLAY_GAME");
           const winnerWinMissions = updatePlayerMissions(winnerMissions, room.gameType, "WIN_GAME");
 
-          const winnerRank = calculateRankUpdate(winner.rankTier, winner.rankDivision, winner.rankPoints, "WIN");
-          const loserRank = calculateRankUpdate(loser.rankTier, loser.rankDivision, loser.rankPoints, "LOSE");
+          const tierField = isGomoku ? "rankTierCaro" : "rankTierTicTacToe";
+          const divField = isGomoku ? "rankDivisionCaro" : "rankDivisionTicTacToe";
+          const pointsField = isGomoku ? "rankPointsCaro" : "rankPointsTicTacToe";
+
+          const winnerRank = calculateRankUpdate((winner as any)[tierField] as number, (winner as any)[divField] as number, (winner as any)[pointsField] as number, "WIN");
+          const loserRank = calculateRankUpdate((loser as any)[tierField] as number, (loser as any)[divField] as number, (loser as any)[pointsField] as number, "LOSE");
 
           await tx.user.update({
             where: { id: winner.id },
@@ -813,6 +841,10 @@ export async function POST(req: Request) {
               exp: winnerNewStats.exp,
               eloGomoku: isGomoku ? newWinnerElo : undefined,
               eloTicTacToe: !isGomoku ? newWinnerElo : undefined,
+              [tierField]: winnerRank.tier,
+              [divField]: winnerRank.division,
+              [pointsField]: winnerRank.rankPoints,
+              // Đồng thời cập nhật global rank để tương thích ngược
               rankTier: winnerRank.tier,
               rankDivision: winnerRank.division,
               rankPoints: winnerRank.rankPoints,
@@ -830,6 +862,10 @@ export async function POST(req: Request) {
               exp: loserNewStats.exp,
               eloGomoku: isGomoku ? newLoserElo : undefined,
               eloTicTacToe: !isGomoku ? newLoserElo : undefined,
+              [tierField]: loserRank.tier,
+              [divField]: loserRank.division,
+              [pointsField]: loserRank.rankPoints,
+              // Đồng thời cập nhật global rank để tương thích ngược
               rankTier: loserRank.tier,
               rankDivision: loserRank.division,
               rankPoints: loserRank.rankPoints,
@@ -879,8 +915,12 @@ export async function POST(req: Request) {
           const newEloX = calculateElo(eloX, eloO, 0.5);
           const newEloO = calculateElo(eloO, eloX, 0.5);
 
-          const rankX = calculateRankUpdate(playerX.rankTier, playerX.rankDivision, playerX.rankPoints, "DRAW");
-          const rankO = calculateRankUpdate(playerO.rankTier, playerO.rankDivision, playerO.rankPoints, "DRAW");
+          const tierField = isGomoku ? "rankTierCaro" : "rankTierTicTacToe";
+          const divField = isGomoku ? "rankDivisionCaro" : "rankDivisionTicTacToe";
+          const pointsField = isGomoku ? "rankPointsCaro" : "rankPointsTicTacToe";
+
+          const rankX = calculateRankUpdate((playerX as any)[tierField] as number, (playerX as any)[divField] as number, (playerX as any)[pointsField] as number, "DRAW");
+          const rankO = calculateRankUpdate((playerO as any)[tierField] as number, (playerO as any)[divField] as number, (playerO as any)[pointsField] as number, "DRAW");
 
           await tx.user.update({
             where: { id: playerX.id },
@@ -890,6 +930,10 @@ export async function POST(req: Request) {
               exp: newStatsX.exp,
               eloGomoku: isGomoku ? newEloX : undefined,
               eloTicTacToe: !isGomoku ? newEloX : undefined,
+              [tierField]: rankX.tier,
+              [divField]: rankX.division,
+              [pointsField]: rankX.rankPoints,
+              // Đồng thời cập nhật global rank để tương thích ngược
               rankTier: rankX.tier,
               rankDivision: rankX.division,
               rankPoints: rankX.rankPoints,
@@ -904,6 +948,10 @@ export async function POST(req: Request) {
               exp: newStatsO.exp,
               eloGomoku: isGomoku ? newEloO : undefined,
               eloTicTacToe: !isGomoku ? newEloO : undefined,
+              [tierField]: rankO.tier,
+              [divField]: rankO.division,
+              [pointsField]: rankO.rankPoints,
+              // Đồng thời cập nhật global rank để tương thích ngược
               rankTier: rankO.tier,
               rankDivision: rankO.division,
               rankPoints: rankO.rankPoints,
@@ -969,8 +1017,13 @@ export async function POST(req: Request) {
               const newStats = addExp(player.level, player.exp, rewards.exp);
               const isGomoku = room.gameType === "CARO";
               const currentElo = isGomoku ? player.eloGomoku : player.eloTicTacToe;
-              const newElo = calculateElo(currentElo, 1000, 0); 
-              const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "LOSE");
+              const newElo = calculateElo(currentElo, 1000, 0);
+              
+              const tierField = isGomoku ? "rankTierCaro" : "rankTierTicTacToe";
+              const divField = isGomoku ? "rankDivisionCaro" : "rankDivisionTicTacToe";
+              const pointsField = isGomoku ? "rankPointsCaro" : "rankPointsTicTacToe";
+
+              const playerRank = calculateRankUpdate((player as any)[tierField] as number, (player as any)[divField] as number, (player as any)[pointsField] as number, "LOSE");
               const loseBPMatch = addBattlePassExp(player.battlePassLevel, player.battlePassExp, player.isPremium ? 57 : 50);
               const playerMissions = updatePlayerMissions(player.dailyMissions, room.gameType, "PLAY_GAME");
 
@@ -982,6 +1035,10 @@ export async function POST(req: Request) {
                   exp: newStats.exp,
                   eloGomoku: isGomoku ? newElo : undefined,
                   eloTicTacToe: !isGomoku ? newElo : undefined,
+                  [tierField]: playerRank.tier,
+                  [divField]: playerRank.division,
+                  [pointsField]: playerRank.rankPoints,
+                  // Đồng thời cập nhật global rank để tương thích ngược
                   rankTier: playerRank.tier,
                   rankDivision: playerRank.division,
                   rankPoints: playerRank.rankPoints,
@@ -1020,7 +1077,11 @@ export async function POST(req: Request) {
               const currentElo = isGomoku ? player.eloGomoku : player.eloTicTacToe;
               const newElo = calculateElo(currentElo, 1000, 0.5);
 
-              const playerRank = calculateRankUpdate(player.rankTier, player.rankDivision, player.rankPoints, "DRAW");
+              const tierField = isGomoku ? "rankTierCaro" : "rankTierTicTacToe";
+              const divField = isGomoku ? "rankDivisionCaro" : "rankDivisionTicTacToe";
+              const pointsField = isGomoku ? "rankPointsCaro" : "rankPointsTicTacToe";
+
+              const playerRank = calculateRankUpdate((player as any)[tierField] as number, (player as any)[divField] as number, (player as any)[pointsField] as number, "DRAW");
 
               await tx.user.update({
                 where: { id: player.id },
@@ -1030,6 +1091,10 @@ export async function POST(req: Request) {
                   exp: newStats.exp,
                   eloGomoku: isGomoku ? newElo : undefined,
                   eloTicTacToe: !isGomoku ? newElo : undefined,
+                  [tierField]: playerRank.tier,
+                  [divField]: playerRank.division,
+                  [pointsField]: playerRank.rankPoints,
+                  // Đồng thời cập nhật global rank để tương thích ngược
                   rankTier: playerRank.tier,
                   rankDivision: playerRank.division,
                   rankPoints: playerRank.rankPoints,

@@ -12,13 +12,145 @@ export async function POST(req: Request) {
     }
 
     const userId = user.id;
-    const { gameType, wager, forceBot } = await req.json(); // gameType: "TIC_TAC_TOE", "CARO" hoặc "BATTLESHIP", wager: 0, 10, 50, 100
+    const { gameType, wager, forceBot } = await req.json(); // gameType: "TIC_TAC_TOE", "CARO", "BATTLESHIP" hoặc "BAU_CUA", wager: 0, 10, 50, 100, 999999
 
-    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP"].includes(gameType)) {
+    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP", "BAU_CUA"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
     }
 
     const numericWager = Number(wager) || 0;
+
+    // --- LOGIC GHÉP TRẬN CHO BẦU CUA TÔM CÁ (Hỗ trợ 4 người chơi) ---
+    if (gameType === "BAU_CUA") {
+      // 1. Kiểm tra phòng hoạt động hiện tại
+      const activeRoom = await prisma.gameRoom.findFirst({
+        where: {
+          gameType: "BAU_CUA",
+          status: { in: ["PLAYING", "WAITING"] },
+          OR: [
+            { playerXId: userId },
+            { playerOId: userId },
+            { player3Id: userId },
+            { player4Id: userId }
+          ]
+        }
+      });
+
+      if (activeRoom) {
+        return NextResponse.json({ matched: true, room: activeRoom });
+      }
+
+      // 2. Lấy hồ sơ người chơi
+      const profile = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!profile) {
+        return NextResponse.json({ error: "Không tìm thấy hồ sơ người chơi" }, { status: 404 });
+      }
+
+      if (profile.eggs < 1) {
+        return NextResponse.json({ error: "Bạn cần ít nhất 1 Coin để tham gia chơi Bầu Cua" }, { status: 400 });
+      }
+
+      // 3. Tìm phòng WAITING trống chỗ
+      const openRoom = await prisma.gameRoom.findFirst({
+        where: {
+          gameType: "BAU_CUA",
+          status: "WAITING",
+          wager: numericWager,
+          playerXId: { not: userId },
+          OR: [
+            { playerOId: null },
+            { player3Id: null },
+            { player4Id: null }
+          ]
+        },
+        orderBy: { createdAt: "asc" }
+      });
+
+      if (openRoom) {
+        try {
+          const updatedRoom = await prisma.$transaction(async (tx) => {
+            const roomToJoin = await tx.gameRoom.findUnique({
+              where: { id: openRoom.id }
+            });
+
+            if (!roomToJoin || roomToJoin.status !== "WAITING") {
+              throw new Error("ROOM_CLOSED");
+            }
+
+            let joinField: "playerOId" | "player3Id" | "player4Id" | null = null;
+            if (!roomToJoin.playerOId) joinField = "playerOId";
+            else if (!roomToJoin.player3Id) joinField = "player3Id";
+            else if (!roomToJoin.player4Id) joinField = "player4Id";
+
+            if (!joinField) {
+              throw new Error("ROOM_FULL");
+            }
+
+            let boardObj: any = { players: [], status: "WAITING", betLimit: numericWager, bets: {}, dice: [], history: [] };
+            try {
+              boardObj = JSON.parse(roomToJoin.board);
+            } catch (e) {}
+
+            if (!boardObj.players.some((p: any) => p.id === userId)) {
+              boardObj.players.push({
+                id: userId,
+                username: profile.username,
+                avatarUrl: profile.avatarUrl,
+                ready: false
+              });
+            }
+
+            return await tx.gameRoom.update({
+              where: { id: roomToJoin.id },
+              data: {
+                [joinField]: userId,
+                board: JSON.stringify(boardObj)
+              }
+            });
+          });
+
+          return NextResponse.json({ matched: true, room: updatedRoom });
+        } catch (err: any) {
+          if (err.message === "ROOM_CLOSED" || err.message === "ROOM_FULL") {
+            // Thử lại hoặc chạy tiếp để tạo phòng mới
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      // Tạo phòng mới làm host
+      const boardObj = {
+        players: [
+          {
+            id: userId,
+            username: profile.username,
+            avatarUrl: profile.avatarUrl,
+            ready: false
+          }
+        ],
+        status: "WAITING",
+        betLimit: numericWager,
+        bets: {},
+        dice: [],
+        history: []
+      };
+
+      const newRoom = await prisma.gameRoom.create({
+        data: {
+          gameType: "BAU_CUA",
+          status: "WAITING",
+          playerXId: userId,
+          board: JSON.stringify(boardObj),
+          wager: numericWager
+        }
+      });
+
+      return NextResponse.json({ matched: true, room: newRoom });
+    }
 
     // Kiểm tra xem người chơi đã có phòng đấu mới tạo nào đang hoạt động không
     const activeRoom = await prisma.gameRoom.findFirst({

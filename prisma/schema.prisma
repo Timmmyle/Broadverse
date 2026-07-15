@@ -46,6 +46,21 @@ model User {
   rankDivision      Int      @default(4)             // Division (IV -> I)
   rankPoints        Int      @default(0)             // Điểm Rank hiện tại (0 - 100)
 
+  // Rank riêng biệt cho từng game
+  eloBauCua                Int      @default(1000)
+  rankTierTicTacToe        Int      @default(1)
+  rankDivisionTicTacToe    Int      @default(4)
+  rankPointsTicTacToe      Int      @default(0)
+  rankTierCaro             Int      @default(1)
+  rankDivisionCaro         Int      @default(4)
+  rankPointsCaro           Int      @default(0)
+  rankTierBattleship       Int      @default(1)
+  rankDivisionBattleship   Int      @default(4)
+  rankPointsBattleship     Int      @default(0)
+  rankTierBauCua           Int      @default(1)
+  rankDivisionBauCua       Int      @default(4)
+  rankPointsBauCua         Int      @default(0)
+
   // Danh tính tùy chỉnh & Kho đồ sưu tập
   equippedChickenSkin String   @default("default")     // ID Skin Gà đang trang bị
   equippedDiceSkin    String   @default("default")     // ID Skin xúc xắc đang dùng
@@ -61,6 +76,8 @@ model User {
   
   gamesAsX          GameRoom[] @relation("PlayerX")
   gamesAsO          GameRoom[] @relation("PlayerO")
+  gamesAs3          GameRoom[] @relation("Player3")
+  gamesAs4          GameRoom[] @relation("Player4")
   friendships       Friendship[] @relation("UserFriendships")
   historyAsX        MatchHistory[] @relation("HistoryPlayerX")
   historyAsO        MatchHistory[] @relation("HistoryPlayerO")
@@ -84,6 +101,8 @@ model GameRoom {
   status       String   // "WAITING", "PLAYING", "FINISHED"
   playerXId    String
   playerOId    String?
+  player3Id    String?
+  player4Id    String?
   turnPlayerId String?
   board        String   // Chuỗi JSON mã hóa bàn cờ, ví dụ: '{"0":"X", "5":"O"}'
   wager        Int      @default(0)                     // Số coin đặt cược của mỗi người chơi
@@ -94,10 +113,14 @@ model GameRoom {
 
   playerX      User     @relation("PlayerX", fields: [playerXId], references: [id])
   playerO      User?    @relation("PlayerO", fields: [playerOId], references: [id])
+  player3      User?    @relation("Player3", fields: [player3Id], references: [id])
+  player4      User?    @relation("Player4", fields: [player4Id], references: [id])
 
   @@index([status])
   @@index([playerXId])
   @@index([playerOId])
+  @@index([player3Id])
+  @@index([player4Id])
 }
 
 // 1. Hệ thống Bạn Bè (Friendship)

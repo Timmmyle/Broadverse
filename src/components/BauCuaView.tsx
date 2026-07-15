@@ -324,8 +324,8 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         // Cập nhật thông thường
         setBoard(parsedBoard);
 
-        // Reset bát đĩa khi bước vào thời gian cược mới
-        if (newStatus === "BETTING" && prevStatus !== "BETTING") {
+        // Reset bát đĩa khi bước vào thời gian cược mới (Chỉ reset khi chuyển từ WAITING sang BETTING)
+        if (newStatus === "BETTING" && prevStatus === "WAITING") {
           setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
           setDishOpen(false);
           setRolling(false);

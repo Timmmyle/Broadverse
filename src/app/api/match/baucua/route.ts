@@ -238,162 +238,175 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Chỉ chủ phòng mới có quyền lắc xúc xắc" }, { status: 403 });
       }
 
-      if (boardObj.status !== "BETTING") {
-        return NextResponse.json({ error: "Trạng thái phòng không hợp lệ để lắc" }, { status: 400 });
-      }
-
-      // Lắc ngẫu nhiên 3 xúc xắc (các giá trị 1-6 đại diện cho Bầu, Cua, Tôm, Cá, Gà, Nai)
-      const dice = [
-        Math.floor(Math.random() * 6) + 1,
-        Math.floor(Math.random() * 6) + 1,
-        Math.floor(Math.random() * 6) + 1
-      ];
-
-      // Đếm số lượng xuất hiện của từng linh vật trong kết quả xúc xắc (1-6)
-      const counts: any = {};
-      dice.forEach(val => {
-        const key = String(val);
-        counts[key] = (counts[key] || 0) + 1;
-      });
-
-      const updatedPlayersData: any[] = [];
-
-      // Tính thưởng cho từng người chơi
-      await prisma.$transaction(async (tx) => {
-        for (const p of boardObj.players) {
-          if (p.isBot) continue; // Bỏ qua bot
-
-          const playerBets = boardObj.bets[p.id] || {};
-          let totalPayout = 0;
-          let totalPlacedBet = 0;
-
-          // Duyệt qua cược của người chơi trên 6 ô
-          for (const animal of ANIMALS) {
-            const betAmount = Number(playerBets[animal]) || 0;
-            if (betAmount <= 0) continue;
-
-            totalPlacedBet += betAmount;
-            const matchCount = counts[animal] || 0;
-
-            if (matchCount > 0) {
-              // Thắng cược: nhận lại gốc + (cược * số lượng xúc xắc ra ô đó)
-              totalPayout += betAmount * (matchCount + 1);
-            }
-          }
-
-          // Cập nhật số dư Coin thực tế của người chơi trong DB
-          let updatedCoins = 0;
-          if (totalPayout > 0) {
-            const up = await tx.user.update({
-              where: { id: p.id },
-              data: { eggs: { increment: totalPayout } }
-            });
-            updatedCoins = up.eggs;
-          } else {
-            const up = await tx.user.findUnique({
-              where: { id: p.id }
-            });
-            updatedCoins = up?.eggs || 0;
-          }
-
-          // Tính toán ELO, Rank, EXP Bầu Cua dựa trên thắng/thua ròng (Cược càng cao, thưởng/phạt càng nhiều)
-          const netProfit = totalPayout - totalPlacedBet;
-          let eloChange = 0;
-          let rankPointsChange = 0;
-          let expGained = 0;
-          let rankChangeOutcome: "WIN" | "LOSE" | "DRAW" | null = null;
-
-          if (totalPlacedBet > 0) {
-            if (netProfit > 0) {
-              eloChange = Math.max(5, Math.min(50, Math.floor(netProfit * 0.2)));
-              rankPointsChange = Math.max(5, Math.min(35, Math.floor(netProfit * 0.15)));
-              expGained = Math.max(10, Math.min(300, Math.floor(netProfit * 0.5)));
-              rankChangeOutcome = "WIN";
-            } else if (netProfit < 0) {
-              const lossAmount = -netProfit;
-              eloChange = -Math.max(5, Math.min(40, Math.floor(lossAmount * 0.15)));
-              rankPointsChange = -Math.max(5, Math.min(25, Math.floor(lossAmount * 0.12)));
-              expGained = Math.max(2, Math.min(30, Math.floor(lossAmount * 0.05)));
-              rankChangeOutcome = "LOSE";
-            } else {
-              eloChange = 2; // hòa vốn
-              rankPointsChange = 2;
-              expGained = 5;
-              rankChangeOutcome = "DRAW";
-            }
-          }
-
-          if (rankChangeOutcome) {
-            const dbPlayer = await tx.user.findUnique({
-              where: { id: p.id }
-            });
-
-            if (dbPlayer) {
-              const newElo = Math.max(100, dbPlayer.eloBauCua + eloChange);
-              const rankUpdate = calculateRankUpdate(
-                dbPlayer.rankTierBauCua,
-                dbPlayer.rankDivisionBauCua,
-                dbPlayer.rankPointsBauCua,
-                rankChangeOutcome,
-                rankPointsChange
-              );
-
-              const expUpdate = addExp(dbPlayer.level, dbPlayer.exp, expGained);
-              const bpUpdate = addBattlePassExp(dbPlayer.battlePassLevel, dbPlayer.battlePassExp, Math.floor(expGained * 0.5));
-
-              await tx.user.update({
-                where: { id: p.id },
-                data: {
-                  eloBauCua: newElo,
-                  rankTierBauCua: rankUpdate.tier,
-                  rankDivisionBauCua: rankUpdate.division,
-                  rankPointsBauCua: rankUpdate.rankPoints,
-                  level: expUpdate.level,
-                  exp: expUpdate.exp,
-                  battlePassLevel: bpUpdate.level,
-                  battlePassExp: bpUpdate.exp,
-                  // Đồng bộ global rank
-                  rankTier: rankUpdate.tier,
-                  rankDivision: rankUpdate.division,
-                  rankPoints: rankUpdate.rankPoints,
-                }
-              });
-            }
-          }
-
-          updatedPlayersData.push({
-            id: p.id,
-            placedBet: totalPlacedBet,
-            payout: totalPayout,
-            profit: netProfit,
-            coins: updatedCoins
+      // Thực hiện toàn bộ logic ROLL trong 1 transaction duy nhất để tránh race condition khi đa tab/double click
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          const freshRoom = await tx.gameRoom.findUnique({
+            where: { id: roomId }
           });
-        }
-      });
 
-      // Cập nhật boardObj
-      boardObj.dice = dice;
-      boardObj.status = "FINISHED";
-      
-      // Thêm vào lịch sử 10 ván gần nhất
-      if (!boardObj.history) boardObj.history = [];
-      boardObj.history.unshift(dice);
-      if (boardObj.history.length > 10) {
-        boardObj.history = boardObj.history.slice(0, 10);
+          if (!freshRoom) {
+            throw new Error("Phòng đấu không tồn tại");
+          }
+
+          const freshBoardObj = JSON.parse(freshRoom.board);
+          if (freshBoardObj.status !== "BETTING") {
+            throw new Error("Trạng thái phòng không hợp lệ để lắc");
+          }
+
+          // Lắc ngẫu nhiên 3 xúc xắc (các giá trị 1-6 đại diện cho Bầu, Cua, Tôm, Cá, Gà, Nai)
+          const dice = [
+            Math.floor(Math.random() * 6) + 1,
+            Math.floor(Math.random() * 6) + 1,
+            Math.floor(Math.random() * 6) + 1
+          ];
+
+          // Đếm số lượng xuất hiện của từng linh vật trong kết quả xúc xắc (1-6)
+          const counts: any = {};
+          dice.forEach(val => {
+            const key = String(val);
+            counts[key] = (counts[key] || 0) + 1;
+          });
+
+          const updatedPlayersData: any[] = [];
+
+          // Tính thưởng cho từng người chơi
+          for (const p of freshBoardObj.players) {
+            if (p.isBot) continue; // Bỏ qua bot
+
+            const playerBets = freshBoardObj.bets[p.id] || {};
+            let totalPayout = 0;
+            let totalPlacedBet = 0;
+
+            // Duyệt qua cược của người chơi trên 6 ô
+            for (const animal of ANIMALS) {
+              const betAmount = Number(playerBets[animal]) || 0;
+              if (betAmount <= 0) continue;
+
+              totalPlacedBet += betAmount;
+              const matchCount = counts[animal] || 0;
+
+              if (matchCount > 0) {
+                // Thắng cược: nhận lại gốc + (cược * số lượng xúc xắc ra ô đó)
+                totalPayout += betAmount * (matchCount + 1);
+              }
+            }
+
+            // Cập nhật số dư Coin thực tế của người chơi trong DB
+            let updatedCoins = 0;
+            if (totalPayout > 0) {
+              const up = await tx.user.update({
+                where: { id: p.id },
+                data: { eggs: { increment: totalPayout } }
+              });
+              updatedCoins = up.eggs;
+            } else {
+              const up = await tx.user.findUnique({
+                where: { id: p.id }
+              });
+              updatedCoins = up?.eggs || 0;
+            }
+
+            // Tính toán ELO, Rank, EXP Bầu Cua dựa trên thắng/thua ròng (Cược càng cao, thưởng/phạt càng nhiều)
+            const netProfit = totalPayout - totalPlacedBet;
+            let eloChange = 0;
+            let rankPointsChange = 0;
+            let expGained = 0;
+            let rankChangeOutcome: "WIN" | "LOSE" | "DRAW" | null = null;
+
+            if (totalPlacedBet > 0) {
+              if (netProfit > 0) {
+                eloChange = Math.max(5, Math.min(50, Math.floor(netProfit * 0.2)));
+                rankPointsChange = Math.max(5, Math.min(35, Math.floor(netProfit * 0.15)));
+                expGained = Math.max(10, Math.min(300, Math.floor(netProfit * 0.5)));
+                rankChangeOutcome = "WIN";
+              } else if (netProfit < 0) {
+                const lossAmount = -netProfit;
+                eloChange = -Math.max(5, Math.min(40, Math.floor(lossAmount * 0.15)));
+                rankPointsChange = -Math.max(5, Math.min(25, Math.floor(lossAmount * 0.12)));
+                expGained = Math.max(2, Math.min(30, Math.floor(lossAmount * 0.05)));
+                rankChangeOutcome = "LOSE";
+              } else {
+                eloChange = 2; // hòa vốn
+                rankPointsChange = 2;
+                expGained = 5;
+                rankChangeOutcome = "DRAW";
+              }
+            }
+
+            if (rankChangeOutcome) {
+              const dbPlayer = await tx.user.findUnique({
+                where: { id: p.id }
+              });
+
+              if (dbPlayer) {
+                const newElo = Math.max(100, dbPlayer.eloBauCua + eloChange);
+                const rankUpdate = calculateRankUpdate(
+                  dbPlayer.rankTierBauCua,
+                  dbPlayer.rankDivisionBauCua,
+                  dbPlayer.rankPointsBauCua,
+                  rankChangeOutcome,
+                  rankPointsChange
+                );
+
+                const expUpdate = addExp(dbPlayer.level, dbPlayer.exp, expGained);
+                const bpUpdate = addBattlePassExp(dbPlayer.battlePassLevel, dbPlayer.battlePassExp, Math.floor(expGained * 0.5));
+
+                await tx.user.update({
+                  where: { id: p.id },
+                  data: {
+                    eloBauCua: newElo,
+                    rankTierBauCua: rankUpdate.tier,
+                    rankDivisionBauCua: rankUpdate.division,
+                    rankPointsBauCua: rankUpdate.rankPoints,
+                    level: expUpdate.level,
+                    exp: expUpdate.exp,
+                    battlePassLevel: bpUpdate.level,
+                    battlePassExp: bpUpdate.exp,
+                    // Đồng bộ global rank
+                    rankTier: rankUpdate.tier,
+                    rankDivision: rankUpdate.division,
+                    rankPoints: rankUpdate.rankPoints,
+                  }
+                });
+              }
+            }
+
+            updatedPlayersData.push({
+              id: p.id,
+              placedBet: totalPlacedBet,
+              payout: totalPayout,
+              profit: netProfit,
+              coins: updatedCoins
+            });
+          }
+
+          // Cập nhật freshBoardObj
+          freshBoardObj.dice = dice;
+          freshBoardObj.status = "FINISHED";
+          
+          if (!freshBoardObj.history) freshBoardObj.history = [];
+          freshBoardObj.history.unshift(dice);
+          if (freshBoardObj.history.length > 10) {
+            freshBoardObj.history = freshBoardObj.history.slice(0, 10);
+          }
+          freshBoardObj.results = updatedPlayersData;
+
+          const updatedRoom = await tx.gameRoom.update({
+            where: { id: roomId },
+            data: {
+              status: "FINISHED",
+              board: JSON.stringify(freshBoardObj)
+            }
+          });
+
+          return { room: updatedRoom };
+        });
+
+        return NextResponse.json(result);
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message || "Lỗi xử lý lắc xúc xắc" }, { status: 400 });
       }
-
-      // Lưu kết quả tính toán vào boardObj để client hiển thị
-      boardObj.results = updatedPlayersData;
-
-      const updatedRoom = await prisma.gameRoom.update({
-        where: { id: roomId },
-        data: {
-          status: "FINISHED",
-          board: JSON.stringify(boardObj)
-        }
-      });
-
-      return NextResponse.json({ room: updatedRoom });
     }
 
     // 6. Hành động: CHƠI LẠI VÁN MỚI (PLAY_AGAIN)

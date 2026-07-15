@@ -1071,7 +1071,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               { event: "INSERT", schema: "public", table: "GameRoom" },
               (payload: any) => {
                 const room = payload.new;
-                if ((room.status === "PLAYING" || room.status === "WAITING") && (room.playerXId === profile.id || room.playerOId === profile.id)) {
+                if ((room.status === "PLAYING" || room.status === "WAITING") && (
+                  room.playerXId === profile.id || 
+                  room.playerOId === profile.id || 
+                  room.player3Id === profile.id || 
+                  room.player4Id === profile.id
+                )) {
                   if (matchmakingIntervalRef.current) {
                     clearInterval(matchmakingIntervalRef.current);
                     matchmakingIntervalRef.current = null;

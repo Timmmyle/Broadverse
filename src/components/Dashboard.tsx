@@ -134,6 +134,21 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     wager: number;
   } | null>(null);
 
+  // Tự động đồng bộ matchWager khi chọn Bầu Cua hoặc các game khác
+  useEffect(() => {
+    if (selectedGame === "BAU_CUA") {
+      if (selectedMode === "RANDOM") {
+        setMatchWager(999999);
+      } else if (matchWager === 0 || matchWager === 999999) {
+        setMatchWager(10); // mặc định giới hạn 10 cho Friend/Bot
+      }
+    } else {
+      if (matchWager === 999999) {
+        setMatchWager(0);
+      }
+    }
+  }, [selectedGame, selectedMode]);
+
   const fetchFriends = async () => {
     setLoadingFriends(true);
     try {
@@ -1021,7 +1036,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
   // 7. Bắt đầu ghép trận ngẫu nhiên (Matchmaking)
   const handleStartMatchmaking = async () => {
-    if (profile.eggs < matchWager) {
+    const requiredEggs = selectedGame === "BAU_CUA" ? 1 : matchWager;
+    if (profile.eggs < requiredEggs) {
       alert("Bạn không đủ Trứng cược để tham gia hàng chờ này!");
       return;
     }
@@ -1534,20 +1550,27 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                       {selectedMode === "RANDOM" && (
                         <div className="space-y-4">
-                          <div>
-                            <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược trận đấu (Coin):</span>
-                            <div className="grid grid-cols-4 gap-2">
-                              {(selectedGame === "BAU_CUA" ? [10, 50, 100, 999999] : [0, 10, 50, 100]).map((c) => (
-                                <button
-                                  key={c}
-                                  onClick={() => setMatchWager(c)}
-                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
-                                >
-                                  {c === 999999 ? "K.Giới Hạn" : `${c} Coin`}
-                                </button>
-                              ))}
+                          {selectedGame !== "BAU_CUA" ? (
+                            <div>
+                              <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược trận đấu (Coin):</span>
+                              <div className="grid grid-cols-4 gap-2">
+                                {[0, 10, 50, 100].map((c) => (
+                                  <button
+                                    key={c}
+                                    onClick={() => setMatchWager(c)}
+                                    className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                                  >
+                                    {c} Coin
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="text-[9.5px] text-[#F3E5AB]/75 border border-[#D4AF37]/10 p-3 rounded bg-black/25 flex flex-col gap-1 text-left">
+                              <span className="font-extrabold text-[#FF9F0A] uppercase tracking-wider block">🏆 CHẾ ĐỘ XẾP HẠNG BẦU CUA</span>
+                              <span className="leading-relaxed">Không có mức cược cố định khi tìm trận. Bạn sẽ đặt cược trực tiếp trong trận đấu bằng số Coin hiện có của mình!</span>
+                            </div>
+                          )}
                           <button
                             onClick={handleStartMatchmaking}
                             className="w-full pixel-btn pixel-btn-yellow py-3 text-xs font-bold gap-2"

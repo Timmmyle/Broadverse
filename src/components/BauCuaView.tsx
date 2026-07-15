@@ -111,33 +111,31 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         { event: "UPDATE", schema: "public", table: "GameRoom", filter: `id=eq.${roomId}` },
         async (payload: any) => {
           const updatedRoom = payload.new;
-          setRoom(updatedRoom);
           const parsedBoard = JSON.parse(updatedRoom.board);
           
-          // Xử lý các thay đổi trạng thái game
           const prevStatus = board?.status;
           const newStatus = parsedBoard.status;
 
-          setBoard(parsedBoard);
-
-          // Nếu trạng thái đổi sang BETTING (Host vừa Start)
-          if (newStatus === "BETTING" && prevStatus !== "BETTING") {
-            setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
-            setDishOpen(false);
-            setRolling(false);
-            startCountdown();
-          }
-
           // Nếu trạng thái đổi sang FINISHED (Xúc xắc đã lắc xong)
           if (newStatus === "FINISHED" && prevStatus !== "FINISHED") {
-            // Dừng đếm ngược
             if (timerRef.current) clearInterval(timerRef.current);
+            triggerRollAnimation(parsedBoard.dice, () => {
+              setRoom(updatedRoom);
+              setBoard(parsedBoard);
+              refreshProfile();
+            });
+          } else {
+            // Cập nhật thông thường
+            setRoom(updatedRoom);
+            setBoard(parsedBoard);
             
-            // Chạy hiệu ứng xúc xắc quay
-            triggerRollAnimation(parsedBoard.dice);
+            if (newStatus === "BETTING" && prevStatus !== "BETTING") {
+              setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
+              setDishOpen(false);
+              setRolling(false);
+            }
           }
 
-          // Cập nhật lại số dư ví nếu cược thay đổi từ người khác
           refreshProfile();
         }
       )
@@ -149,32 +147,44 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     };
   }, [roomId, board]);
 
-  // 3. Hàm chạy đếm ngược đặt cược ở client
-  const startCountdown = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    setTimeLeft(20);
+  // 3. Đếm ngược đặt cược ở client dựa trên bettingEndsAt
+  useEffect(() => {
+    if (board?.status !== "BETTING" || !board?.bettingEndsAt) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
+    const calculateTimeLeft = () => {
+      const endsAt = Number(board.bettingEndsAt);
+      if (!endsAt) return 20;
+      const diff = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      return diff;
+    };
+
+    setTimeLeft(calculateTimeLeft());
 
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          // Hết giờ cược: Chỉ chủ phòng mới có quyền gọi Roll xúc xắc
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remaining = calculateTimeLeft();
+      setTimeLeft(remaining);
+      if (remaining <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+      }
     }, 1000);
-  };
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [board?.status, board?.bettingEndsAt]);
 
   // Tự động lắc nếu hết giờ (chủ phòng)
   useEffect(() => {
     if (timeLeft === 0 && board?.status === "BETTING" && room?.playerXId === profile.id) {
       handleRollDice();
     }
-  }, [timeLeft, board?.status]);
+  }, [timeLeft, board?.status, room?.playerXId, profile.id]);
 
   // 4. Hiệu ứng xúc xắc quay linh vật
-  const triggerRollAnimation = (finalDice: number[]) => {
+  const triggerRollAnimation = (finalDice: number[], onDone?: () => void) => {
     setRolling(true);
     setDishOpen(false);
 
@@ -194,12 +204,18 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         // Mở bát sau khi xúc xắc dừng lại
         setTimeout(() => {
           setDishOpen(true);
+          
+          if (onDone) {
+            onDone();
+          } else {
+            refreshProfile();
+          }
+
           // Bắn pháo hoa nếu thắng ròng
           const myResult = board?.results?.find((r: any) => r.id === profile.id);
           if (myResult && myResult.profit > 0) {
             confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
           }
-          refreshProfile();
         }, 800);
       }
     }, 100);
@@ -238,6 +254,14 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
   };
 
+  const updateRoomState = (newRoom: any) => {
+    setRoom(newRoom);
+    if (newRoom.board) {
+      const parsedBoard = JSON.parse(newRoom.board);
+      setBoard(parsedBoard);
+    }
+  };
+
   // Gửi cược lên Server
   const handleConfirmBets = async () => {
     if (board?.status !== "BETTING" || submitting) return;
@@ -254,11 +278,15 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         })
       });
 
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) {
+          updateRoomState(data.room);
+        }
+        refreshProfile();
+      } else {
         const err = await res.json();
         alert(err.error || "Gửi cược thất bại!");
-      } else {
-        refreshProfile();
       }
     } catch (e) {
       console.error(e);
@@ -270,11 +298,15 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
   // 6. Thao tác Host: Sẵn sàng, Thêm Bot, Bắt đầu, Lắc xúc xắc, Rời phòng
   const handleToggleReady = async () => {
     try {
-      await fetch("/api/match/baucua", {
+      const res = await fetch("/api/match/baucua", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "READY", roomId })
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) updateRoomState(data.room);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -287,7 +319,10 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "ADD_BOT", roomId })
       });
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) updateRoomState(data.room);
+      } else {
         const err = await res.json();
         alert(err.error || "Thêm Bot thất bại!");
       }
@@ -303,7 +338,15 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "START", roomId })
       });
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) {
+          updateRoomState(data.room);
+          setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
+          setDishOpen(false);
+          setRolling(false);
+        }
+      } else {
         const err = await res.json();
         alert(err.error || "Bắt đầu game thất bại!");
       }
@@ -319,7 +362,16 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "ROLL", roomId })
       });
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) {
+          const parsedBoard = JSON.parse(data.room.board);
+          triggerRollAnimation(parsedBoard.dice, () => {
+            updateRoomState(data.room);
+            refreshProfile();
+          });
+        }
+      } else {
         const err = await res.json();
         alert(err.error || "Lắc xúc xắc thất bại!");
       }
@@ -335,7 +387,10 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "PLAY_AGAIN", roomId })
       });
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) updateRoomState(data.room);
+      } else {
         const err = await res.json();
         alert(err.error || "Reset game thất bại!");
       }

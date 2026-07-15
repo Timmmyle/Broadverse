@@ -264,12 +264,17 @@ export function calculateRankUpdate(
   currentTier: number,
   currentDivision: number,
   currentPoints: number,
-  outcome: "WIN" | "LOSE" | "DRAW"
+  outcome: "WIN" | "LOSE" | "DRAW",
+  overridePointsChange?: number
 ): { tier: number; division: number; rankPoints: number; promoted: boolean; demoted: boolean } {
   let pointsChange = 0;
-  if (outcome === "WIN") pointsChange = 25;
-  else if (outcome === "LOSE") pointsChange = -15;
-  else if (outcome === "DRAW") pointsChange = 5;
+  if (overridePointsChange !== undefined) {
+    pointsChange = overridePointsChange;
+  } else {
+    if (outcome === "WIN") pointsChange = 25;
+    else if (outcome === "LOSE") pointsChange = -15;
+    else if (outcome === "DRAW") pointsChange = 5;
+  }
 
   let newPoints = currentPoints + pointsChange;
   let tier = currentTier;

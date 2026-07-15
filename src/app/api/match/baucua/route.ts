@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { calculateElo, calculateRankUpdate } from "@/lib/progression";
+import { calculateElo, calculateRankUpdate, addExp, addBattlePassExp } from "@/lib/progression";
 
 // Các linh vật trong Bầu Cua
 const ANIMALS = ["bau", "cua", "tom", "ca", "ga", "nai"];
@@ -123,17 +123,21 @@ export async function POST(req: Request) {
       boardObj.status = "BETTING";
       boardObj.bets = {};
       boardObj.dice = [];
+      boardObj.bettingEndsAt = Date.now() + 20000; // 20 giây cược từ thời điểm bắt đầu
 
       // Cho các BOT đặt cược ngẫu nhiên ngay từ đầu để sinh động
       boardObj.players.forEach((p: any) => {
         if (p.isBot) {
           const limit = boardObj.betLimit > 0 ? boardObj.betLimit : 200;
-          const botBetCount = Math.floor(Math.random() * 2) + 1; // cược 1 hoặc 2 ô
+          const botBetCount = Math.floor(Math.random() * 2) + 2; // cược 2 hoặc 3 ô cho sinh động!
           const botBets: any = {};
           
           for (let i = 0; i < botBetCount; i++) {
             const randomAnimal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-            const randomAmount = [5, 10, 20, 50].filter(v => v <= limit)[Math.floor(Math.random() * 3) || 0] || 5;
+            const allowedAmounts = limit >= 999999 ? [10, 50, 100, 200] : [5, 10, 20, 50].filter(v => v <= limit);
+            const amountIdx = Math.floor(Math.random() * allowedAmounts.length);
+            const randomAmount = allowedAmounts[amountIdx] || 5;
+            
             botBets[randomAnimal] = (botBets[randomAnimal] || 0) + randomAmount;
           }
           boardObj.bets[p.id] = botBets;
@@ -282,25 +286,34 @@ export async function POST(req: Request) {
             updatedCoins = up?.eggs || 0;
           }
 
-          // Tính toán ELO và Rank Bầu Cua dựa trên thắng/thua ròng
+          // Tính toán ELO, Rank, EXP Bầu Cua dựa trên thắng/thua ròng (Cược càng cao, thưởng/phạt càng nhiều)
           const netProfit = totalPayout - totalPlacedBet;
           let eloChange = 0;
+          let rankPointsChange = 0;
+          let expGained = 0;
           let rankChangeOutcome: "WIN" | "LOSE" | "DRAW" | null = null;
 
           if (totalPlacedBet > 0) {
             if (netProfit > 0) {
-              eloChange = 15;
+              eloChange = Math.max(5, Math.min(50, Math.floor(netProfit * 0.2)));
+              rankPointsChange = Math.max(5, Math.min(35, Math.floor(netProfit * 0.15)));
+              expGained = Math.max(10, Math.min(300, Math.floor(netProfit * 0.5)));
               rankChangeOutcome = "WIN";
             } else if (netProfit < 0) {
-              eloChange = -10;
+              const lossAmount = -netProfit;
+              eloChange = -Math.max(5, Math.min(40, Math.floor(lossAmount * 0.15)));
+              rankPointsChange = -Math.max(5, Math.min(25, Math.floor(lossAmount * 0.12)));
+              expGained = Math.max(2, Math.min(30, Math.floor(lossAmount * 0.05)));
               rankChangeOutcome = "LOSE";
             } else {
               eloChange = 2; // hòa vốn
+              rankPointsChange = 2;
+              expGained = 5;
               rankChangeOutcome = "DRAW";
             }
           }
 
-          if (eloChange !== 0 && rankChangeOutcome) {
+          if (rankChangeOutcome) {
             const dbPlayer = await tx.user.findUnique({
               where: { id: p.id }
             });
@@ -311,8 +324,12 @@ export async function POST(req: Request) {
                 dbPlayer.rankTierBauCua,
                 dbPlayer.rankDivisionBauCua,
                 dbPlayer.rankPointsBauCua,
-                rankChangeOutcome
+                rankChangeOutcome,
+                rankPointsChange
               );
+
+              const expUpdate = addExp(dbPlayer.level, dbPlayer.exp, expGained);
+              const bpUpdate = addBattlePassExp(dbPlayer.battlePassLevel, dbPlayer.battlePassExp, Math.floor(expGained * 0.5));
 
               await tx.user.update({
                 where: { id: p.id },
@@ -321,6 +338,10 @@ export async function POST(req: Request) {
                   rankTierBauCua: rankUpdate.tier,
                   rankDivisionBauCua: rankUpdate.division,
                   rankPointsBauCua: rankUpdate.rankPoints,
+                  level: expUpdate.level,
+                  exp: expUpdate.exp,
+                  battlePassLevel: bpUpdate.level,
+                  battlePassExp: bpUpdate.exp,
                   // Đồng bộ global rank
                   rankTier: rankUpdate.tier,
                   rankDivision: rankUpdate.division,

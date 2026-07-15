@@ -324,9 +324,13 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         // Cập nhật thông thường
         setBoard(parsedBoard);
 
-        // Reset bát đĩa khi bước vào thời gian cược mới (Chỉ reset khi chuyển từ WAITING sang BETTING)
-        if (newStatus === "BETTING" && prevStatus === "WAITING") {
-          setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
+        // Reset bát đĩa khi bước vào thời gian cược mới (Chuyển sang BETTING)
+        if (newStatus === "BETTING" && prevStatus !== "BETTING") {
+          // Chỉ reset cược về 0 nếu đây là một lượt chơi mới (chuyển từ WAITING hoặc FINISHED sang BETTING)
+          // Nếu prevStatus là undefined (mới mount/F5), ta giữ nguyên cược đã đồng bộ từ database
+          if (prevStatus !== undefined) {
+            setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
+          }
           setDishOpen(false);
           setRolling(false);
         }

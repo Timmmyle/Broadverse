@@ -41,6 +41,17 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
   const animationTriggeredRef = useRef<string | null>(null);
   const [transitioning, setTransitioning] = useState(false);
 
+  const boardRef = useRef<any>(null);
+  const roomRef = useRef<any>(null);
+
+  useEffect(() => {
+    boardRef.current = board;
+  }, [board]);
+
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+
   // Cược cục bộ tạm thời (trước khi lưu cược)
   const [localBets, setLocalBets] = useState<Record<string, number>>({
     "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0
@@ -87,7 +98,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     fetchRoom();
   }, [roomId, profile.id]);
 
-  // 2. Đăng ký Supabase Realtime lắng nghe thay đổi của phòng
+  // 2. Đăng ký Supabase Realtime lắng nghe thay đổi của phòng (Chạy duy nhất 1 lần khi mount)
   useEffect(() => {
     if (!roomId) return;
 
@@ -108,15 +119,15 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
       supabase.removeChannel(channel);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [roomId, board]);
+  }, [roomId]);
 
-  // 2.5 Polling dự phòng (mỗi 3.5 giây) đề phòng kết nối WebSocket Realtime bị chặn hoặc đóng
+  // 2.5 Polling dự phòng (mỗi 3.5 giây) đề phòng kết nối WebSocket Realtime bị chặn hoặc đóng (Chạy duy nhất 1 lần khi mount)
   useEffect(() => {
     if (!roomId) return;
 
     const interval = setInterval(async () => {
       // Chỉ poll khi không ở trạng thái FINISHED
-      if (board?.status === "FINISHED") return;
+      if (boardRef.current?.status === "FINISHED") return;
 
       try {
         const res = await fetch(`/api/matchmaking/join`, {
@@ -128,17 +139,22 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
           const data = await res.json();
           if (data.room) {
             const parsedBoard = JSON.parse(data.room.board);
-            
-            // So sánh xem có thay đổi quan trọng để cập nhật không
-            const hasStatusChanged = data.room.status !== room.status || parsedBoard.status !== board.status;
-            const hasBetsChanged = JSON.stringify(parsedBoard.bets) !== JSON.stringify(board.bets);
-            const hasPlayersChanged = parsedBoard.players?.length !== board.players?.length || 
-              parsedBoard.players?.some((p: any, idx: number) => p.ready !== board.players?.[idx]?.ready);
+            const currentBoardObj = boardRef.current;
+            const currentRoomObj = roomRef.current;
 
-            if (hasStatusChanged || hasBetsChanged || hasPlayersChanged) {
-              setRoom(data.room);
-              setBoard(parsedBoard);
-              refreshProfile();
+            if (currentBoardObj) {
+              const hasStatusChanged = data.room.status !== currentRoomObj?.status || parsedBoard.status !== currentBoardObj.status;
+              const hasBetsChanged = JSON.stringify(parsedBoard.bets) !== JSON.stringify(currentBoardObj.bets);
+              const hasPlayersChanged = parsedBoard.players?.length !== currentBoardObj.players?.length || 
+                parsedBoard.players?.some((p: any, idx: number) => p.ready !== currentBoardObj.players?.[idx]?.ready);
+
+              if (hasStatusChanged || hasBetsChanged || hasPlayersChanged) {
+                updateRoomState(data.room);
+                refreshProfile();
+              }
+            } else {
+              // Lần đầu tải chưa có board
+              updateRoomState(data.room);
             }
           }
         }
@@ -148,7 +164,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     }, 3500);
 
     return () => clearInterval(interval);
-  }, [roomId, room, board]);
+  }, [roomId]);
 
   // 3. Đếm ngược đặt cược ở client (Cơ chế đếm lùi cục bộ chống lệch múi giờ)
   useEffect(() => {

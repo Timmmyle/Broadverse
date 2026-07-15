@@ -288,7 +288,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     if (newRoom.board) {
       const parsedBoard = JSON.parse(newRoom.board);
       
-      const prevStatus = board?.status;
+      const prevStatus = boardRef.current?.status; // Dùng boardRef tránh stale closures
       const newStatus = parsedBoard?.status;
       const rollId = parsedBoard.dice?.join(",");
 
@@ -310,18 +310,30 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         });
       }
 
-      // 2. Chuyển từ BETTING sang FINISHED -> Kích hoạt quay xúc xắc (chạy duy nhất 1 lần cho mỗi roll)
-      if (newStatus === "FINISHED" && prevStatus === "BETTING" && rollId && animationTriggeredRef.current !== rollId) {
-        animationTriggeredRef.current = rollId;
-        
-        if (timerRef.current) clearInterval(timerRef.current);
-        
-        triggerRollAnimation(parsedBoard.dice, () => {
+      // 2. Xử lý trạng thái FINISHED (Mở bát kết quả)
+      if (newStatus === "FINISHED") {
+        if (prevStatus === undefined) {
+          // F5 / Tải trang lần đầu: Mở bát hiển thị kết quả luôn
           setBoard(parsedBoard);
-          refreshProfile();
-        });
+          setRollingDice(parsedBoard.dice || [1, 2, 3]);
+          setDishOpen(true);
+          setRolling(false);
+        } else if (rollId && animationTriggeredRef.current !== rollId) {
+          // Đang trong trận và có kết quả mới -> Chạy hiệu ứng lắc bát
+          animationTriggeredRef.current = rollId;
+          
+          if (timerRef.current) clearInterval(timerRef.current);
+          
+          triggerRollAnimation(parsedBoard.dice, () => {
+            setBoard(parsedBoard);
+            refreshProfile();
+          });
+        } else {
+          // Đã chạy hiệu ứng rồi, chỉ cập nhật state thông thường
+          setBoard(parsedBoard);
+        }
       } else {
-        // Cập nhật thông thường
+        // Cập nhật các trạng thái khác (WAITING, BETTING)
         setBoard(parsedBoard);
 
         // Reset bát đĩa khi bước vào thời gian cược mới (Chuyển sang BETTING)

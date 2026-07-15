@@ -1068,10 +1068,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             .channel(`matchmaking_${profile.id}`)
             .on(
               "postgres_changes",
-              { event: "INSERT", schema: "public", table: "GameRoom" },
+              { event: "*", schema: "public", table: "GameRoom" },
               (payload: any) => {
                 const room = payload.new;
-                if ((room.status === "PLAYING" || room.status === "WAITING") && (
+                if (room && (room.status === "PLAYING" || room.status === "WAITING") && (
                   room.playerXId === profile.id || 
                   room.playerOId === profile.id || 
                   room.player3Id === profile.id || 

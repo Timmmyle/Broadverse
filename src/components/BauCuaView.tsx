@@ -184,28 +184,37 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     return () => clearInterval(interval);
   }, [roomId, room, board]);
 
-  // 3. Đếm ngược đặt cược ở client dựa trên bettingEndsAt
+  // 3. Đếm ngược đặt cược ở client (Cơ chế đếm lùi cục bộ chống lệch múi giờ)
   useEffect(() => {
-    if (board?.status !== "BETTING" || !board?.bettingEndsAt) {
+    if (board?.status !== "BETTING") {
+      setTimeLeft(20);
       if (timerRef.current) clearInterval(timerRef.current);
       return;
     }
 
-    const calculateTimeLeft = () => {
-      const endsAt = Number(board.bettingEndsAt);
-      if (!endsAt) return 20;
-      const diff = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+    const getInitialTime = () => {
+      if (!board?.bettingEndsAt) return 20;
+      const endsAt = typeof board.bettingEndsAt === "string" ? Date.parse(board.bettingEndsAt) : Number(board.bettingEndsAt);
+      if (isNaN(endsAt)) return 20;
+      
+      const diff = Math.ceil((endsAt - Date.now()) / 1000);
+      if (diff <= 0 || diff > 20) return 20; // Nếu âm hoặc lệch quá nhiều, mặc định cược trong 20s
       return diff;
     };
 
-    setTimeLeft(calculateTimeLeft());
+    const initial = getInitialTime();
+    setTimeLeft(initial);
+
+    if (timerRef.current) clearInterval(timerRef.current);
 
     timerRef.current = setInterval(() => {
-      const remaining = calculateTimeLeft();
-      setTimeLeft(remaining);
-      if (remaining <= 0) {
-        if (timerRef.current) clearInterval(timerRef.current);
-      }
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => {

@@ -7,18 +7,15 @@ import {
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
-// Các linh vật Bầu Cua và Emoji tương ứng
+// Các linh vật Bầu Cua và Emoji tương ứng (lưu bằng id từ "1" tới "6" để tối ưu hóa lưu trữ DB)
 const ANIMALS = [
-  { id: "bau", name: "Bầu", icon: "🪵", color: "bg-amber-950/40 border-amber-800 text-amber-300" },
-  { id: "cua", name: "Cua", icon: "🦀", color: "bg-red-950/40 border-red-800 text-red-400" },
-  { id: "tom", name: "Tôm", icon: "🦐", color: "bg-orange-950/40 border-orange-800 text-orange-400" },
-  { id: "ca", name: "Cá", icon: "🐟", color: "bg-blue-950/40 border-blue-800 text-blue-400" },
-  { id: "ga", name: "Gà", icon: " Rooster", color: "bg-yellow-950/40 border-yellow-800 text-yellow-300" },
-  { id: "nai", name: "Nại", icon: "🦌", color: "bg-emerald-950/40 border-emerald-800 text-emerald-300" }
+  { id: "1", name: "Bầu", icon: "🪵", color: "bg-amber-950/40 border-amber-800 text-amber-300" },
+  { id: "2", name: "Cua", icon: "🦀", color: "bg-red-950/40 border-red-800 text-red-400" },
+  { id: "3", name: "Tôm", icon: "🦐", color: "bg-orange-950/40 border-orange-800 text-orange-400" },
+  { id: "4", name: "Cá", icon: "🐟", color: "bg-blue-950/40 border-blue-800 text-blue-400" },
+  { id: "5", name: "Gà", icon: "🐓", color: "bg-yellow-950/40 border-yellow-800 text-yellow-300" },
+  { id: "6", name: "Nai", icon: "🦌", color: "bg-emerald-950/40 border-emerald-800 text-emerald-300" }
 ];
-
-// Định nghĩa con vật cụ thể cho Gà
-ANIMALS[4].icon = "🐓"; // Gà Rooster 🐓
 
 interface BauCuaViewProps {
   mode: "BOT" | "FRIEND" | "RANDOM";
@@ -42,7 +39,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
 
   // Cược cục bộ tạm thời (trước khi lưu cược)
   const [localBets, setLocalBets] = useState<Record<string, number>>({
-    bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0
+    "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0
   });
 
   // Countdown timer hiển thị ở client
@@ -51,7 +48,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
 
   // Hiệu ứng xúc xắc xoay
   const [rolling, setRolling] = useState(false);
-  const [rollingDice, setRollingDice] = useState<number[]>([0, 1, 2]); // Bầu, Cua, Tôm làm mặc định
+  const [rollingDice, setRollingDice] = useState<number[]>([1, 2, 3]); // Bầu, Cua, Tôm làm mặc định (1, 2, 3)
 
   // Mở bát
   const [dishOpen, setDishOpen] = useState(true);
@@ -80,12 +77,12 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
             // Đồng bộ cược cục bộ nếu có sẵn
             if (parsedBoard.bets[profile.id]) {
               setLocalBets({
-                bau: parsedBoard.bets[profile.id].bau || 0,
-                cua: parsedBoard.bets[profile.id].cua || 0,
-                tom: parsedBoard.bets[profile.id].tom || 0,
-                ca: parsedBoard.bets[profile.id].ca || 0,
-                ga: parsedBoard.bets[profile.id].ga || 0,
-                nai: parsedBoard.bets[profile.id].nai || 0,
+                "1": parsedBoard.bets[profile.id]["1"] || 0,
+                "2": parsedBoard.bets[profile.id]["2"] || 0,
+                "3": parsedBoard.bets[profile.id]["3"] || 0,
+                "4": parsedBoard.bets[profile.id]["4"] || 0,
+                "5": parsedBoard.bets[profile.id]["5"] || 0,
+                "6": parsedBoard.bets[profile.id]["6"] || 0,
               });
             }
           }
@@ -130,7 +127,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
             setBoard(parsedBoard);
             
             if (newStatus === "BETTING" && prevStatus !== "BETTING") {
-              setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
+              setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
               setDishOpen(false);
               setRolling(false);
             }
@@ -291,7 +288,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
   // Xóa sạch cược cục bộ
   const handleClearBets = () => {
     if (board?.status !== "BETTING") return;
-    setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
+    setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
   };
 
   const updateRoomState = (newRoom: any) => {
@@ -382,7 +379,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         const data = await res.json();
         if (data.room) {
           updateRoomState(data.room);
-          setLocalBets({ bau: 0, cua: 0, tom: 0, ca: 0, ga: 0, nai: 0 });
+          setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
           setDishOpen(false);
           setRolling(false);
         }
@@ -555,17 +552,19 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                 {/* Bát Đĩa Lắc Xúc Xắc */}
                 <div className="relative w-40 h-40 bg-[#16161a] rounded-full border-4 border-[#D4AF37]/20 flex items-center justify-center shadow-[inset_0_4px_16px_rgba(0,0,0,0.6)]">
                   
-                  {/* Bát úp (khi đang lắc) */}
+                  {/* Bát úp (khi đang lắc hoặc khi đang trong thời gian cược) */}
                   {!dishOpen ? (
-                    <div className={`w-32 h-32 bg-radial from-amber-600 to-amber-950 rounded-full border-2 border-[#D4AF37]/30 shadow-2xl flex flex-col items-center justify-center ${rolling ? "animate-bounce" : ""}`}>
-                      <span className="text-2xl">🎲</span>
-                      <span className="text-[8px] text-[#F3E5AB]/60 font-extrabold tracking-widest mt-1">ĐANG LẮC</span>
+                    <div className={`w-32 h-32 bg-radial from-amber-700 to-amber-950 rounded-full border-2 border-[#D4AF37]/35 shadow-2xl flex flex-col items-center justify-center text-center p-2 ${rolling ? "animate-bounce" : ""}`}>
+                      <span className="text-xl">{rolling ? "🎲" : "🪙"}</span>
+                      <span className="text-[7.5px] text-[#F3E5AB]/60 font-extrabold tracking-wider mt-1.5 uppercase leading-normal">
+                        {rolling ? "ĐANG LẮC..." : "ĐÃ ÚP BÁT\nHÃY ĐẶT CƯỢC"}
+                      </span>
                     </div>
                   ) : (
                     /* 3 Viên Xúc xắc linh vật */
                     <div className="flex gap-4">
                       {rollingDice.map((idx, i) => {
-                        const anim = ANIMALS[idx];
+                        const anim = ANIMALS[idx - 1];
                         return (
                           <div 
                             key={i} 
@@ -599,7 +598,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                       <div className="flex items-center justify-center gap-1.5">
                         {rollingDice.map((idx, i) => (
                           <span key={i} className="text-sm bg-black/40 px-2 py-0.5 rounded border border-[#D4AF37]/15">
-                            {ANIMALS[idx]?.icon} {ANIMALS[idx]?.name}
+                            {ANIMALS[idx - 1]?.icon} {ANIMALS[idx - 1]?.name}
                           </span>
                         ))}
                       </div>
@@ -854,7 +853,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                     <div className="flex gap-1.5">
                       {roll.map((idx, k) => (
                         <span key={k} className="text-base bg-black/40 px-1 py-0.5 rounded leading-none">
-                          {ANIMALS[idx]?.icon}
+                          {ANIMALS[idx - 1]?.icon}
                         </span>
                       ))}
                     </div>

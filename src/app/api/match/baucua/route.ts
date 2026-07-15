@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { calculateElo, calculateRankUpdate, addExp, addBattlePassExp } from "@/lib/progression";
 
-// Các linh vật trong Bầu Cua
-const ANIMALS = ["bau", "cua", "tom", "ca", "ga", "nai"];
+// Các linh vật trong Bầu Cua (1: bau, 2: cua, 3: tom, 4: ca, 5: ga, 6: nai)
+const ANIMALS = ["1", "2", "3", "4", "5", "6"];
 
 export async function POST(req: Request) {
   try {
@@ -125,20 +125,30 @@ export async function POST(req: Request) {
       boardObj.dice = [];
       boardObj.bettingEndsAt = Date.now() + 20000; // 20 giây cược từ thời điểm bắt đầu
 
-      // Cho các BOT đặt cược ngẫu nhiên ngay từ đầu để sinh động
+      // Cho các BOT đặt cược ngẫu nhiên ngay từ đầu để sinh động (Cược từ 10 - 100, chia ra hoặc cược 1 chỗ)
       boardObj.players.forEach((p: any) => {
         if (p.isBot) {
           const limit = boardObj.betLimit > 0 ? boardObj.betLimit : 200;
-          const botBetCount = Math.floor(Math.random() * 2) + 2; // cược 2 hoặc 3 ô cho sinh động!
-          const botBets: any = {};
+          const totalBet = Math.floor(Math.random() * 91) + 10; // 10 - 100 Coin
+          const finalBet = Math.min(totalBet, limit);
           
-          for (let i = 0; i < botBetCount; i++) {
-            const randomAnimal = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-            const allowedAmounts = limit >= 999999 ? [10, 50, 100, 200] : [5, 10, 20, 50].filter(v => v <= limit);
-            const amountIdx = Math.floor(Math.random() * allowedAmounts.length);
-            const randomAmount = allowedAmounts[amountIdx] || 5;
+          const botBets: any = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 };
+          
+          const split = Math.random() > 0.5;
+          if (split && finalBet >= 20) {
+            const count = Math.random() > 0.5 ? 2 : 3;
+            let remaining = finalBet;
+            const slots = ["1", "2", "3", "4", "5", "6"].sort(() => Math.random() - 0.5);
             
-            botBets[randomAnimal] = (botBets[randomAnimal] || 0) + randomAmount;
+            for (let i = 0; i < count - 1; i++) {
+              const chunk = Math.floor(Math.random() * (remaining - 10)) + 5;
+              botBets[slots[i]] = chunk;
+              remaining -= chunk;
+            }
+            botBets[slots[count - 1]] = remaining;
+          } else {
+            const randomSlot = String(Math.floor(Math.random() * 6) + 1);
+            botBets[randomSlot] = finalBet;
           }
           boardObj.bets[p.id] = botBets;
         }
@@ -232,18 +242,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Trạng thái phòng không hợp lệ để lắc" }, { status: 400 });
       }
 
-      // Lắc ngẫu nhiên 3 xúc xắc (các giá trị 0-5 đại diện cho Bầu, Cua, Tôm, Cá, Gà, Nai)
+      // Lắc ngẫu nhiên 3 xúc xắc (các giá trị 1-6 đại diện cho Bầu, Cua, Tôm, Cá, Gà, Nai)
       const dice = [
-        Math.floor(Math.random() * 6),
-        Math.floor(Math.random() * 6),
-        Math.floor(Math.random() * 6)
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1
       ];
 
-      // Đếm số lượng xuất hiện của từng linh vật trong kết quả xúc xắc
-      const diceAnimals = dice.map(idx => ANIMALS[idx]);
+      // Đếm số lượng xuất hiện của từng linh vật trong kết quả xúc xắc (1-6)
       const counts: any = {};
-      diceAnimals.forEach(animal => {
-        counts[animal] = (counts[animal] || 0) + 1;
+      dice.forEach(val => {
+        const key = String(val);
+        counts[key] = (counts[key] || 0) + 1;
       });
 
       const updatedPlayersData: any[] = [];

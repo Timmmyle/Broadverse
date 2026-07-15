@@ -147,6 +147,46 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     };
   }, [roomId, board]);
 
+  // 2.5 Polling dự phòng (mỗi 3.5 giây) đề phòng kết nối WebSocket Realtime bị chặn hoặc đóng
+  useEffect(() => {
+    if (!roomId) return;
+
+    const interval = setInterval(async () => {
+      // Chỉ poll khi không ở trạng thái FINISHED
+      if (board?.status === "FINISHED") return;
+
+      try {
+        const res = await fetch(`/api/matchmaking/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gameType: "BAU_CUA", wager: 0 })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.room) {
+            const parsedBoard = JSON.parse(data.room.board);
+            
+            // So sánh xem có thay đổi quan trọng để cập nhật không
+            const hasStatusChanged = data.room.status !== room.status || parsedBoard.status !== board.status;
+            const hasBetsChanged = JSON.stringify(parsedBoard.bets) !== JSON.stringify(board.bets);
+            const hasPlayersChanged = parsedBoard.players?.length !== board.players?.length || 
+              parsedBoard.players?.some((p: any, idx: number) => p.ready !== board.players?.[idx]?.ready);
+
+            if (hasStatusChanged || hasBetsChanged || hasPlayersChanged) {
+              setRoom(data.room);
+              setBoard(parsedBoard);
+              refreshProfile();
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi polling dự phòng Bầu Cua:", err);
+      }
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [roomId, room, board]);
+
   // 3. Đếm ngược đặt cược ở client dựa trên bettingEndsAt
   useEffect(() => {
     if (board?.status !== "BETTING" || !board?.bettingEndsAt) {

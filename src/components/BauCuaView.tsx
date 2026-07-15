@@ -37,6 +37,10 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
   const [submitting, setSubmitting] = useState(false);
   const [activeChip, setActiveChip] = useState<number>(5); // Chip cược được chọn (5, 10, 20, 50, 100)
 
+  // Đăng ký ref để chặn việc chạy hiệu ứng quay xúc xắc nhiều lần cùng 1 lúc
+  const animationTriggeredRef = useRef<string | null>(null);
+  const [transitioning, setTransitioning] = useState(false);
+
   // Cược cục bộ tạm thời (trước khi lưu cược)
   const [localBets, setLocalBets] = useState<Record<string, number>>({
     "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0
@@ -70,21 +74,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         if (res.ok) {
           const data = await res.json();
           if (data.room) {
-            setRoom(data.room);
-            const parsedBoard = JSON.parse(data.room.board);
-            setBoard(parsedBoard);
-
-            // Đồng bộ cược cục bộ nếu có sẵn
-            if (parsedBoard.bets[profile.id]) {
-              setLocalBets({
-                "1": parsedBoard.bets[profile.id]["1"] || 0,
-                "2": parsedBoard.bets[profile.id]["2"] || 0,
-                "3": parsedBoard.bets[profile.id]["3"] || 0,
-                "4": parsedBoard.bets[profile.id]["4"] || 0,
-                "5": parsedBoard.bets[profile.id]["5"] || 0,
-                "6": parsedBoard.bets[profile.id]["6"] || 0,
-              });
-            }
+            updateRoomState(data.room);
           }
         }
       } catch (err) {
@@ -108,31 +98,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         { event: "UPDATE", schema: "public", table: "GameRoom", filter: `id=eq.${roomId}` },
         async (payload: any) => {
           const updatedRoom = payload.new;
-          const parsedBoard = JSON.parse(updatedRoom.board);
-          
-          const prevStatus = board?.status;
-          const newStatus = parsedBoard.status;
-
-          // Nếu trạng thái đổi sang FINISHED (Xúc xắc đã lắc xong)
-          if (newStatus === "FINISHED" && prevStatus !== "FINISHED") {
-            if (timerRef.current) clearInterval(timerRef.current);
-            triggerRollAnimation(parsedBoard.dice, () => {
-              setRoom(updatedRoom);
-              setBoard(parsedBoard);
-              refreshProfile();
-            });
-          } else {
-            // Cập nhật thông thường
-            setRoom(updatedRoom);
-            setBoard(parsedBoard);
-            
-            if (newStatus === "BETTING" && prevStatus !== "BETTING") {
-              setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
-              setDishOpen(false);
-              setRolling(false);
-            }
-          }
-
+          updateRoomState(updatedRoom);
           refreshProfile();
         }
       )
@@ -301,10 +267,54 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
   };
 
   const updateRoomState = (newRoom: any) => {
+    if (!newRoom) return;
     setRoom(newRoom);
     if (newRoom.board) {
       const parsedBoard = JSON.parse(newRoom.board);
-      setBoard(parsedBoard);
+      
+      const prevStatus = board?.status;
+      const newStatus = parsedBoard?.status;
+      const rollId = parsedBoard.dice?.join(",");
+
+      // 1. Chạy transition overlay khi thay đổi trạng thái (Lập sảnh/Bắt đầu cược/Mở bát)
+      if (prevStatus && prevStatus !== newStatus) {
+        setTransitioning(true);
+        setTimeout(() => setTransitioning(false), 600);
+      }
+
+      // Đồng bộ cược cục bộ nếu có sẵn
+      if (parsedBoard.bets?.[profile.id]) {
+        setLocalBets({
+          "1": parsedBoard.bets[profile.id]["1"] || 0,
+          "2": parsedBoard.bets[profile.id]["2"] || 0,
+          "3": parsedBoard.bets[profile.id]["3"] || 0,
+          "4": parsedBoard.bets[profile.id]["4"] || 0,
+          "5": parsedBoard.bets[profile.id]["5"] || 0,
+          "6": parsedBoard.bets[profile.id]["6"] || 0,
+        });
+      }
+
+      // 2. Chuyển từ BETTING sang FINISHED -> Kích hoạt quay xúc xắc (chạy duy nhất 1 lần cho mỗi roll)
+      if (newStatus === "FINISHED" && prevStatus === "BETTING" && rollId && animationTriggeredRef.current !== rollId) {
+        animationTriggeredRef.current = rollId;
+        
+        if (timerRef.current) clearInterval(timerRef.current);
+        
+        triggerRollAnimation(parsedBoard.dice, () => {
+          setBoard(parsedBoard);
+          refreshProfile();
+        });
+      } else {
+        // Cập nhật thông thường
+        setBoard(parsedBoard);
+
+        // Reset bát đĩa khi bước vào thời gian cược mới
+        if (newStatus === "BETTING" && prevStatus !== "BETTING") {
+          setLocalBets({ "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 });
+          setDishOpen(false);
+          setRolling(false);
+        }
+      }
     }
   };
 
@@ -411,11 +421,8 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
       if (res.ok) {
         const data = await res.json();
         if (data.room) {
-          const parsedBoard = JSON.parse(data.room.board);
-          triggerRollAnimation(parsedBoard.dice, () => {
-            updateRoomState(data.room);
-            refreshProfile();
-          });
+          updateRoomState(data.room);
+          refreshProfile();
         }
       } else {
         const err = await res.json();
@@ -490,6 +497,15 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#0c0c0e] text-white scanlines p-4 sm:p-6 relative select-none">
+      {/* Load trang vô hình / Lớp phủ chuyển đổi */}
+      {transitioning && (
+        <div className="absolute inset-0 bg-[#0c0c0e]/85 backdrop-blur-md z-[9999] flex flex-col items-center justify-center pointer-events-auto">
+          <div className="w-12 h-12 border-4 border-t-transparent border-[#D4AF37] rounded-full animate-spin"></div>
+          <span className="text-[9.5px] text-[#F3E5AB] font-extrabold tracking-widest mt-4 uppercase animate-pulse">
+            ĐANG TẢI VÁN ĐẤU...
+          </span>
+        </div>
+      )}
       
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-[#D4AF37]/10 pb-4 mb-6 z-10">

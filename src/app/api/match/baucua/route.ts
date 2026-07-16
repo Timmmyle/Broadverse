@@ -43,6 +43,11 @@ export async function POST(req: Request) {
       boardObj = JSON.parse(room.board);
     } catch (e) {}
 
+    // 0. Hành động: LẤY THÔNG TIN PHÒNG (GET_ROOM)
+    if (action === "GET_ROOM") {
+      return NextResponse.json({ room });
+    }
+
     // 1. Hành động: SẴN SÀNG (READY)
     if (action === "READY") {
       const player = boardObj.players.find((p: any) => p.id === userId);
@@ -415,19 +420,46 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Chỉ chủ phòng mới có quyền bắt đầu ván mới" }, { status: 403 });
       }
 
-      // Reset cược, xúc xắc, trạng thái sẵn sàng về WAITING
-      boardObj.status = "WAITING";
+      // Chuyển trực tiếp sang trạng thái đặt cược BETTING để game tự động lặp vòng chơi liên tục
+      boardObj.status = "BETTING";
       boardObj.bets = {};
       boardObj.dice = [];
       boardObj.results = null;
+      boardObj.bettingEndsAt = Date.now() + 20000; // 20 giây đặt cược mới
+
+      // Tự động sinh cược mới cho BOT để ván chơi sinh động
       boardObj.players.forEach((p: any) => {
-        p.ready = false;
+        if (p.isBot) {
+          const limit = boardObj.betLimit > 0 ? boardObj.betLimit : 200;
+          const totalBet = Math.floor(Math.random() * 91) + 10; // 10 - 100 Coin
+          const finalBet = Math.min(totalBet, limit);
+          
+          const botBets: any = { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 };
+          
+          const split = Math.random() > 0.5;
+          if (split && finalBet >= 20) {
+            const count = Math.random() > 0.5 ? 2 : 3;
+            let remaining = finalBet;
+            const slots = ["1", "2", "3", "4", "5", "6"].sort(() => Math.random() - 0.5);
+            
+            for (let i = 0; i < count - 1; i++) {
+              const chunk = Math.floor(Math.random() * (remaining - 10)) + 5;
+              botBets[slots[i]] = chunk;
+              remaining -= chunk;
+            }
+            botBets[slots[count - 1]] = remaining;
+          } else {
+            const randomSlot = String(Math.floor(Math.random() * 6) + 1);
+            botBets[randomSlot] = finalBet;
+          }
+          boardObj.bets[p.id] = botBets;
+        }
       });
 
       const updatedRoom = await prisma.gameRoom.update({
         where: { id: roomId },
         data: {
-          status: "WAITING",
+          status: "PLAYING", // Trạng thái phòng game hoạt động
           board: JSON.stringify(boardObj)
         }
       });

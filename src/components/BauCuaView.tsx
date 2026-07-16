@@ -77,10 +77,10 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
 
     const fetchRoom = async () => {
       try {
-        const res = await fetch(`/api/matchmaking/join`, {
+        const res = await fetch(`/api/match/baucua`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ gameType: "BAU_CUA", wager: 0 }) // load lại phòng hiện tại
+          body: JSON.stringify({ action: "GET_ROOM", roomId })
         });
         if (res.ok) {
           const data = await res.json();
@@ -126,14 +126,11 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     if (!roomId) return;
 
     const interval = setInterval(async () => {
-      // Chỉ poll khi không ở trạng thái FINISHED
-      if (boardRef.current?.status === "FINISHED") return;
-
       try {
-        const res = await fetch(`/api/matchmaking/join`, {
+        const res = await fetch(`/api/match/baucua`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ gameType: "BAU_CUA", wager: 0 })
+          body: JSON.stringify({ action: "GET_ROOM", roomId })
         });
         if (res.ok) {
           const data = await res.json();
@@ -219,9 +216,9 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     let rolls = 0;
     const interval = setInterval(() => {
       setRollingDice([
-        Math.floor(Math.random() * 6),
-        Math.floor(Math.random() * 6),
-        Math.floor(Math.random() * 6)
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1
       ]);
       rolls++;
 
@@ -483,6 +480,17 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
       console.error(e);
     }
   };
+
+  // Tự động chuyển sang ván mới sau 8 giây ở màn hình kết quả (Chỉ dành cho chủ phòng)
+  useEffect(() => {
+    if (board?.status === "FINISHED" && room?.playerXId === profile.id) {
+      const autoPlayTimer = setTimeout(() => {
+        handlePlayAgain();
+      }, 8000); // 8 giây hiển thị kết quả
+
+      return () => clearTimeout(autoPlayTimer);
+    }
+  }, [board?.status, room?.playerXId, profile.id]);
 
   const handleLeaveRoom = async () => {
     try {

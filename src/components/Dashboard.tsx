@@ -1193,39 +1193,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       setBuyingPremium(false);
     }
   };
-  const handleBuyPremiumCash = async () => {
-    setCashPaying(true);
-    setCashError("");
-    try {
-      const res = await fetch("/api/user/premium-cash", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ duration: selectedPremiumDuration })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await refreshProfile();
-        setShowQRPaymentModal(false);
-        alert(`Gia hạn Premium ${selectedPremiumDuration} tháng thành công! Xin cảm ơn!`);
-      } else {
-        setCashError(data.error || "Lỗi xử lý thanh toán");
-      }
-    } catch (err) {
-      console.error(err);
-      setCashError("Lỗi mạng");
-    } finally {
-      setCashPaying(false);
-    }
-  };
-
-  const handleSepayCheckout = async () => {
+  const handleBuyPremium = async (duration: 1 | 6) => {
     setSepayRedirecting(true);
-    setCashError("");
     try {
       const res = await fetch("/api/user/sepay-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ duration: selectedPremiumDuration })
+        body: JSON.stringify({ duration })
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1251,7 +1225,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       form.submit();
     } catch (err: any) {
       console.error(err);
-      setCashError(err.message || "Lỗi kết nối đến cổng SePay");
+      alert(err.message || "Lỗi kết nối đến cổng SePay");
     } finally {
       setSepayRedirecting(false);
     }
@@ -1936,13 +1910,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 1 Tháng</span>
                     <span className="text-sm font-bold text-white font-mono block mt-1">69,000 VNĐ</span>
                     <button
-                      onClick={() => {
-                        setSelectedPremiumDuration(1);
-                        setShowQRPaymentModal(true);
-                      }}
-                      className="bg-[#D4AF37] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110"
+                      onClick={() => handleBuyPremium(1)}
+                      disabled={sepayRedirecting}
+                      className="bg-[#D4AF37] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110 disabled:opacity-50"
                     >
-                      Đăng ký ngay
+                      {sepayRedirecting ? "Đang xử lý..." : "Đăng ký ngay"}
                     </button>
                   </div>
 
@@ -1950,13 +1922,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 6 Tháng</span>
                     <span className="text-sm font-bold text-white font-mono block mt-1">349,000 VNĐ</span>
                     <button
-                      onClick={() => {
-                        setSelectedPremiumDuration(6);
-                        setShowQRPaymentModal(true);
-                      }}
-                      className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110"
+                      onClick={() => handleBuyPremium(6)}
+                      disabled={sepayRedirecting}
+                      className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110 disabled:opacity-50"
                     >
-                      Tiết kiệm 15%
+                      {sepayRedirecting ? "Đang xử lý..." : "Tiết kiệm 15%"}
                     </button>
                   </div>
                 </div>

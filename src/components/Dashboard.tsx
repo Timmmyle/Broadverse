@@ -80,11 +80,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [buyingPremium, setBuyingPremium] = useState(false);
   const [premiumError, setPremiumError] = useState("");
   const [premiumSuccess, setPremiumSuccess] = useState(false);
-
   // Premium Cash Purchase states (VietQR)
   const [showQRPaymentModal, setShowQRPaymentModal] = useState(false);
   const [selectedPremiumDuration, setSelectedPremiumDuration] = useState<1 | 6>(1);
   const [cashPaying, setCashPaying] = useState(false);
+  const [sepayRedirecting, setSepayRedirecting] = useState(false);
   const [cashError, setCashError] = useState("");
 
   // Game Options
@@ -1218,6 +1218,44 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
+  const handleSepayCheckout = async () => {
+    setSepayRedirecting(true);
+    setCashError("");
+    try {
+      const res = await fetch("/api/user/sepay-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ duration: selectedPremiumDuration })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Không thể tạo phiên thanh toán SePay");
+      }
+
+      const { checkoutURL, checkoutFormfields } = data;
+
+      // Tạo form động để submit sang SePay
+      const form = document.createElement("form");
+      form.action = checkoutURL;
+      form.method = "POST";
+
+      Object.keys(checkoutFormfields).forEach((key) => {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = checkoutFormfields[key];
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err: any) {
+      console.error(err);
+      setCashError(err.message || "Lỗi kết nối đến cổng SePay");
+    } finally {
+      setSepayRedirecting(false);
+    }
+  };
 
   const handleSpectate = (roomId: string) => {
     // Chế độ khán giả: truyền { isSpectator: true }
@@ -2964,8 +3002,15 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   ℹ️ <strong>Lưu ý:</strong> Vui lòng quét mã QR trên để điền tự động hoặc nhập chính xác nội dung chuyển khoản để hệ thống kích hoạt VIP tự động sau 1-2 phút.
                 </div>
               </div>
-
               {cashError && <p className="text-xs text-red-400 font-mono text-center">✗ Lỗi: {cashError}</p>}
+
+              <button
+                onClick={handleSepayCheckout}
+                disabled={sepayRedirecting}
+                className="w-full bg-[#10b981] hover:bg-[#059669] text-white py-2.5 rounded-lg text-xs font-extrabold uppercase transition mb-2"
+              >
+                {sepayRedirecting ? "Đang chuyển hướng..." : "Thanh toán Online (Cổng SePay)"}
+              </button>
 
               <button
                 onClick={handleBuyPremiumCash}

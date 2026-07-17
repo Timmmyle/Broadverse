@@ -19,22 +19,36 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Nhận callback thanh toán từ SePay:", body);
 
-    const content = body.content || "";
-    // Chuẩn hóa nội dung chuyển khoản: chuyển thành chữ in hoa và loại bỏ mọi khoảng trắng
-    const cleanContent = content.toUpperCase().replace(/\s+/g, "");
+    let invoiceCode = "";
+    let amount = 0;
 
-    // RegExp khớp định dạng: BG[8_KÝ_TỰ_HEX]P[1_HOẶC_6]
-    // Ví dụ: BGE4E0B04AP1 hoặc BGE4E0B04AP6
-    const match = cleanContent.match(/BG([0-9A-F]{8})P(1|6)/);
+    // 1. Phân loại cấu trúc payload nhận được (Gateway Webhook vs Bank Webhook)
+    if (body.notification_type === "ORDER_PAID" && body.order) {
+      // Dạng Webhook Cổng thanh toán (Payment Gateway / IPN)
+      invoiceCode = body.order.order_invoice_number || "";
+      amount = parseFloat(body.order.order_amount) || 0;
+    } else {
+      // Dạng Webhook Ngân hàng thô (Bank Webhook)
+      const content = body.content || "";
+      const cleanContent = content.toUpperCase().replace(/\s+/g, "");
+      const match = cleanContent.match(/BG([0-9A-F]{8})P(1|6)/);
+      if (match) {
+        invoiceCode = match[0];
+      }
+      amount = body.transferAmount || 0;
+    }
+
+    // 2. Chuẩn hóa và trích xuất thông tin gói
+    const cleanInvoice = invoiceCode.toUpperCase().replace(/\s+/g, "");
+    const match = cleanInvoice.match(/BG([0-9A-F]{8})P(1|6)/);
 
     if (!match) {
-      console.log(`Bỏ qua: Nội dung chuyển khoản "${content}" không khớp định dạng BG[8_HEX]P[1|6]`);
-      return NextResponse.json({ success: true, message: "Ignored: Pattern not matched" });
+      console.log(`Bỏ qua: Không trích xuất được mã khớp lệnh BG[8_HEX]P[1|6] từ "${invoiceCode}"`);
+      return NextResponse.json({ success: true, message: "Ignored: Invoice code pattern not matched" });
     }
 
     const userIdPrefix = match[1].toLowerCase();
     const duration = parseInt(match[2]) === 6 ? 6 : 1;
-    const amount = body.transferAmount || 0;
 
     // Kiểm tra số tiền nhận được so với giá trị gói
     const expectedAmount = duration === 6 ? 349000 : 69000;

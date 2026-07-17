@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+export async function GET() {
+  return NextResponse.json({ success: true, message: "SePay Webhook is active" });
+}
+
 export async function POST(req: Request) {
   try {
     // 1. Xác thực request từ SePay nếu cấu hình TOKEN trong file .env

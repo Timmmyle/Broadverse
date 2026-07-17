@@ -83,6 +83,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
   // Premium Cash Purchase states (VietQR)
   const [showQRPaymentModal, setShowQRPaymentModal] = useState(false);
+  const [selectedPremiumDuration, setSelectedPremiumDuration] = useState<1 | 6>(1);
   const [cashPaying, setCashPaying] = useState(false);
   const [cashError, setCashError] = useState("");
 
@@ -1192,17 +1193,20 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       setBuyingPremium(false);
     }
   };
-
   const handleBuyPremiumCash = async () => {
     setCashPaying(true);
     setCashError("");
     try {
-      const res = await fetch("/api/user/premium-cash", { method: "POST" });
+      const res = await fetch("/api/user/premium-cash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ duration: selectedPremiumDuration })
+      });
       const data = await res.json();
       if (res.ok) {
         await refreshProfile();
         setShowQRPaymentModal(false);
-        alert("Gia hạn Premium thành công! Xin cảm ơn!");
+        alert(`Gia hạn Premium ${selectedPremiumDuration} tháng thành công! Xin cảm ơn!`);
       } else {
         setCashError(data.error || "Lỗi xử lý thanh toán");
       }
@@ -1213,6 +1217,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       setCashPaying(false);
     }
   };
+
 
   const handleSpectate = (roomId: string) => {
     // Chế độ khán giả: truyền { isSpectator: true }
@@ -1891,9 +1896,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-center">
                     <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 1 Tháng</span>
-                    <span className="text-sm font-bold text-white font-mono block mt-1">69,000 VNĐ / $2.99</span>
+                    <span className="text-sm font-bold text-white font-mono block mt-1">69,000 VNĐ</span>
                     <button
-                      onClick={() => setShowQRPaymentModal(true)}
+                      onClick={() => {
+                        setSelectedPremiumDuration(1);
+                        setShowQRPaymentModal(true);
+                      }}
                       className="bg-[#D4AF37] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110"
                     >
                       Đăng ký ngay
@@ -1902,9 +1910,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                   <div className="bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-center">
                     <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 6 Tháng</span>
-                    <span className="text-sm font-bold text-white font-mono block mt-1">349,000 VNĐ / $14.99</span>
+                    <span className="text-sm font-bold text-white font-mono block mt-1">349,000 VNĐ</span>
                     <button
-                      onClick={() => setShowQRPaymentModal(true)}
+                      onClick={() => {
+                        setSelectedPremiumDuration(6);
+                        setShowQRPaymentModal(true);
+                      }}
                       className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] text-[8.5px] uppercase font-extrabold w-full py-2 rounded-lg mt-3 transition hover:brightness-110"
                     >
                       Tiết kiệm 15%
@@ -2870,46 +2881,103 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           </div>
         </div>
       )}
-
       {/* MODAL 3: QR PAYMENT PREMIUM */}
-      {showQRPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
-          <div className="pixel-box p-6 w-full max-w-sm bg-[#1C1C18] border border-[#D4AF37]/30 text-left space-y-4">
-            <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-2">
-              <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
-                👑 Mua Gói VIP Premium
-              </h3>
-              <button onClick={() => setShowQRPaymentModal(false)} className="text-gray-400 hover:text-white p-1">
-                <X className="w-4 h-4" />
+      {showQRPaymentModal && (() => {
+        const shortId = profile.id.replace(/-/g, "").slice(0, 8).toUpperCase();
+        const memo = `BG${shortId}P${selectedPremiumDuration}`;
+        const amount = selectedPremiumDuration === 6 ? 349000 : 69000;
+        const qrUrl = `https://api.vietqr.io/image/970432-0899803355-7ewFB3X.jpg?accountName=LE%20ANH%20KHOA&amount=${amount}&addInfo=${memo}`;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+            <div className="pixel-box p-6 w-full max-w-sm bg-[#1C1C18] border border-[#D4AF37]/30 text-left space-y-4 shadow-[0_0_20px_rgba(212,175,55,0.15)]">
+              <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-2">
+                <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5 animate-pulse">
+                  👑 Mua Gói VIP Premium
+                </h3>
+                <button onClick={() => setShowQRPaymentModal(false)} className="text-gray-400 hover:text-white p-1 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Tab chọn gói ngay trong Modal */}
+              <div className="grid grid-cols-2 gap-2 bg-[#141412] p-1 rounded-lg border border-[#D4AF37]/15">
+                <button
+                  onClick={() => setSelectedPremiumDuration(1)}
+                  className={`py-1.5 text-[10px] font-bold uppercase rounded transition-all ${
+                    selectedPremiumDuration === 1
+                      ? "bg-[#D4AF37] text-[#141412]"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  Gói 1 Tháng
+                </button>
+                <button
+                  onClick={() => setSelectedPremiumDuration(6)}
+                  className={`py-1.5 text-[10px] font-bold uppercase rounded transition-all ${
+                    selectedPremiumDuration === 6
+                      ? "bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412]"
+                      : "text-gray-400 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  Gói 6 Tháng
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center space-y-4 text-center">
+                <div className="bg-white p-2 rounded-lg border border-[#D4AF37]/30 shadow-md">
+                  <img 
+                    src={qrUrl} 
+                    alt="VietQR Payment"
+                    className="w-44 h-44 object-contain"
+                  />
+                </div>
+                
+                <div className="w-full space-y-1.5 bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-left">
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-400">Ngân hàng:</span>
+                    <span className="text-white font-bold">MB Bank (Ngân hàng Quân Đội)</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-400">Chủ tài khoản:</span>
+                    <span className="text-white font-bold">LE ANH KHOA</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-400">Số tài khoản:</span>
+                    <span className="text-[#D4AF37] font-mono font-bold">0899803355</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-gray-400">Số tiền:</span>
+                    <span className="text-white font-mono font-bold text-xs">
+                      {amount.toLocaleString("vi-VN")} VNĐ
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px] border-t border-[#D4AF37]/10 pt-1.5 mt-1.5">
+                    <span className="text-gray-400">Nội dung CK:</span>
+                    <span className="text-[#FF9F0A] font-mono font-bold text-[10.5px] tracking-wide">
+                      {memo}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2.5 text-[9px] text-[#F3E5AB]/85 text-left leading-relaxed">
+                  ℹ️ <strong>Lưu ý:</strong> Vui lòng quét mã QR trên để điền tự động hoặc nhập chính xác nội dung chuyển khoản để hệ thống kích hoạt VIP tự động sau 1-2 phút.
+                </div>
+              </div>
+
+              {cashError && <p className="text-xs text-red-400 font-mono text-center">✗ Lỗi: {cashError}</p>}
+
+              <button
+                onClick={handleBuyPremiumCash}
+                disabled={cashPaying}
+                className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition"
+              >
+                {cashPaying ? "Đang xử lý..." : "Giả lập Đã chuyển khoản VIP"}
               </button>
             </div>
-
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <QRCodeSVG 
-                value={`vietqr-premium-payload-${profile.id}`} 
-                size={140}
-                bgColor="#141412"
-                fgColor="#F3E5AB"
-              />
-              <div>
-                <p className="text-[10px] text-white font-bold">NGÂN HÀNG QUÂN ĐỘI (MB)</p>
-                <p className="text-[10.5px] text-[#D4AF37] font-mono font-bold mt-0.5">Số tài khoản: 0999999999999</p>
-                <p className="text-[9px] text-[#F3E5AB]/65 mt-1">Nội dung CK: <strong className="font-mono text-[#FF9F0A]">{profile.username} PREMIUM</strong></p>
-              </div>
-            </div>
-
-            {cashError && <p className="text-xs text-red-400 font-mono text-center">✗ Lỗi: {cashError}</p>}
-
-            <button
-              onClick={handleBuyPremiumCash}
-              disabled={cashPaying}
-              className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2.5 rounded-lg text-xs font-extrabold uppercase transition"
-            >
-              {cashPaying ? "Đang xử lý..." : "Giả lập Đã chuyển khoản VIP"}
-            </button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODAL: PARTY INVITATION */}
       {activeInvite && (

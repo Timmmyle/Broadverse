@@ -28,6 +28,12 @@ export async function POST(req: Request) {
     const secretKey = process.env.SEPAY_SECRET_KEY || "spsk_test_J38k4BQgZ9z87NLa64paj69tYLspoAEY";
     const env = (process.env.SEPAY_ENV || "sandbox") as "sandbox" | "production";
 
+    console.log("=== SEPAY CHECKOUT INITIALIZATION ===");
+    console.log("Env:", env);
+    console.log("Merchant ID:", merchantId);
+    console.log("Secret Key Start:", secretKey ? secretKey.substring(0, 15) : "undefined");
+    console.log("=====================================");
+
     const client = new SePayPgClient({
       env,
       merchant_id: merchantId,
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
 
     const amount = duration === 6 ? 349000 : 69000;
     const shortId = profile.id.replace(/-/g, "").slice(0, 8).toUpperCase();
-    
+
     // Tạo mã chuyển khoản/invoice: Ví dụ BGE4E0B04AP1
     const invoiceCode = `BG${shortId}P${duration}`;
 
@@ -51,6 +57,8 @@ export async function POST(req: Request) {
 
     // Tạo các trường dữ liệu thanh toán
     const checkoutFormfields = client.checkout.initOneTimePaymentFields({
+      merchant: merchantId,
+      operation: "PURCHASE",
       payment_method: "BANK_TRANSFER",
       order_invoice_number: invoiceCode,
       order_amount: amount,

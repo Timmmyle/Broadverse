@@ -8,7 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 import { 
   Coins, Trophy, LogOut, ShoppingBag, Settings, Play, 
   User as UserIcon, X, Swords, RefreshCw, Sparkles, Check, ChevronRight,
-  CreditCard, Calendar, Gift, Volume2, Smile, Flame, ShieldAlert, Award, Star, Eye, UserPlus, Link2, Users
+  CreditCard, Calendar, Gift, Volume2, Smile, Flame, ShieldAlert, Award, Star, Eye, UserPlus, Link2, Users,
+  Crown, Music, Flag, Dice5, Lock, ChevronLeft, Gamepad2
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getExpNeededForLevel, DailyMission, getRankFromElo, getRankFromDb, ACHIEVEMENTS } from "@/lib/progression";
@@ -25,6 +26,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // Tab chính trên PC: "PLAY" | "SHOP" | "SETTINGS"
   // Trên Mobile, 4 tab bottom bar sẽ map tới các view: "PLAY" (Đấu), "SHOP" (Cửa hàng), "BP" (Battle Pass), "SOCIAL" (Cá nhân & Bạn bè)
   const [activeTab, setActiveTab] = useState<"PLAY" | "SHOP" | "SETTINGS" | "BP" | "SOCIAL">("PLAY");
+  const bpScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollBP = (direction: "left" | "right") => {
+    if (bpScrollRef.current) {
+      const scrollAmount = 300;
+      bpScrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth"
+      });
+    }
+  };
   
   // Trạng thái lọc Cửa hàng
   const [shopCategory, setShopCategory] = useState<"ALL" | "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI">("ALL");
@@ -1760,110 +1772,211 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
           {/* TAB: BATTLE PASS (BẢN TIẾN TRÌNH THEO MÙA) */}
           {activeTab === "BP" && (
-            <div className="space-y-6">
-              <div className="border-b border-[#D4AF37]/15 pb-3">
-                <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                  Mùa Giải 1
-                </span>
-                <h2 className="text-lg font-bold uppercase text-white mt-1">Battle Pass: Đêm Hoàng Kim</h2>
-                <p className="text-[10px] text-[#F3E5AB]/75">
-                  Cày cuốc EXP thông qua hoàn thành Nhiệm vụ Hàng ngày & Hàng tuần để mở khóa 50 cấp độ phần thưởng độc quyền!
-                </p>
-              </div>
-
-              {/* Progress overview */}
-              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/15 space-y-3">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-white">CẤP BATTLE PASS: {profile.battlePassLevel} / 50</span>
-                  <span className="font-mono text-[#D4AF37]">{profile.battlePassExp} / {bpExpNeeded} XP</span>
-                </div>
-                <div className="w-full bg-black/40 h-3 rounded-full overflow-hidden border border-[#D4AF37]/10">
-                  <div className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full" style={{ width: `${bpExpPercent}%` }}></div>
-                </div>
-              </div>
-
-              {/* Tracks information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-[#141412] p-4 rounded-xl border border-[#D4AF37]/10 text-left space-y-3">
-                  <h3 className="text-xs font-bold text-gray-400 uppercase">Nhánh Miễn Phí (Free Track)</h3>
-                  <p className="text-[10.5px] text-[#F3E5AB]/70 leading-relaxed">
-                    Nhận Xu thường, Avatar cơ bản, và danh hiệu vui nhộn ở các cấp độ chẵn (10, 20, 30, 40, 50).
-                  </p>
-                  <span className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded uppercase font-bold">
-                    Đã mở khóa vĩnh viễn
+            <div className="space-y-6 animate-fadeIn">
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-[#D4AF37]/15 pb-4 gap-4">
+                <div>
+                  <span className="inline-block bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Mùa Giải 1
                   </span>
+                  <h2 className="text-xl font-bold uppercase text-white mt-1">Battle Pass: Đêm Hoàng Kim</h2>
+                  
+                  {/* Progress overview */}
+                  <div className="mt-4 min-w-[280px] md:w-[380px] space-y-1.5">
+                    <div className="flex justify-between items-end text-[10px]">
+                      <span className="font-medium text-[#F3E5AB]/75">
+                        Cấp Battle Pass: <strong className="text-white font-mono text-xs">{profile.battlePassLevel} / 50</strong>
+                      </span>
+                      <span className="font-mono text-[#D4AF37]/90">{profile.battlePassExp} / {bpExpNeeded} XP</span>
+                    </div>
+                    <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden border border-[#D4AF37]/10">
+                      <div 
+                        className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full transition-all duration-500 rounded-full" 
+                        style={{ width: `${bpExpPercent}%` }}
+                      ></div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#FF9F0A]/30 text-left space-y-3">
-                  <h3 className="text-xs font-bold text-[#FF9F0A] uppercase">Nhánh Cao Cấp (Premium Track)</h3>
-                  <p className="text-[10.5px] text-[#F3E5AB]/70 leading-relaxed">
-                    Mở khóa skin quân cờ mạ vàng 24K, hiệu ứng nổ pháo hoa hoàng kim, nhạc nền sảnh chờ, và hoàn lại 500 Coins khi đạt cấp 50.
-                  </p>
-                  <button
-                    onClick={handleBuyPremiumCoins}
-                    className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] text-[10px] uppercase font-extrabold py-2 px-4 rounded-lg transition hover:brightness-110 shadow"
-                  >
-                    Kích hoạt ($4.99 / 99 xu)
-                  </button>
+                <div className="flex items-center gap-3">
+                  {profile.isPremium ? (
+                    <button
+                      disabled
+                      className="bg-gradient-to-r from-[#D4AF37]/20 to-[#FF9F0A]/20 border border-[#D4AF37]/45 text-[#D4AF37]/60 text-[10.5px] uppercase font-bold px-4 py-2.5 rounded-lg flex items-center gap-1.5 cursor-not-allowed"
+                    >
+                      <Crown className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      Đã kích hoạt Golden Chicken 👑
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveTab("SETTINGS")}
+                      className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] hover:brightness-110 text-[#141412] text-[10.5px] uppercase font-extrabold px-4 py-2.5 rounded-lg flex items-center gap-1.5 transition shadow-lg active:scale-95 shadow-[#FF9F0A]/10"
+                    >
+                      <Crown className="w-3.5 h-3.5" />
+                      Kích hoạt Golden Chicken
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* Lộ trình phần thưởng */}
-              <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10 space-y-4">
-                <h3 className="text-xs font-extrabold text-white uppercase border-b border-[#D4AF37]/10 pb-2">
-                  🎁 Lộ Trình Phần Thưởng Mùa Giải
+              {/* Rewards Path Layout */}
+              <div className="bg-[#1C1C18]/60 p-5 rounded-2xl border border-[#D4AF37]/10 space-y-4">
+                <h3 className="text-xs font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+                  <span>🎁</span> LỘ TRÌNH PHẦN THƯỞNG MÙA GIẢI
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
-                  {[
-                    { level: 1, free: "50 🥚", premium: "🎨 Khung Đêm Hoàng Kim" },
-                    { level: 2, free: "100 🥚", premium: "🔊 Âm thanh Beach Club" },
-                    { level: 5, free: "150 🥚", premium: "🌌 Tinh Vân Gà Banner" },
-                    { level: 10, free: "🦊 Khung Cát Vàng", premium: "🪶 Gà Chiến Binh Skin" },
-                    { level: 15, free: "200 🥚", premium: "🎲 Xúc Xắc Kim Cương" },
-                    { level: 20, free: "🍉 Quân cờ Dưa Hấu", premium: "⚔️ Gà Hiệp Sĩ Skin" },
-                    { level: 30, free: "300 🥚", premium: "⚡ Banner Cyber Neon" },
-                    { level: 40, free: "400 🥚", premium: "✨ Biểu cảm Tối Thượng" },
-                    { level: 50, free: "500 🥚 (Hoàn tiền)", premium: "👑 Gà Hoàng Gia Skin (VIP)" }
-                  ].map((reward) => {
-                    const isUnlocked = profile.battlePassLevel >= reward.level;
-                    const hasPremium = profile.isPremium;
-                    return (
-                      <div 
-                        key={reward.level} 
-                        className={`p-3 rounded-xl border flex flex-col gap-2 relative overflow-hidden transition duration-200 ${
-                          isUnlocked 
-                            ? "bg-[#141412] border-[#D4AF37]/35 shadow" 
-                            : "bg-[#1C1C18]/60 border-white/5 opacity-70"
-                        }`}
-                      >
-                        <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-1.5">
-                          <span className="text-[10px] font-extrabold text-[#D4AF37] font-mono">CẤP {reward.level}</span>
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                            isUnlocked ? "bg-green-500/10 text-green-400" : "bg-gray-500/10 text-gray-400"
-                          }`}>
-                            {isUnlocked ? "Đã đạt ✓" : "Chưa đạt 🔒"}
-                          </span>
-                        </div>
+                <div className="flex gap-4 items-stretch select-none mt-2">
+                  {/* Left Fixed Labels */}
+                  <div className="flex flex-col justify-between py-1 w-28 flex-shrink-0">
+                    {/* Golden Chicken card label */}
+                    <div className="h-[80px] bg-gradient-to-br from-[#232319] to-[#1C1C18] border border-[#D4AF37]/35 rounded-xl flex flex-col justify-center items-center text-center p-2 shadow-inner">
+                      <Crown className="w-4 h-4 text-[#D4AF37] mb-1 animate-pulse" />
+                      <span className="text-[9px] uppercase tracking-wider font-black text-[#D4AF37]">Golden Chicken</span>
+                    </div>
 
-                        <div className="space-y-1.5 text-[9.5px]">
-                          {/* Free Reward */}
-                          <div className="flex justify-between items-center">
-                            <span className="text-gray-400">Miễn phí:</span>
-                            <span className="font-semibold text-white">{reward.free}</span>
-                          </div>
+                    {/* Spacer matching level label height */}
+                    <div className="h-8 flex items-center justify-center">
+                      <span className="text-[8px] text-[#F3E5AB]/40 uppercase tracking-widest font-extrabold">Cấp Độ</span>
+                    </div>
 
-                          {/* Premium Reward */}
-                          <div className="flex justify-between items-center">
-                            <span className="text-[#FF9F0A]">Cao cấp:</span>
-                            <span className={`font-semibold ${hasPremium ? "text-[#FF9F0A]" : "text-gray-500 font-normal"}`}>
-                              {reward.premium} {!hasPremium && "🔒"}
-                            </span>
+                    {/* Free card label */}
+                    <div className="h-[80px] bg-[#141412] border border-white/5 rounded-xl flex flex-col justify-center items-center text-center p-2">
+                      <span className="text-[8px] uppercase tracking-wider text-gray-400 font-bold mb-1">Miễn Phí</span>
+                      <span className="text-[10px] uppercase tracking-wide font-black text-[#F3E5AB]/70">Free</span>
+                    </div>
+                  </div>
+
+                  {/* Right Scrollable Rewards */}
+                  <div className="relative flex-grow overflow-hidden">
+                    <div 
+                      ref={bpScrollRef}
+                      className="flex gap-3.5 overflow-x-auto pb-3 scrollbar-none scroll-smooth pr-10"
+                      style={{ 
+                        scrollbarWidth: "none", 
+                        msOverflowStyle: "none"
+                      }}
+                    >
+                      {[
+                        { level: 1, freeVal: "50", freeIcon: "🥚", premiumTitle: "Khung Đêm", icon: <Crown className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 2, freeVal: "100", freeIcon: "🥚", premiumTitle: "Beach Club", icon: <Music className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 5, freeVal: "150", freeIcon: "🥚", premiumTitle: "Tinh Vân", icon: <Flag className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 10, freeVal: "Khung Cát", freeIcon: "🦊", premiumTitle: "Chiến Binh", icon: <Gamepad2 className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 15, freeVal: "200", freeIcon: "🥚", premiumTitle: "Xúc xắc", icon: <Dice5 className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 20, freeVal: "Dưa Hấu", freeIcon: "🍉", premiumTitle: "Gà Hiệp Sĩ", icon: <ShieldAlert className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 30, freeVal: "300", freeIcon: "🥚", premiumTitle: "Cyber Neon", icon: <Flag className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 40, freeVal: "400", freeIcon: "🥚", premiumTitle: "Tối Thượng", icon: <Smile className="w-5 h-5 text-[#D4AF37]" /> },
+                        { level: 50, freeVal: "500", freeIcon: "🥚", premiumTitle: "VIP Skin", icon: <Crown className="w-5 h-5 text-[#FF9F0A]" />, extra: "Hoàn tiền" }
+                      ].map((reward) => {
+                        const isLevelUnlocked = profile.battlePassLevel >= reward.level;
+                        const isPremiumUnlocked = profile.isPremium && isLevelUnlocked;
+                        
+                        // Check if it's the current closest tier reached
+                        const reachedTiers = [1, 2, 5, 10, 15, 20, 30, 40, 50].filter(l => l <= profile.battlePassLevel);
+                        const activeTier = reachedTiers.length > 0 ? reachedTiers[reachedTiers.length - 1] : 1;
+                        const isActive = reward.level === activeTier;
+
+                        return (
+                          <div key={reward.level} className="flex flex-col justify-between items-center w-[96px] flex-shrink-0">
+                            {/* PREMIUM REWARD CARD */}
+                            <div 
+                              className={`w-full h-[80px] rounded-xl border flex flex-col justify-center items-center relative transition-all duration-300 ${
+                                isPremiumUnlocked
+                                  ? "bg-[#232319] border-[#D4AF37]/75 shadow-md shadow-[#D4AF37]/5"
+                                  : isLevelUnlocked
+                                    ? "bg-[#1C1C18] border-[#D4AF37]/25 opacity-80"
+                                    : "bg-[#1C1C18]/40 border-white/5 opacity-50"
+                              }`}
+                            >
+                              {/* Status Badge */}
+                              <div className="absolute top-1.5 right-1.5">
+                                {isPremiumUnlocked ? (
+                                  <div className="w-4 h-4 bg-green-500/10 text-green-400 border border-green-500/30 rounded-full flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 font-bold" />
+                                  </div>
+                                ) : (
+                                  <div className="w-4 h-4 bg-gray-500/10 text-gray-400 border border-white/10 rounded-full flex items-center justify-center">
+                                    <Lock className="w-2.5 h-2.5" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Reward Icon */}
+                              <div className={`mb-1 ${isPremiumUnlocked ? "scale-105 transition-transform" : "opacity-60"}`}>
+                                {reward.icon}
+                              </div>
+
+                              {/* Title */}
+                              <span className={`text-[8.5px] font-bold tracking-tight text-center px-1 ${
+                                isPremiumUnlocked ? "text-white" : "text-gray-400"
+                              }`}>
+                                {reward.premiumTitle}
+                              </span>
+                            </div>
+
+                            {/* LEVEL DIVISION INDICATOR */}
+                            <div className="h-8 flex flex-col justify-center items-center text-center">
+                              <span className={`text-[9px] font-extrabold uppercase font-mono tracking-wider ${
+                                isActive ? "text-[#D4AF37]" : isLevelUnlocked ? "text-gray-300" : "text-gray-500"
+                              }`}>
+                                Cấp {reward.level}
+                              </span>
+                              {isActive && (
+                                <span className="text-[7px] text-[#D4AF37] font-bold -mt-0.5 tracking-tight">bạn ở đây</span>
+                              )}
+                            </div>
+
+                            {/* FREE REWARD CARD */}
+                            <div 
+                              className={`w-full h-[80px] rounded-xl border flex flex-col justify-center items-center relative transition-all duration-300 ${
+                                isLevelUnlocked
+                                  ? "bg-[#141412] border-green-500/30"
+                                  : "bg-[#1C1C18]/40 border-white/5 opacity-50"
+                              }`}
+                            >
+                              {/* Coin Circle Icon */}
+                              <div className="w-6 h-6 bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 rounded-full flex items-center justify-center text-[10px] mb-1">
+                                {reward.freeIcon}
+                              </div>
+                              
+                              {/* Reward Value */}
+                              <span className="text-[9px] font-mono font-bold text-white">
+                                {reward.freeVal}
+                              </span>
+                              
+                              {reward.extra && (
+                                <span className="text-[6.5px] text-[#D4AF37] uppercase font-bold leading-none mt-0.5">
+                                  {reward.extra}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navigation scroll control */}
+                <div className="flex justify-between items-center border-t border-[#D4AF37]/10 pt-4 mt-2">
+                  <span className="text-[8.5px] text-[#F3E5AB]/40 uppercase tracking-widest font-extrabold">
+                    * Mở khóa các cấp để nhận thưởng
+                  </span>
+                  
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => scrollBP("left")}
+                      className="p-1.5 rounded-lg border border-[#D4AF37]/35 bg-[#1C1C18] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#141412] transition duration-200 active:scale-90"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    
+                    <button 
+                      onClick={() => scrollBP("right")}
+                      className="p-1.5 rounded-lg border border-[#D4AF37]/35 bg-[#1C1C18] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#141412] transition duration-200 active:scale-90"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

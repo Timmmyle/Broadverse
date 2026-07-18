@@ -960,8 +960,8 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
           <span className="absolute top-0.5 left-2 text-[4.5px] text-gray-600 uppercase font-mono">Sponsored Ad</span>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <span className="text-[7.5px] text-gray-400 font-medium">Bị làm phiền bởi quảng cáo? Nâng cấp Premium ngay để ẩn quảng cáo và nhận các đặc quyền đi kèm!</span>
-            <span className="text-[7.5px] text-pixel-yellow font-bold uppercase animate-pulse border border-pixel-yellow/30 px-1.5 py-0.5 rounded bg-pixel-yellow/5 select-none">
-              GIẢM GIÁ 20% CỬA HÀNG 👑
+            <span className="text-[7.5px] text-pixel-yellow font-bold border border-pixel-yellow/30 px-1.5 py-0.5 rounded bg-pixel-yellow/5 select-none">
+              Giảm giá 20% cửa hàng 👑
             </span>
           </div>
         </div>
@@ -970,13 +970,13 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       {loading ? (
         <div className="flex-grow flex flex-col items-center justify-center space-y-4">
           <RefreshCw className="w-8 h-8 text-pixel-yellow animate-spin" />
-          <p className="text-[10px] text-pixel-yellow uppercase tracking-widest animate-pulse">Đang nạp bàn cờ...</p>
+          <p className="text-[10px] text-pixel-yellow font-medium">Đang nạp bàn cờ...</p>
         </div>
       ) : errorMsg ? (
         <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-4">
           <AlertTriangle className="w-10 h-10 text-pixel-red" />
           <p className="text-center text-xs text-pixel-red font-mono bg-pixel-red/10 border-2 border-pixel-red p-4 max-w-md">[ERROR]: {errorMsg}</p>
-          <button onClick={onBack} className="pixel-btn pixel-btn-yellow py-2 px-6 uppercase text-[9px]">Quay lại sảnh</button>
+          <button onClick={onBack} className="pixel-btn pixel-btn-yellow py-2 px-6 text-[9px] font-bold">Quay lại sảnh</button>
         </div>
       ) : room?.status === "WAITING" ? (
         /* CHỜ BẠN BÈ JOIN PHÒNG (FRIEND MODE WAITING) */

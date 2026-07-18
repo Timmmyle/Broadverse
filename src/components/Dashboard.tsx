@@ -1329,35 +1329,35 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         <div className="hidden lg:flex lg:col-span-2 flex-col gap-2 shrink-0">
           <button 
             onClick={() => setActiveTab("PLAY")}
-            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "PLAY" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg text-xs font-semibold transition-all border-l-2 ${activeTab === "PLAY" ? "bg-[#232319] text-[#D4AF37] border-l-[#D4AF37] border-y-transparent border-r-transparent" : "bg-[#1C1C18]/40 hover:bg-[#1C1C18]/80 text-[#F3E5AB]/70 border-l-transparent border-y-transparent border-r-transparent"}`}
           >
             <Swords className="w-4 h-4" />
             Đấu trường
           </button>
           <button 
             onClick={() => setActiveTab("SHOP")}
-            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SHOP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg text-xs font-semibold transition-all border-l-2 ${activeTab === "SHOP" ? "bg-[#232319] text-[#D4AF37] border-l-[#D4AF37] border-y-transparent border-r-transparent" : "bg-[#1C1C18]/40 hover:bg-[#1C1C18]/80 text-[#F3E5AB]/70 border-l-transparent border-y-transparent border-r-transparent"}`}
           >
             <ShoppingBag className="w-4 h-4" />
             Cửa hàng
           </button>
           <button 
             onClick={() => setActiveTab("BP")}
-            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "BP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg text-xs font-semibold transition-all border-l-2 ${activeTab === "BP" ? "bg-[#232319] text-[#D4AF37] border-l-[#D4AF37] border-y-transparent border-r-transparent" : "bg-[#1C1C18]/40 hover:bg-[#1C1C18]/80 text-[#F3E5AB]/70 border-l-transparent border-y-transparent border-r-transparent"}`}
           >
             <Award className="w-4 h-4" />
             Battle Pass
           </button>
           <button 
             onClick={() => setActiveTab("SOCIAL")}
-            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SOCIAL" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg text-xs font-semibold transition-all border-l-2 ${activeTab === "SOCIAL" ? "bg-[#232319] text-[#D4AF37] border-l-[#D4AF37] border-y-transparent border-r-transparent" : "bg-[#1C1C18]/40 hover:bg-[#1C1C18]/80 text-[#F3E5AB]/70 border-l-transparent border-y-transparent border-r-transparent"}`}
           >
             <Users className="w-4 h-4" />
-            Hồ Sơ & Chuồng Gà
+            Hồ sơ & chuồng gà
           </button>
           <button 
             onClick={() => setActiveTab("SETTINGS")}
-            className={`pixel-btn justify-start py-3 px-4 uppercase text-[10px] gap-3 ${activeTab === "SETTINGS" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+            className={`w-full flex items-center gap-3 py-3 px-4 rounded-lg text-xs font-semibold transition-all border-l-2 ${activeTab === "SETTINGS" ? "bg-[#232319] text-[#D4AF37] border-l-[#D4AF37] border-y-transparent border-r-transparent" : "bg-[#1C1C18]/40 hover:bg-[#1C1C18]/80 text-[#F3E5AB]/70 border-l-transparent border-y-transparent border-r-transparent"}`}
           >
             <Settings className="w-4 h-4" />
             Cài đặt
@@ -1438,21 +1438,21 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                   {/* Sảnh cờ lựa chọn cấu hình đấu */}
                   <div className="space-y-4">
-                    <h3 className="text-xs text-[#D4AF37] uppercase font-bold tracking-wider border-b border-[#D4AF37]/15 pb-2">
-                      Sảnh Đấu Trí
+                    <h3 className="text-xs text-[#D4AF37] font-bold tracking-wider border-b border-[#D4AF37]/15 pb-2">
+                      Sảnh đấu trí
                     </h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Chọn game */}
                       <div className="pixel-box-nested p-4 space-y-3">
-                        <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">1. Chọn trò chơi:</span>
+                        <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold">1. Chọn trò chơi:</span>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <button
                             onClick={() => {
                               setSelectedGame("CARO");
                               setMatchWager(0);
                             }}
-                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "CARO" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "CARO" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Gomoku
                           </button>
@@ -1461,7 +1461,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               setSelectedGame("BATTLESHIP");
                               setMatchWager(0);
                             }}
-                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "BATTLESHIP" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "BATTLESHIP" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Battleship
                           </button>
@@ -1470,7 +1470,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               setSelectedGame("TIC_TAC_TOE");
                               setMatchWager(0);
                             }}
-                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "TIC_TAC_TOE" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "TIC_TAC_TOE" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Caro 3x3
                           </button>
@@ -1479,7 +1479,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               setSelectedGame("BAU_CUA");
                               setMatchWager(10); // Mặc định giới hạn 10 coin cho Bầu Cua
                             }}
-                            className={`pixel-btn text-[10px] py-2.5 ${selectedGame === "BAU_CUA" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "BAU_CUA" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Bầu Cua
                           </button>
@@ -1488,23 +1488,23 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                       {/* Chọn chế độ */}
                       <div className="pixel-box-nested p-4 space-y-3">
-                        <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">2. Chế độ chơi:</span>
+                        <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold">2. Chế độ chơi:</span>
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => setSelectedMode("BOT")}
-                            className={`pixel-btn justify-start text-[10px] py-2 ${selectedMode === "BOT" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "BOT" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             <ChevronRight className="w-3 h-3 mr-2" /> Đấu với Bot (Offline)
                           </button>
                           <button
                             onClick={() => setSelectedMode("FRIEND")}
-                            className={`pixel-btn justify-start text-[10px] py-2 ${selectedMode === "FRIEND" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "FRIEND" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             <ChevronRight className="w-3 h-3 mr-2" /> Đấu với bạn (Mã phòng)
                           </button>
                           <button
                             onClick={() => setSelectedMode("RANDOM")}
-                            className={`pixel-btn justify-start text-[10px] py-2 ${selectedMode === "RANDOM" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "RANDOM" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             <ChevronRight className="w-3 h-3 mr-2" /> Xếp hạng (Online)
                           </button>
@@ -1517,23 +1517,23 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {selectedMode === "BOT" && (
                         <div className="space-y-4">
                           <div>
-                            <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Độ khó của Bot:</span>
+                            <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold mb-2">Độ khó của Bot:</span>
                             <div className="grid grid-cols-3 gap-2">
                               <button
                                 onClick={() => setBotDifficulty("RANDOM")}
-                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "RANDOM" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                                className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${botDifficulty === "RANDOM" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                               >
                                 Ngẫu nhiên
                               </button>
                               <button
                                 onClick={() => setBotDifficulty("EASY")}
-                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "EASY" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                                className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${botDifficulty === "EASY" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                               >
                                 Dễ (Chặn)
                               </button>
                               <button
                                 onClick={() => setBotDifficulty("HARD")}
-                                className={`pixel-btn text-[9px] py-2 ${botDifficulty === "HARD" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                                className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${botDifficulty === "HARD" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                               >
                                 Khó
                               </button>
@@ -1551,13 +1551,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {selectedMode === "FRIEND" && (
                         <div className="space-y-4">
                           <div>
-                            <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược Coin (Mỗi người):</span>
+                            <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược Coin (Mỗi người):</span>
                             <div className="grid grid-cols-4 gap-2">
                               {(selectedGame === "BAU_CUA" ? [10, 50, 100, 999999] : [0, 10, 50, 100]).map((c) => (
                                 <button
                                   key={c}
                                   onClick={() => setMatchWager(c)}
-                                  className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                                  className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${matchWager === c ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                                 >
                                   {c === 999999 ? "K.Giới Hạn" : `${c} Coin`}
                                 </button>
@@ -1579,13 +1579,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         <div className="space-y-4">
                           {selectedGame !== "BAU_CUA" ? (
                             <div>
-                              <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold mb-2">Mức cược trận đấu (Coin):</span>
+                              <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược trận đấu (Coin):</span>
                               <div className="grid grid-cols-4 gap-2">
                                 {[0, 10, 50, 100].map((c) => (
                                   <button
                                     key={c}
                                     onClick={() => setMatchWager(c)}
-                                    className={`pixel-btn text-[10px] py-2 ${matchWager === c ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                                    className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${matchWager === c ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                                   >
                                     {c} Coin
                                   </button>
@@ -2539,12 +2539,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             {/* Mastery Stats / Game Ranks (CS2 Style) */}
             <div className="border-t border-[#D4AF37]/10 pt-3 space-y-2">
-              <span className="text-[8px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold block mb-1">Xếp Hạng Kỳ Thủ (CS2 Style)</span>
+              <span className="text-[10px] text-[#F3E5AB]/50 font-semibold block mb-1">Xếp hạng kỳ thủ</span>
               
               <div className="grid grid-cols-2 gap-2">
                 {/* Caro 3x3 */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Caro 3x3</span>
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Caro 3x3</span>
                   <span className={`text-[9px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierTicTacToe || 1, profile.rankDivisionTicTacToe || 4, profile.rankPointsTicTacToe || 0);
                     return r.className;
@@ -2559,7 +2559,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                 {/* Gomoku */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Gomoku</span>
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Gomoku</span>
                   <span className={`text-[9px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierCaro || 1, profile.rankDivisionCaro || 4, profile.rankPointsCaro || 0);
                     return r.className;
@@ -2574,7 +2574,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                 {/* Battleship */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Battleship</span>
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Battleship</span>
                   <span className={`text-[9px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierBattleship || 1, profile.rankDivisionBattleship || 4, profile.rankPointsBattleship || 0);
                     return r.className;
@@ -2589,7 +2589,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                 {/* Bầu Cua */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 uppercase font-semibold">Bầu Cua</span>
+                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Bầu Cua</span>
                   <span className={`text-[9px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierBauCua || 1, profile.rankDivisionBauCua || 4, profile.rankPointsBauCua || 0);
                     return r.className;
@@ -2607,9 +2607,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
           {/* Daily Missions Card */}
           <div className="pixel-box p-4 space-y-4">
-            <h4 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5 border-b border-[#D4AF37]/10 pb-2">
+            <h4 className="text-xs font-bold text-white flex items-center gap-1.5 border-b border-[#D4AF37]/10 pb-2">
               <Trophy className="w-4 h-4 text-[#FF9F0A]" />
-              Nhiệm Vụ Hàng Ngày
+              Nhiệm vụ hàng ngày
             </h4>
 
             {loadingMissions ? (
@@ -2640,7 +2640,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           {done && (
                             <button
                               onClick={() => handleClaimMission(m.id)}
-                              className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] text-[8px] font-extrabold uppercase px-2 py-0.5 rounded transition shrink-0"
+                              className="pixel-btn pixel-btn-yellow text-[9px] px-2 py-1 rounded transition shrink-0"
                             >
                               Nhận
                             </button>
@@ -2661,9 +2661,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           {/* Daily 7-day Login Claim calendar */}
           <div className="pixel-box p-4 space-y-4">
             <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-2">
-              <h4 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-[#FF9F0A]" />
-                Điểm Danh 7 Ngày
+                Điểm danh 7 ngày
               </h4>
               <span className="text-[9px] bg-[#FF9F0A]/10 border border-[#FF9F0A]/35 text-[#FF9F0A] px-2 py-0.5 rounded font-mono font-bold">
                 Chuỗi: {profile.loginStreak}
@@ -2672,10 +2672,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             {/* Streak freezes */}
             <div className="flex justify-between items-center text-[10px] bg-[#141412] p-2 rounded-lg border border-[#D4AF37]/5">
-              <span>Đóng Băng Chuỗi: <strong className="font-mono text-[#D4AF37]">{profile.streakFreezes}</strong></span>
+              <span>Đóng băng chuỗi: <strong className="font-mono text-[#D4AF37]">{profile.streakFreezes}</strong></span>
               <button
                 onClick={handleBuyStreakFreeze}
-                className="text-[8.5px] uppercase font-bold text-[#FF9F0A] hover:underline"
+                className="text-[9px] font-bold text-[#FF9F0A] hover:underline"
               >
                 Mua (+10 🥚)
               </button>
@@ -2691,7 +2691,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     key={day} 
                     className={`aspect-square flex flex-col justify-between items-center p-1 rounded border text-[8.5px] relative ${
                       isCurrent 
-                        ? "bg-[#D4AF37]/15 border-[#D4AF37] text-white font-extrabold" 
+                        ? "bg-[#D4AF37]/15 border-[#D4AF37] text-white font-bold" 
                         : "bg-[#141412] border-[#D4AF37]/10 text-gray-500"
                     }`}
                   >
@@ -2708,17 +2708,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             <button
               onClick={handleClaimDaily}
               disabled={claimingDaily}
-              className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 rounded-lg text-[9.5px] font-extrabold uppercase transition"
+              className="w-full pixel-btn pixel-btn-yellow py-2 text-[10px] font-bold transition"
             >
-              {claimingDaily ? "Đang nhận..." : "Điểm Danh Ngày"}
+              {claimingDaily ? "Đang nhận..." : "Điểm danh ngày"}
             </button>
           </div>
 
           {/* Friends list sidebar (PC Only) */}
           <div className="pixel-box p-4 space-y-4">
-            <h4 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5 border-b border-[#D4AF37]/10 pb-2">
+            <h4 className="text-xs font-bold text-white flex items-center gap-1.5 border-b border-[#D4AF37]/10 pb-2">
               <Users className="w-4 h-4 text-[#FF9F0A]" />
-              Bạn Bè trực tuyến
+              Bạn bè trực tuyến
             </h4>
 
             <div className="space-y-3">
@@ -2730,7 +2730,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   return (
                     <div key={f.id} className="flex justify-between items-center text-xs">
                       <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${isOnline ? "bg-green-400 animate-pulse" : "bg-gray-500"}`}></span>
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isOnline ? "bg-green-500" : "bg-gray-500"}`}></span>
                         <div className="max-w-[100px]">
                           <span className="font-bold text-white block truncate">@{f.username}</span>
                           <span className="text-[8.5px] text-[#F3E5AB]/50 block truncate">
@@ -2742,7 +2742,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         {isOnline && (
                           <button
                             onClick={() => handleInviteFriend(f.id, f.username)}
-                            className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-2 py-0.5 rounded text-[8px] font-bold transition"
+                            className="pixel-btn pixel-btn-yellow px-2 py-1 text-[9px] font-bold transition"
                           >
                             Mời
                           </button>
@@ -2774,42 +2774,42 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       <nav className="lg:hidden border-t border-[#D4AF37]/15 bg-[#1C1C18] py-2 px-4 flex justify-between items-center fixed bottom-0 left-0 right-0 z-40 shadow-inner">
         <button
           onClick={() => setActiveTab("PLAY")}
-          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "PLAY" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "PLAY" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Swords className="w-5 h-5" />
-          <span className="text-[8px] uppercase">Đấu</span>
+          <span className="text-[9px] font-medium">Đấu trường</span>
         </button>
 
         <button
           onClick={() => setActiveTab("SHOP")}
-          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SHOP" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SHOP" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <ShoppingBag className="w-5 h-5" />
-          <span className="text-[8px] uppercase">Cửa hàng</span>
+          <span className="text-[9px] font-medium">Cửa hàng</span>
         </button>
 
         <button
           onClick={() => setActiveTab("BP")}
-          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "BP" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "BP" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Award className="w-5 h-5" />
-          <span className="text-[8px] uppercase">BP</span>
+          <span className="text-[9px] font-medium">Battle Pass</span>
         </button>
 
         <button
           onClick={() => setActiveTab("SOCIAL")}
-          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SOCIAL" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SOCIAL" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Users className="w-5 h-5" />
-          <span className="text-[8px] uppercase">Bạn bè</span>
+          <span className="text-[9px] font-medium">Bạn bè</span>
         </button>
 
         <button
           onClick={() => setActiveTab("SETTINGS")}
-          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SETTINGS" ? "text-[#D4AF37] font-bold" : "text-[#F3E5AB]/55"}`}
+          className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SETTINGS" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Settings className="w-5 h-5" />
-          <span className="text-[8px] uppercase">Cài đặt</span>
+          <span className="text-[9px] font-medium">Cài đặt</span>
         </button>
       </nav>
 

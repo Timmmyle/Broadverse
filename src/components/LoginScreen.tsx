@@ -66,13 +66,13 @@ export default function LoginScreen() {
 
   return (
     <div className="min-h-screen w-full bg-[#141412] text-[#F3E5AB] font-sans selection:bg-[#D4AF37] selection:text-black relative overflow-y-auto">
-      {/* Background neon grid effect */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c1c18_1px,transparent_1px),linear-gradient(to_bottom,#1c1c18_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-25 pointer-events-none"></div>
+      {/* Background neon grid effect - Muted */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c1c18_1px,transparent_1px),linear-gradient(to_bottom,#1c1c18_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-5 pointer-events-none"></div>
 
       {/* Navigation Header */}
       <header className="border-b border-[#D4AF37]/15 py-4 px-6 md:px-12 flex justify-between items-center relative z-20 bg-[#141412]/80 backdrop-blur-md sticky top-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] flex items-center justify-center shadow-lg shadow-[#D4AF37]/10">
+          <div className="w-9 h-9 rounded-lg bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/10">
             <span className="font-bold text-[#141412] text-xl">🐔</span>
           </div>
           <div>
@@ -83,13 +83,13 @@ export default function LoginScreen() {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setActiveForm("EMAIL")}
-            className="text-xs uppercase tracking-wider text-[#F3E5AB] hover:text-[#D4AF37] transition font-medium"
+            className="text-xs text-[#F3E5AB] hover:text-[#D4AF37] transition font-medium"
           >
             Đăng nhập
           </button>
           <button 
             onClick={() => { setActiveForm("EMAIL"); setIsRegistering(true); }}
-            className="text-xs uppercase tracking-wider bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-4 py-2 rounded-lg font-bold transition shadow-md shadow-[#D4AF37]/15"
+            className="pixel-btn pixel-btn-yellow text-xs px-4 py-2 font-bold transition"
           >
             Đăng ký
           </button>
@@ -102,25 +102,25 @@ export default function LoginScreen() {
         <div className="lg:col-span-7 text-left space-y-6">
           <div className="inline-flex items-center gap-2 bg-[#1C1C18] border border-[#D4AF37]/20 px-3 py-1 rounded-full text-xs text-[#FF9F0A]">
             <Flame className="w-3.5 h-3.5" />
-            <span>Mùa Giải 1: Vuiga Pass Khởi Tranh (60 Ngày)</span>
+            <span>Mùa giải 1: Vuiga Pass khởi tranh (60 ngày)</span>
           </div>
           <h2 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-tight">
             Đấu trường cờ <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A]">
-              Kê Vương Hội Tụ
+            <span className="text-[#D4AF37]">
+              Kê vương hội tụ
             </span>
           </h2>
           <p className="text-[#F3E5AB]/85 text-base md:text-lg max-w-xl leading-relaxed">
-            Hành trình tiến hóa từ Quả Trứng 🥚 đến Phượng Hoàng Lửa 🔥. Trải nghiệm Xếp Hạng Gomoku, Tic Tac Toe, và Battleship cùng hệ thống rương Egg Box hấp dẫn!
+            Hành trình tiến hóa từ Quả trứng 🥚 đến Phượng hoàng lửa 🔥. Trải nghiệm xếp hạng Gomoku, Tic Tac Toe, và Battleship cùng hệ thống rương Egg Box hấp dẫn!
           </p>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-4">
             <button
               onClick={loginGuest}
               disabled={loading}
-              className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] hover:from-[#FF9F0A] hover:to-[#D4AF37] text-[#141412] text-sm uppercase tracking-wider font-extrabold px-8 py-4 rounded-xl flex items-center justify-center gap-3 transition-transform active:scale-95 shadow-lg shadow-[#D4AF37]/20 disabled:opacity-50"
+              className="pixel-btn pixel-btn-yellow py-3.5 px-8 text-sm font-bold flex items-center justify-center gap-3 transition disabled:opacity-50"
             >
               <Gamepad2 className="w-5 h-5 stroke-[2.5px]" />
-              {loading ? "Đang kết nối..." : "Chơi Ngay trong 3 Giây"}
+              {loading ? "Đang kết nối..." : "Chơi ngay trong 3 giây"}
             </button>
             <p className="text-[10px] text-[#F3E5AB]/50 max-w-[200px] text-center sm:text-left">
               Chế độ Khách (Guest Mode) không cần đăng ký, lưu tiến trình trên trình duyệt này!
@@ -134,17 +134,17 @@ export default function LoginScreen() {
             <div className="flex border-b border-[#D4AF37]/15 pb-4 mb-6 gap-4">
               <button
                 onClick={() => setActiveForm("GUEST")}
-                className={`flex-1 text-center py-2 text-xs uppercase tracking-wider font-bold border-b-2 transition ${
+                className={`flex-1 text-center py-2 text-xs font-bold border-b-2 transition ${
                   activeForm === "GUEST" 
                     ? "border-[#D4AF37] text-white" 
                     : "border-transparent text-[#F3E5AB]/50 hover:text-white"
                 }`}
               >
-                Chơi Nhanh
+                Chơi nhanh
               </button>
               <button
                 onClick={() => setActiveForm("EMAIL")}
-                className={`flex-1 text-center py-2 text-xs uppercase tracking-wider font-bold border-b-2 transition ${
+                className={`flex-1 text-center py-2 text-xs font-bold border-b-2 transition ${
                   activeForm === "EMAIL" 
                     ? "border-[#D4AF37] text-white" 
                     : "border-transparent text-[#F3E5AB]/50 hover:text-white"
@@ -162,11 +162,11 @@ export default function LoginScreen() {
 
             {activeForm === "GUEST" ? (
               <div className="space-y-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-[#141412] border border-[#D4AF37]/20 flex items-center justify-center mx-auto text-[#D4AF37] animate-pulse">
+                <div className="w-16 h-16 rounded-full bg-[#141412] border border-[#D4AF37]/20 flex items-center justify-center mx-auto text-[#D4AF37]">
                   <Gamepad2 className="w-8 h-8" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-white">Bắt đầu như khách vô danh</h3>
+                  <h3 className="text-sm font-bold text-white">Bắt đầu như khách vô danh</h3>
                   <p className="text-[11px] text-[#F3E5AB]/70 leading-relaxed">
                     Trải nghiệm đầy đủ các tính năng đấu trí. Sau này bạn có thể nâng cấp lên tài khoản chính thức bất kỳ lúc nào để lưu vĩnh viễn tiến trình!
                   </p>
@@ -174,16 +174,16 @@ export default function LoginScreen() {
                 <button
                   onClick={loginGuest}
                   disabled={loading}
-                  className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-3.5 rounded-xl flex items-center justify-center gap-3 font-bold uppercase text-xs transition disabled:opacity-50"
+                  className="w-full pixel-btn pixel-btn-yellow py-3 flex items-center justify-center gap-3 font-bold text-xs transition disabled:opacity-50"
                 >
                   <Sparkles className="w-4 h-4 text-[#141412]" />
-                  {loading ? "Đang kết nối..." : "Bắt đầu Chiến đấu"}
+                  {loading ? "Đang kết nối..." : "Bắt đầu chiến đấu"}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] uppercase text-[#F3E5AB]/60 font-semibold tracking-wider">Email:</label>
+                  <label className="block text-[10px] text-[#F3E5AB]/60 font-semibold">Email:</label>
                   <div className="relative">
                     <input
                       type="email"
@@ -193,12 +193,12 @@ export default function LoginScreen() {
                       required
                       className="w-full pixel-input pl-10 pr-4"
                     />
-                    <Mail className="absolute left-3.5 top-[14px] w-4 h-4 text-[#D4AF37]/75" />
+                    <Mail className="absolute left-3.5 top-[10px] w-4 h-4 text-[#D4AF37]/75" />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] uppercase text-[#F3E5AB]/60 font-semibold tracking-wider">Mật khẩu:</label>
+                  <label className="block text-[10px] text-[#F3E5AB]/60 font-semibold">Mật khẩu:</label>
                   <div className="relative">
                     <input
                       type="password"
@@ -208,14 +208,14 @@ export default function LoginScreen() {
                       required
                       className="w-full pixel-input pl-10 pr-4"
                     />
-                    <Lock className="absolute left-3.5 top-[14px] w-4 h-4 text-[#D4AF37]/75" />
+                    <Lock className="absolute left-3.5 top-[10px] w-4 h-4 text-[#D4AF37]/75" />
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={authLoading}
-                  className="w-full bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-3.5 rounded-xl flex items-center justify-center gap-3 font-bold uppercase text-xs transition mt-6 disabled:opacity-50 shadow-md shadow-[#D4AF37]/10"
+                  className="w-full pixel-btn pixel-btn-yellow py-3 flex items-center justify-center gap-3 font-bold text-xs transition mt-6 disabled:opacity-50"
                 >
                   {isRegistering ? (
                     <>
@@ -225,7 +225,7 @@ export default function LoginScreen() {
                   ) : (
                     <>
                       <LogIn className="w-4 h-4" />
-                      {authLoading ? "Đang đăng nhập..." : "Vào Đấu trường"}
+                      {authLoading ? "Đang đăng nhập..." : "Vào đấu trường"}
                     </>
                   )}
                 </button>
@@ -234,9 +234,9 @@ export default function LoginScreen() {
                   <button
                     type="button"
                     onClick={() => setIsRegistering(!isRegistering)}
-                    className="text-[10px] text-[#FF9F0A] hover:underline uppercase tracking-wide font-bold"
+                    className="text-[10px] text-[#FF9F0A] hover:underline font-bold"
                   >
-                    {isRegistering ? "<< Trở lại Đăng nhập" : "Chưa có tài khoản? Đăng ký tại đây >>"}
+                    {isRegistering ? "<< Trở lại đăng nhập" : "Chưa có tài khoản? Đăng ký tại đây >>"}
                   </button>
                 </div>
               </form>

@@ -6,7 +6,9 @@
   
   --color-warm-charcoal: #141412;
   --color-dark-brass: #1C1C18;
+  --color-elevated-surface: #232319;
   --color-imperial-gold: #D4AF37;
+  --color-hover-gold: #C49F27;
   --color-champagne-gold: #F3E5AB;
   --color-amber-spark: #FF9F0A;
 }
@@ -20,34 +22,35 @@ body {
   font-family: var(--font-sans);
   background-color: var(--background);
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Premium Rounded Gaming UI Utilities */
+/* Premium Rounded Gaming UI Utilities - Flat & Matte */
 .pixel-box {
-  background-color: rgba(28, 28, 24, 0.95);
-  border: 1px solid rgba(214, 175, 55, 0.2);
-  border-radius: 1.25rem; /* rounded-2xl */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4), 0 0 15px rgba(212, 175, 55, 0.05);
-  backdrop-filter: blur(12px);
+  background-color: #1C1C18;
+  border: 1px solid rgba(214, 175, 55, 0.08);
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: border-color 150ms ease-in-out;
 }
 
 .pixel-box-nested {
   background-color: #141412;
-  border: 1px solid rgba(214, 175, 55, 0.1);
-  border-radius: 0.75rem; /* rounded-xl */
+  border: 1px solid rgba(214, 175, 55, 0.05);
+  border-radius: 0.5rem; /* rounded-lg */
 }
 
+/* Base button structure - No hover translates or neon glows */
 .pixel-btn {
   background-color: #D4AF37;
   color: #141412;
   border: 1px solid transparent;
-  border-radius: 0.75rem; /* rounded-xl */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  padding: 10px 20px;
+  border-radius: 0.5rem; /* rounded-lg */
+  padding: 10px 18px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 150ms ease-in-out, border-color 150ms ease-in-out, color 150ms ease-in-out, transform 100ms ease;
   user-select: none;
   display: inline-flex;
   align-items: center;
@@ -55,29 +58,29 @@ body {
 }
 
 .pixel-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.3), 0 0 10px rgba(212, 175, 55, 0.2);
-  filter: brightness(1.1);
+  background-color: #C49F27;
+  transform: none; /* No vertical translate */
 }
 
 .pixel-btn:active {
-  transform: translateY(0) scale(0.97);
+  transform: scale(0.98); /* Minimal active scale feedback */
 }
 
+/* Button Variants */
 .pixel-btn-red {
-  background-color: #ef4444;
+  background-color: #dc2626;
   color: #ffffff;
 }
 .pixel-btn-red:hover {
-  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);
+  background-color: #b91c1c;
 }
 
 .pixel-btn-blue {
-  background-color: #3b82f6;
+  background-color: #2563eb;
   color: #ffffff;
 }
 .pixel-btn-blue:hover {
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+  background-color: #1d4ed8;
 }
 
 .pixel-btn-yellow {
@@ -85,66 +88,68 @@ body {
   color: #141412;
 }
 .pixel-btn-yellow:hover {
-  box-shadow: 0 10px 15px -3px rgba(212, 175, 55, 0.3);
+  background-color: #C49F27;
 }
 
 .pixel-btn-gray {
   background-color: #1C1C18;
   color: #F3E5AB;
-  border: 1px solid rgba(214, 175, 55, 0.15);
+  border: 1px solid rgba(214, 175, 55, 0.08);
 }
 .pixel-btn-gray:hover {
-  background-color: #272722;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  background-color: #22221e;
+  border-color: rgba(214, 175, 55, 0.15);
 }
 
 .pixel-btn-secondary {
   background-color: transparent;
   color: #D4AF37;
-  border: 1px solid rgba(212, 175, 55, 0.4);
+  border: 1px solid rgba(212, 175, 55, 0.25);
 }
 .pixel-btn-secondary:hover {
-  background-color: rgba(212, 175, 55, 0.08);
-  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.15);
+  background-color: rgba(212, 175, 55, 0.05);
+  border-color: rgba(212, 175, 55, 0.4);
 }
 
 .pixel-btn-owned {
   background-color: #1C1C18;
-  color: rgba(243, 229, 171, 0.4);
-  border: 1px solid rgba(212, 175, 55, 0.1);
+  color: rgba(243, 229, 171, 0.25);
+  border: 1px solid rgba(212, 175, 55, 0.05);
   cursor: not-allowed !important;
 }
 .pixel-btn-owned:hover {
   transform: none !important;
   box-shadow: none !important;
   filter: none !important;
+  background-color: #1C1C18 !important;
 }
 
 .pixel-input {
-  background-color: rgba(20, 20, 18, 0.8);
+  background-color: #141412;
   color: #F3E5AB;
-  border: 1px solid rgba(214, 175, 55, 0.2);
-  border-radius: 0.75rem; /* rounded-xl */
-  padding: 12px 16px;
+  border: 1px solid rgba(214, 175, 55, 0.12);
+  border-radius: 0.5rem; /* rounded-lg */
+  padding: 10px 14px;
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 500;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 150ms ease-in-out;
 }
 
 .pixel-input:focus {
   border-color: #D4AF37;
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+  box-shadow: none; /* Remove high-contrast neon ring glow */
 }
 
 .pixel-text-shadow {
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
-/* Scrollbar mượt mà hơn */
+/* Clean Minimal Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -152,16 +157,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1C1C18;
-  border: 1px solid rgba(214, 175, 55, 0.1);
-  border-radius: 9999px;
+  background: #22221e;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #D4AF37;
 }
 
-/* Hiệu ứng neon grid tinh tế cho vuiga.com */
+/* Subtle Chessboard/Watermark Overlay - Matte depth */
 .scanlines {
   position: relative;
   overflow: hidden;
@@ -172,7 +176,7 @@ body {
   display: block;
   position: absolute;
   top: 0; left: 0; bottom: 0; right: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.04) 0%, transparent 80%);
+  background: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.01) 0%, transparent 90%);
   z-index: 10;
   pointer-events: none;
 }

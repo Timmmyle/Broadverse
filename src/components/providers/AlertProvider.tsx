@@ -79,7 +79,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
   // Determine design elements based on content
   let icon = <Info className="w-8 h-8 text-[#D4AF37]" />;
-  let title = "THÔNG BÁO";
+  let title = "Thông báo";
   
   const msgLower = message.toLowerCase();
   if (
@@ -91,23 +91,23 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     msgLower.includes("sai") ||
     msgLower.includes("không đủ")
   ) {
-    icon = <ShieldAlert className="w-8 h-8 text-red-500 animate-pulse" />;
-    title = "CẢNH BÁO";
+    icon = <ShieldAlert className="w-8 h-8 text-red-500" />;
+    title = "Cảnh báo";
   } else if (
     msgLower.includes("thành công") || 
     msgLower.includes("cảm ơn") || 
     msgLower.includes("chính xác") || 
     msgLower.includes("nhận")
   ) {
-    icon = <Check className="w-8 h-8 text-green-500 animate-bounce" />;
-    title = "THÀNH CÔNG";
+    icon = <Check className="w-8 h-8 text-green-500" />;
+    title = "Thành công";
   } else if (
     msgLower.includes("mời") || 
     msgLower.includes("phòng") || 
     msgLower.includes("tổ đội")
   ) {
     icon = <Swords className="w-8 h-8 text-blue-400" />;
-    title = "ĐẤU TRƯỜNG";
+    title = "Đấu trường";
   }
 
   return (

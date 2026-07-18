@@ -520,9 +520,9 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
   if (loading || !room || !board) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#0a0a0c] scanlines">
-        <RotateCcw className="w-10 h-10 text-pixel-yellow animate-spin" />
-        <h2 className="text-xs text-pixel-yellow uppercase mt-4 tracking-widest animate-pulse">
-          ĐANG TẢI BÀN CƯỢC BẦU CUA...
+        <RotateCcw className="w-10 h-10 text-[#D4AF37] animate-spin" />
+        <h2 className="text-xs text-[#D4AF37] mt-4 font-semibold">
+          Đang tải bàn cược Bầu Cua...
         </h2>
       </div>
     );
@@ -543,8 +543,8 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
       {transitioning && (
         <div className="absolute inset-0 bg-[#0c0c0e]/85 backdrop-blur-md z-[9999] flex flex-col items-center justify-center pointer-events-auto">
           <div className="w-12 h-12 border-4 border-t-transparent border-[#D4AF37] rounded-full animate-spin"></div>
-          <span className="text-[9.5px] text-[#F3E5AB] font-extrabold tracking-widest mt-4 uppercase animate-pulse">
-            ĐANG TẢI VÁN ĐẤU...
+          <span className="text-[9.5px] text-[#F3E5AB] font-semibold mt-4">
+            Đang tải ván đấu...
           </span>
         </div>
       )}
@@ -557,7 +557,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
             className="pixel-btn pixel-btn-gray py-2 px-3 flex items-center justify-center gap-1.5 text-[10px]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Rời Phòng
+            Rời phòng
           </button>
           <div>
             <h1 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 drop-shadow-md">

@@ -1299,7 +1299,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
           {/* Premium tag */}
           {profile.isPremium ? (
-            <span className="hidden md:inline-flex items-center gap-1 text-[8px] bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] px-2.5 py-1 rounded-full font-extrabold uppercase shadow-md">
+            <span 
+              title={profile.premiumUntil ? `Hạn dùng: ${new Date(profile.premiumUntil).toLocaleDateString("vi-VN")}` : "Hạn dùng: Vĩnh viễn"}
+              className="hidden md:inline-flex items-center gap-1 text-[8px] bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] px-2.5 py-1 rounded-full font-extrabold uppercase shadow-md cursor-help"
+            >
               👑 Premium
             </span>
           ) : (
@@ -1895,6 +1898,29 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   </div>
                 </div>
               </div>
+
+              {/* VIP Premium Status Info */}
+              {profile.isPremium && (
+                <div className="pixel-box-nested p-4 border border-[#D4AF37]/35 bg-gradient-to-r from-[#1C1C18] to-[#D4AF37]/5 space-y-2">
+                  <h3 className="text-xs font-bold text-[#D4AF37] uppercase flex items-center gap-1.5">
+                    👑 Trạng thái Premium Membership
+                  </h3>
+                  <p className="text-[10px] text-[#F3E5AB]/85">
+                    Bạn đang là VIP Premium. Thời hạn sử dụng đến ngày:{" "}
+                    <strong className="text-white font-mono">
+                      {profile.premiumUntil
+                        ? new Date(profile.premiumUntil).toLocaleString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })
+                        : "Vĩnh viễn"}
+                    </strong>
+                  </p>
+                </div>
+              )}
 
               {/* VIP Premium purchase options */}
               <div className="pixel-box-nested p-4 space-y-4 border border-[#D4AF37]/35 bg-gradient-to-br from-[#1C1C18] to-[#D4AF37]/5">

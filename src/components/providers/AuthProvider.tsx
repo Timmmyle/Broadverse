@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@prisma/client";
+import { useAlert } from "./AlertProvider";
 
 interface AuthContextType {
   user: any | null; // Supabase Auth User
@@ -19,6 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { showAlert } = useAlert();
   const supabase = createClient();
 
   // Đồng bộ user từ Supabase Auth sang Prisma DB
@@ -92,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
     } catch (error) {
       console.error("Lỗi đăng nhập Khách:", error);
-      alert("Đăng nhập Khách thất bại, vui lòng thử lại!");
+      showAlert("Đăng nhập Khách thất bại, vui lòng thử lại!");
     } finally {
       setLoading(false);
     }

@@ -7,9 +7,11 @@ import Dashboard from "@/components/Dashboard";
 import GameRoomView from "@/components/GameRoomView";
 import { useSearchParams } from "next/navigation";
 import { RefreshCw } from "lucide-react";
+import { useAlert } from "@/components/providers/AlertProvider";
 
 function HomeContent() {
   const { profile, loading } = useAuth();
+  const { showAlert } = useAlert();
   const searchParams = useSearchParams();
 
   // Trạng thái màn hình hiện tại: "LOBBY" (Dashboard) hoặc "GAME" (Bàn cờ)
@@ -55,7 +57,7 @@ function HomeContent() {
             window.history.replaceState({}, "", url.toString());
           } else {
             const err = await res.json();
-            alert(err.error || "Không thể tham gia phòng cờ của bạn bè!");
+            showAlert(err.error || "Không thể tham gia phòng cờ của bạn bè!");
           }
         } catch (err) {
           console.error("Lỗi tham gia phòng:", err);

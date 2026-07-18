@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useAlert } from "./providers/AlertProvider";
 import { 
   ArrowLeft, Users, Trophy, Coins, RotateCcw, Swords, Plus, LogOut, Check, HelpCircle, Copy, Clock
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface BauCuaViewProps {
 
 export default function BauCuaView({ mode, details, profile, onBack, refreshProfile }: BauCuaViewProps) {
   const supabase = createClient();
+  const { showAlert } = useAlert();
   const roomId = details.roomId;
 
   const [room, setRoom] = useState<any | null>(null);
@@ -254,7 +256,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     const limit = board.betLimit > 0 ? board.betLimit : Infinity;
 
     if (currentTotal + activeChip > limit) {
-      alert(`Bạn đã đạt giới hạn cược tối đa của phòng này (${limit} Coin)!`);
+      showAlert(`Bạn đã đạt giới hạn cược tối đa của phòng này (${limit} Coin)!`);
       return;
     }
 
@@ -263,7 +265,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
     const pendingIncrease = (currentTotal + activeChip) - myPlacedBet;
 
     if (profile.eggs < pendingIncrease) {
-      alert("Số dư Coin của bạn không đủ để đặt thêm cược này!");
+      showAlert("Số dư Coin của bạn không đủ để đặt thêm cược này!");
       return;
     }
 
@@ -371,7 +373,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         refreshProfile();
       } else {
         const err = await res.json();
-        alert(err.error || "Gửi cược thất bại!");
+        showAlert(err.error || "Gửi cược thất bại!");
       }
     } catch (e) {
       console.error(e);
@@ -409,7 +411,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         if (data.room) updateRoomState(data.room);
       } else {
         const err = await res.json();
-        alert(err.error || "Thêm Bot thất bại!");
+        showAlert(err.error || "Thêm Bot thất bại!");
       }
     } catch (e) {
       console.error(e);
@@ -433,7 +435,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         }
       } else {
         const err = await res.json();
-        alert(err.error || "Bắt đầu game thất bại!");
+        showAlert(err.error || "Bắt đầu game thất bại!");
       }
     } catch (e) {
       console.error(e);
@@ -455,7 +457,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         }
       } else {
         const err = await res.json();
-        alert(err.error || "Lắc xúc xắc thất bại!");
+        showAlert(err.error || "Lắc xúc xắc thất bại!");
       }
     } catch (e) {
       console.error(e);
@@ -474,7 +476,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         if (data.room) updateRoomState(data.room);
       } else {
         const err = await res.json();
-        alert(err.error || "Reset game thất bại!");
+        showAlert(err.error || "Reset game thất bại!");
       }
     } catch (e) {
       console.error(e);

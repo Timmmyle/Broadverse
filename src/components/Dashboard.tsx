@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./providers/AuthProvider";
+import { useAlert } from "./providers/AlertProvider";
 import { SHOP_ITEMS, ShopItem, getShopItem } from "@/lib/shopItems";
 import { createClient } from "@/lib/supabase/client";
 import { 
@@ -18,6 +19,7 @@ interface DashboardProps {
 
 export default function Dashboard({ onSelectGame }: DashboardProps) {
   const { profile, signOutUser, refreshProfile } = useAuth();
+  const { showAlert } = useAlert();
   const supabase = createClient();
 
   // Tab chính trên PC: "PLAY" | "SHOP" | "SETTINGS"
@@ -193,10 +195,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           }
         });
 
-        alert(data.message || "Đã chấp nhận kết bạn!");
+        showAlert(data.message || "Đã chấp nhận kết bạn!");
         fetchFriends();
       } else {
-        alert(data.error || "Không thể chấp nhận kết bạn");
+        showAlert(data.error || "Không thể chấp nhận kết bạn");
       }
     } catch (err) {
       console.error(err);
@@ -211,7 +213,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         body: JSON.stringify({ action: "REMOVE", friendId })
       });
       if (res.ok) {
-        alert("Đã từ chối yêu cầu kết bạn!");
+        showAlert("Đã từ chối yêu cầu kết bạn!");
         fetchFriends();
       }
     } catch (err) {
@@ -247,15 +249,15 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           }
         });
 
-        alert(data.message || "Đã gửi yêu cầu kết bạn!");
+        showAlert(data.message || "Đã gửi yêu cầu kết bạn!");
         setAddFriendUsername("");
         fetchFriends();
       } else {
-        alert(data.error || "Không thể gửi yêu cầu kết bạn");
+        showAlert(data.error || "Không thể gửi yêu cầu kết bạn");
       }
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối gửi kết bạn");
+      showAlert("Lỗi kết nối gửi kết bạn");
     } finally {
       setAddFriendLoading(false);
     }
@@ -270,7 +272,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         body: JSON.stringify({ action: "REMOVE", friendId })
       });
       if (res.ok) {
-        alert("Đã hủy kết bạn thành công");
+        showAlert("Đã hủy kết bạn thành công");
         fetchFriends();
       }
     } catch (err) {
@@ -287,7 +289,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         body: JSON.stringify({ action: "BLOCK", friendId })
       });
       if (res.ok) {
-        alert("Đã chặn thành công. Bạn sẽ không bị ghép trận với người này nữa.");
+        showAlert("Đã chặn thành công. Bạn sẽ không bị ghép trận với người này nữa.");
         fetchFriends();
       }
     } catch (err) {
@@ -318,9 +320,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       if (res.ok) {
         setActiveParty(data.party);
         fetchCurrentParty();
-        alert("Khởi tạo tổ đội thành công!");
+        showAlert("Khởi tạo tổ đội thành công!");
       } else {
-        alert(data.error || "Không thể tạo tổ đội");
+        showAlert(data.error || "Không thể tạo tổ đội");
       }
     } catch (err) {
       console.error(err);
@@ -338,9 +340,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       if (res.ok) {
         setActiveParty(data.party);
         fetchCurrentParty();
-        alert("Đã gia nhập tổ đội thành công!");
+        showAlert("Đã gia nhập tổ đội thành công!");
       } else {
-        alert(data.error || "Không thể gia nhập tổ đội");
+        showAlert(data.error || "Không thể gia nhập tổ đội");
       }
     } catch (err) {
       console.error(err);
@@ -379,7 +381,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         }
         setActiveParty(null);
         setPartyMembers([]);
-        alert("Đã rời tổ đội");
+        showAlert("Đã rời tổ đội");
       }
     } catch (err) {
       console.error(err);
@@ -451,7 +453,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           setActiveParty(createData.party);
           fetchCurrentParty();
         } else {
-          alert("Không thể tạo tổ đội để mời bạn bè");
+          showAlert("Không thể tạo tổ đội để mời bạn bè");
           return;
         }
       }
@@ -469,13 +471,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               wager: activeParty?.wager || 0
             }
           });
-          alert(`Đã gửi lời mời tham gia tổ đội tới @${friendUsername}`);
+          showAlert(`Đã gửi lời mời tham gia tổ đội tới @${friendUsername}`);
           supabase.removeChannel(channel);
         }
       });
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối mời bạn");
+      showAlert("Lỗi kết nối mời bạn");
     }
   };
 
@@ -513,11 +515,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         onSelectGame(activeParty.gameType as any, "FRIEND", { roomId });
       } else {
         const errData = await createRes.json();
-        alert(errData.error || "Không thể bắt đầu ghép trận");
+        showAlert(errData.error || "Không thể bắt đầu ghép trận");
       }
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối bắt đầu trận tổ đội");
+      showAlert("Lỗi kết nối bắt đầu trận tổ đội");
     }
   };
 
@@ -560,12 +562,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         onSelectGame(gameType, "FRIEND", { roomId });
       } else {
         const errData = await res.json();
-        alert(errData.error || "Không thể tham gia phòng đấu này");
+        showAlert(errData.error || "Không thể tham gia phòng đấu này");
         setActiveGameInvite(null);
       }
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối khi tham gia phòng đấu");
+      showAlert("Lỗi kết nối khi tham gia phòng đấu");
       setActiveGameInvite(null);
     }
   };
@@ -672,7 +674,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       .on("broadcast", { event: "party_disband" }, () => {
         setActiveParty(null);
         setPartyMembers([]);
-        alert("Tổ đội đã bị giải tán");
+        showAlert("Tổ đội đã bị giải tán");
       })
       .on("broadcast", { event: "party_match_start" }, (payload: any) => {
         const { roomId, gameType } = payload.payload;
@@ -719,7 +721,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       .on("broadcast", { event: "friend_accept" }, (payload: any) => {
         // Tải lại danh sách bạn bè khi đối phương đồng ý kết bạn
         fetchFriends();
-        alert(`@${payload.payload.accepterUsername} đã đồng ý kết bạn!`);
+        showAlert(`@${payload.payload.accepterUsername} đã đồng ý kết bạn!`);
       })
       .on("broadcast", { event: "game_invite" }, (payload: any) => {
         setActiveGameInvite(payload.payload);
@@ -793,7 +795,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         await refreshProfile();
         setEditingUsername(false);
       } else {
-        alert(await res.text());
+        showAlert(await res.text());
       }
     } catch (err) {
       console.error(err);
@@ -823,7 +825,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         setUpgradePassword("");
       }
     } catch (err: any) {
-      alert("Lỗi nâng cấp: " + (err.message || "Thử lại sau"));
+      showAlert("Lỗi nâng cấp: " + (err.message || "Thử lại sau"));
     } finally {
       setUpgradeLoading(false);
     }
@@ -841,7 +843,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         await refreshProfile();
       } else {
         const err = await res.json();
-        alert(err.error || "Mua hàng thất bại!");
+        showAlert(err.error || "Mua hàng thất bại!");
       }
     } catch (err) {
       console.error(err);
@@ -885,7 +887,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         await refreshProfile();
       } else {
         const err = await res.json();
-        alert(err.error || "Trang bị thất bại!");
+        showAlert(err.error || "Trang bị thất bại!");
       }
     } catch (err) {
       console.error(err);
@@ -929,10 +931,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        showAlert(data.message);
         await refreshProfile();
       } else {
-        alert(data.error);
+        showAlert(data.error);
       }
     } catch (err) {
       console.error(err);
@@ -947,14 +949,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       const res = await fetch("/api/user/season-reset", { method: "POST" });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        showAlert(data.message);
         await refreshProfile();
       } else {
-        alert(data.error || "Reset thất bại");
+        showAlert(data.error || "Reset thất bại");
       }
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối máy chủ");
+      showAlert("Lỗi kết nối máy chủ");
     } finally {
       setResetSeasonLoading(false);
     }
@@ -972,10 +974,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        showAlert(data.message);
         await refreshProfile();
       } else {
-        alert(data.error);
+        showAlert(data.error);
       }
     } catch (err) {
       console.error(err);
@@ -994,11 +996,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(data.message);
+        showAlert(data.message);
         await refreshProfile();
         fetchMissions();
       } else {
-        alert(data.error);
+        showAlert(data.error);
       }
     } catch (err) {
       console.error(err);
@@ -1039,7 +1041,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const handleStartMatchmaking = async () => {
     const requiredEggs = selectedGame === "BAU_CUA" ? 1 : matchWager;
     if (profile.eggs < requiredEggs) {
-      alert("Bạn không đủ Trứng cược để tham gia hàng chờ này!");
+      showAlert("Bạn không đủ Trứng cược để tham gia hàng chờ này!");
       return;
     }
 
@@ -1142,7 +1144,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
   const handleCreateFriendRoom = async () => {
     if (profile.eggs < matchWager) {
-      alert("Bạn không đủ Trứng để đặt cược phòng cờ này!");
+      showAlert("Bạn không đủ Trứng để đặt cược phòng cờ này!");
       return;
     }
 
@@ -1159,7 +1161,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         onSelectGame(selectedGame, "FRIEND", { roomId: room.id, isCreator: true });
       } else {
         const err = await res.json();
-        alert(err.error || "Tạo phòng thất bại!");
+        showAlert(err.error || "Tạo phòng thất bại!");
       }
     } catch (err) {
       console.error(err);
@@ -1225,7 +1227,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       form.submit();
     } catch (err: any) {
       console.error(err);
-      alert(err.message || "Lỗi kết nối đến cổng SePay");
+      showAlert(err.message || "Lỗi kết nối đến cổng SePay");
     } finally {
       setSepayRedirecting(false);
     }
@@ -2757,7 +2759,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(`${window.location.origin}/?joinRoom=room-party-id`);
-                  alert("Đã sao chép Link mời tổ đội!");
+                  showAlert("Đã sao chép Link mời tổ đội!");
                 }}
                 className="w-full bg-[#1C1C18] border border-[#D4AF37]/20 hover:border-[#D4AF37] text-white py-1.5 rounded text-[8.5px] font-bold uppercase transition flex items-center justify-center gap-1"
               >

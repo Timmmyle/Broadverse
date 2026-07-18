@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useAlert } from "./providers/AlertProvider";
 import { 
   ArrowLeft, Swords, Award, AlertTriangle, Clock, RefreshCw, Copy, Check, 
   Coins, RotateCw, Shield, Target, Zap, HelpCircle, Eye
@@ -77,6 +78,7 @@ const getShipColorClasses = (shipId: string, isSunk: boolean) => {
 
 export default function BattleshipView({ mode, details, profile, onBack, refreshProfile }: BattleshipViewProps) {
   const supabase = createClient();
+  const { showAlert } = useAlert();
   const roomId = details.roomId;
 
   // --- TRẠNG THÁI GAME CHUNG ---
@@ -251,14 +253,14 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               wager: room?.wager || 0
             }
           });
-          alert(`Đã gửi lời mời thách đấu tới @${friendUsername}`);
+          showAlert(`Đã gửi lời mời thách đấu tới @${friendUsername}`);
           supabase.removeChannel(channel);
           setInvitingFriendId(null);
         }
       });
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối mời bạn");
+      showAlert("Lỗi kết nối mời bạn");
       setInvitingFriendId(null);
     }
   };

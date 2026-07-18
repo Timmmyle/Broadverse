@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./providers/AuthProvider";
+import { useAlert } from "./providers/AlertProvider";
 import { createClient } from "@/lib/supabase/client";
 import { checkTicTacToeWin, checkCaroWin, isRenjuForbidden } from "@/lib/gameLogic";
 import { getTicTacToeBotMove, getCaroBotMove } from "@/lib/botAi";
@@ -27,6 +28,7 @@ interface GameRoomViewProps {
 
 export default function GameRoomView({ gameType, mode, details, onBack }: GameRoomViewProps) {
   const { profile, refreshProfile } = useAuth();
+  const { showAlert } = useAlert();
   const supabase = createClient();
 
   const playMoveSFX = () => {
@@ -220,21 +222,21 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   const handleOnboardCellClick = async (idx: number) => {
     if (onboardStep === 1) {
       if (idx === 14) {
-        alert("Chính xác! Đặt quân vào đây tạo thành Đôi Ba (Double Three) bị cấm ở luật Renju.");
+        showAlert("Chính xác! Đặt quân vào đây tạo thành Đôi Ba (Double Three) bị cấm ở luật Renju.");
         setOnboardStep(2);
       } else {
-        alert("Sai rồi! Hãy tìm ô giao điểm của 2 đường cờ 3 quân.");
+        showAlert("Sai rồi! Hãy tìm ô giao điểm của 2 đường cờ 3 quân.");
       }
     } else if (onboardStep === 2) {
       if (idx === 9) {
-        alert("Chính xác! Đặt quân vào đây tạo thành Đôi Bốn (Double Four) bị cấm.");
+        showAlert("Chính xác! Đặt quân vào đây tạo thành Đôi Bốn (Double Four) bị cấm.");
         setOnboardStep(3);
       } else {
-        alert("Sai rồi! Hãy tìm ô giao điểm của 2 đường cờ 4 quân.");
+        showAlert("Sai rồi! Hãy tìm ô giao điểm của 2 đường cờ 4 quân.");
       }
     } else if (onboardStep === 3) {
       if (idx === 21) {
-        alert("Chính xác! Tạo thành 6 quân cờ liên tục là Overline và bị xử thua ngay lập tức.");
+        showAlert("Chính xác! Tạo thành 6 quân cờ liên tục là Overline và bị xử thua ngay lập tức.");
         
         // Gọi API nhận thưởng
         try {
@@ -245,7 +247,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
           });
           const data = await res.json();
           if (res.ok) {
-            alert(data.message);
+            showAlert(data.message);
           }
         } catch (e) {
           console.error(e);
@@ -254,7 +256,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         localStorage.setItem(`renju_onboard_completed_${profile.id}`, "true");
         setShowOnboard(false);
       } else {
-        alert("Sai rồi! Hãy tìm ô cờ hoàn thành hàng 6 quân cờ.");
+        showAlert("Sai rồi! Hãy tìm ô cờ hoàn thành hàng 6 quân cờ.");
       }
     }
   };
@@ -475,14 +477,14 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               wager: room.wager
             }
           });
-          alert(`Đã gửi lời mời thách đấu tới @${friendUsername}`);
+          showAlert(`Đã gửi lời mời thách đấu tới @${friendUsername}`);
           supabase.removeChannel(channel);
           setInvitingFriendId(null);
         }
       });
     } catch (err) {
       console.error(err);
-      alert("Lỗi kết nối mời bạn");
+      showAlert("Lỗi kết nối mời bạn");
       setInvitingFriendId(null);
     }
   };
@@ -753,7 +755,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Nước đi không hợp lệ!");
+        showAlert(err.error || "Nước đi không hợp lệ!");
         // Rollback lại trạng thái cũ
         setOptimisticBoard(null);
         setOptimisticTurnId(null);
@@ -808,7 +810,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Không thể thực hiện hành động!");
+        showAlert(err.error || "Không thể thực hiện hành động!");
       }
     } catch (err) {
       console.error(err);

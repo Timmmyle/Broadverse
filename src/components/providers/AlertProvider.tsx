@@ -18,24 +18,30 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
   
   // Use a ref for isOpen to access it in the global alert interceptor without stale closures
   const isOpenRef = useRef(false);
-  isOpenRef.current = isOpen;
+  
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+  }, [isOpen]);
 
   const showAlert = (msg: string) => {
     if (isOpenRef.current) {
       queueRef.current.push(msg);
     } else {
       setMessage(msg);
+      isOpenRef.current = true;
       setIsOpen(true);
     }
   };
 
   const handleClose = () => {
+    isOpenRef.current = false;
     setIsOpen(false);
     if (queueRef.current.length > 0) {
       const nextMsg = queueRef.current.shift()!;
       // Small timeout to allow transition to complete
       setTimeout(() => {
         setMessage(nextMsg);
+        isOpenRef.current = true;
         setIsOpen(true);
       }, 150);
     }

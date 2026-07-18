@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAuth } from "./providers/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
+import { useAlert } from "./providers/AlertProvider";
 import { 
   Gamepad2, Mail, Lock, UserPlus, LogIn, Sparkles, 
   Trophy, Users, Flame, Award, ChevronRight, Compass,
@@ -11,6 +12,7 @@ import {
 
 export default function LoginScreen() {
   const { loginGuest, loading } = useAuth();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -36,7 +38,7 @@ export default function LoginScreen() {
           password,
         });
         if (error) throw error;
-        alert("Đăng ký thành công! Bạn có thể đăng nhập ngay.");
+        showAlert("Đăng ký thành công! Bạn có thể đăng nhập ngay.");
         setIsRegistering(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -57,7 +59,7 @@ export default function LoginScreen() {
     if (voted) return;
     setVotes(prev => ({ ...prev, [game]: prev[game] + 1 }));
     setVoted(true);
-    alert("Cảm ơn bạn đã bình chọn! Hãy tạo tài khoản để nhận thông báo khi game ra mắt.");
+    showAlert("Cảm ơn bạn đã bình chọn! Hãy tạo tài khoản để nhận thông báo khi game ra mắt.");
     setActiveForm("EMAIL");
     setIsRegistering(true);
   };

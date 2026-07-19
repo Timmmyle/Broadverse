@@ -1825,7 +1825,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   <span>🎁</span> LỘ TRÌNH PHẦN THƯỞNG MÙA GIẢI
                 </h3>
                 
-                <div className="flex gap-4 items-stretch select-none mt-2">
+                {/* Desktop Layout (Horizontal Scroll Track) */}
+                <div className="hidden md:flex gap-4 items-stretch select-none mt-2">
                   {/* Left Fixed Labels */}
                   <div className="flex flex-col justify-between py-1 w-28 flex-shrink-0">
                     {/* Golden Chicken card label */}
@@ -1956,8 +1957,119 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   </div>
                 </div>
 
-                {/* Navigation scroll control */}
-                <div className="flex justify-between items-center border-t border-[#D4AF37]/10 pt-4 mt-2">
+                {/* Mobile Layout (Vertical Grid List of Levels) */}
+                <div className="md:hidden space-y-3.5 mt-2">
+                  {[
+                    { level: 1, freeVal: "50", freeIcon: "🥚", premiumTitle: "Khung Đêm", icon: <Crown className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 2, freeVal: "100", freeIcon: "🥚", premiumTitle: "Beach Club", icon: <Music className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 5, freeVal: "150", freeIcon: "🥚", premiumTitle: "Tinh Vân", icon: <Flag className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 10, freeVal: "Khung Cát", freeIcon: "🦊", premiumTitle: "Chiến Binh", icon: <Gamepad2 className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 15, freeVal: "200", freeIcon: "🥚", premiumTitle: "Xúc xắc", icon: <Dice5 className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 20, freeVal: "Dưa Hấu", freeIcon: "🍉", premiumTitle: "Gà Hiệp Sĩ", icon: <ShieldAlert className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 30, freeVal: "300", freeIcon: "🥚", premiumTitle: "Cyber Neon", icon: <Flag className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 40, freeVal: "400", freeIcon: "🥚", premiumTitle: "Tối Thượng", icon: <Smile className="w-4 h-4 text-[#D4AF37]" /> },
+                    { level: 50, freeVal: "500", freeIcon: "🥚", premiumTitle: "VIP Skin", icon: <Crown className="w-4 h-4 text-[#FF9F0A]" />, extra: "Hoàn tiền" }
+                  ].map((reward) => {
+                    const isLevelUnlocked = profile.battlePassLevel >= reward.level;
+                    const isPremiumUnlocked = profile.isPremium && isLevelUnlocked;
+                    
+                    const reachedTiers = [1, 2, 5, 10, 15, 20, 30, 40, 50].filter(l => l <= profile.battlePassLevel);
+                    const activeTier = reachedTiers.length > 0 ? reachedTiers[reachedTiers.length - 1] : 1;
+                    const isActive = reward.level === activeTier;
+
+                    return (
+                      <div 
+                        key={reward.level} 
+                        className={`rounded-xl border p-3 flex flex-col gap-2.5 transition-all duration-300 ${
+                          isActive
+                            ? "bg-[#232319]/80 border-[#D4AF37]/50 shadow-md shadow-[#D4AF37]/5"
+                            : isLevelUnlocked
+                              ? "bg-[#1C1C18] border-[#D4AF37]/15"
+                              : "bg-[#1C1C18]/40 border-white/5 opacity-60"
+                        }`}
+                      >
+                        {/* Level Header Row */}
+                        <div className="flex justify-between items-center pb-1.5 border-b border-[#D4AF37]/10">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10.5px] font-extrabold uppercase font-mono tracking-wider ${
+                              isActive ? "text-[#D4AF37]" : "text-white"
+                            }`}>
+                              CẤP {reward.level}
+                            </span>
+                            {isActive && (
+                              <span className="text-[7.5px] bg-[#D4AF37]/20 border border-[#D4AF37]/45 text-[#D4AF37] px-1.5 py-0.5 rounded font-black uppercase tracking-tight">
+                                Bạn ở đây
+                              </span>
+                            )}
+                          </div>
+                          
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                            isLevelUnlocked ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-gray-500/10 text-gray-400 border border-white/5"
+                          }`}>
+                            {isLevelUnlocked ? "Đã Đạt ✓" : "Chưa Đạt 🔒"}
+                          </span>
+                        </div>
+
+                        {/* Grid with 2 Tracks */}
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {/* Free Track Reward */}
+                          <div 
+                            className={`flex items-center gap-2.5 p-2 rounded-lg border bg-[#141412] ${
+                              isLevelUnlocked ? "border-green-500/10" : "border-white/5 opacity-50"
+                            }`}
+                          >
+                            <div className="w-7 h-7 bg-[#FF9F0A]/10 border border-[#FF9F0A]/20 rounded-full flex items-center justify-center text-xs">
+                              {reward.freeIcon}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[7px] text-gray-400 uppercase tracking-widest font-bold">Miễn Phí</span>
+                              <span className="text-[9.5px] font-mono font-bold text-white leading-none mt-0.5">
+                                {reward.freeVal}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Golden Chicken Reward */}
+                          <div 
+                            className={`flex items-center justify-between p-2 rounded-lg border relative ${
+                              isPremiumUnlocked
+                                ? "bg-[#232319] border-[#D4AF37]/40"
+                                : "border-white/5 opacity-50 bg-[#1C1C18]"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className={`w-7 h-7 bg-[#D4AF37]/10 border border-[#D4AF37]/20 rounded-full flex items-center justify-center ${
+                                isPremiumUnlocked ? "opacity-100" : "opacity-50"
+                              }`}>
+                                {reward.icon}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[7px] text-[#D4AF37] uppercase tracking-widest font-black">Golden Chicken</span>
+                                <span className={`text-[9.5px] font-bold leading-none mt-0.5 ${
+                                  isPremiumUnlocked ? "text-white" : "text-gray-400"
+                                }`}>
+                                  {reward.premiumTitle}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {/* Status indicator */}
+                            <div className="flex-shrink-0 ml-1">
+                              {isPremiumUnlocked ? (
+                                <Check className="w-3.5 h-3.5 text-green-400" />
+                              ) : (
+                                <Lock className="w-3.5 h-3.5 text-gray-500" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Navigation scroll control - Desktop Only */}
+                <div className="hidden md:flex justify-between items-center border-t border-[#D4AF37]/10 pt-4 mt-2">
                   <span className="text-[8.5px] text-[#F3E5AB]/40 uppercase tracking-widest font-extrabold">
                     * Mở khóa các cấp để nhận thưởng
                   </span>

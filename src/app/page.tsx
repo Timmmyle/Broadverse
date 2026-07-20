@@ -100,10 +100,52 @@ function HomeContent() {
     checkActiveMatch();
   }, [profile, loading, searchParams]);
 
-  // 1. Tải phiên đăng nhập ban đầu: Chỉ hiện màn hình tối trống 
-  // giúp tạo cảm giác web được load ngay lập tức mà không có độ trễ spinner thô ráp.
+  // 1. Tải phiên đăng nhập ban đầu: Hiển thị màn hình chờ Premium (Cyber Chicken theme)
   if (loading) {
-    return <div className="min-h-screen bg-[#0c0c0e]"></div>;
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#0a0a0c] relative overflow-hidden select-none">
+        {/* Neon grid background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1c1c18_1px,transparent_1px),linear-gradient(to_bottom,#1c1c18_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-5 pointer-events-none"></div>
+        
+        {/* Glow ambient */}
+        <div className="absolute w-[250px] h-[250px] rounded-full bg-[#FF9F0A]/5 blur-[70px] pointer-events-none animate-pulse"></div>
+
+        <div className="relative z-10 flex flex-col items-center space-y-6">
+          {/* Mascot icon wrapper */}
+          <div className="relative w-20 h-20 bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FF9F0A]/10 border border-[#D4AF37]/30 animate-bounce">
+            <span className="text-4xl">🐔</span>
+            {/* Spinning decorative frame */}
+            <div className="absolute -inset-1.5 border border-dashed border-[#D4AF37]/20 rounded-2xl animate-[spin_8s_linear_infinite]"></div>
+          </div>
+
+          <div className="text-center space-y-2">
+            <h2 className="text-lg font-extrabold uppercase tracking-widest text-white">
+              Vuiga<span className="text-[#FF9F0A]">.com</span>
+            </h2>
+            <div className="flex items-center justify-center gap-1.5 text-[10px] text-[#FF9F0A] uppercase font-mono tracking-widest animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Đang vào phòng chờ...</span>
+            </div>
+          </div>
+
+          {/* Micro loading bar */}
+          <div className="w-40 h-1 bg-[#141412] border border-[#D4AF37]/15 rounded-full overflow-hidden relative">
+            <div className="h-full bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] rounded-full absolute left-0 top-0 w-1/2 progress-bar-shimmer"></div>
+          </div>
+        </div>
+
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes progressMove {
+            0% { left: -100%; }
+            100% { left: 100%; }
+          }
+          .progress-bar-shimmer {
+            width: 60%;
+            animation: progressMove 1.5s infinite ease-in-out;
+          }
+        `}} />
+      </div>
+    );
   }
 
   // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập

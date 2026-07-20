@@ -684,7 +684,14 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         if (renjuCheck.forbidden) {
           setLocalStatus("FINISHED");
           setLocalWinner("BOT");
-          await handleEndBotMatch("LOSE");
+          setGameResult({
+            finished: true,
+            outcome: "LOSE",
+            coinsGained: 0,
+            expGained: 0,
+            levelUp: false,
+          });
+          handleEndBotMatch("LOSE");
           return;
         }
       }
@@ -703,14 +710,28 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         setLocalStatus("FINISHED");
         setLocalWinner("PLAYER");
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        await handleEndBotMatch("WIN");
+        setGameResult({
+          finished: true,
+          outcome: "WIN",
+          coinsGained: 0,
+          expGained: 0,
+          levelUp: false,
+        });
+        handleEndBotMatch("WIN");
         return;
       }
 
       if (draw) {
         setLocalStatus("FINISHED");
         setLocalWinner("DRAW");
-        await handleEndBotMatch("DRAW");
+        setGameResult({
+          finished: true,
+          outcome: "DRAW",
+          coinsGained: 0,
+          expGained: 0,
+          levelUp: false,
+        });
+        handleEndBotMatch("DRAW");
         return;
       }
 
@@ -746,10 +767,24 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             if (botWon) {
               setLocalStatus("FINISHED");
               setLocalWinner("BOT");
+              setGameResult({
+                finished: true,
+                outcome: "LOSE",
+                coinsGained: 0,
+                expGained: 0,
+                levelUp: false,
+              });
               handleEndBotMatch("LOSE");
             } else if (botDraw) {
               setLocalStatus("FINISHED");
               setLocalWinner("DRAW");
+              setGameResult({
+                finished: true,
+                outcome: "DRAW",
+                coinsGained: 0,
+                expGained: 0,
+                levelUp: false,
+              });
               handleEndBotMatch("DRAW");
             } else {
               setLocalTurn("X");
@@ -775,6 +810,45 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
     nextBoard[index] = mySymbol;
     setOptimisticBoard(nextBoard);
     playMoveSFX();
+
+    // Kiểm tra kết quả trận đấu cục bộ ngay lập tức để hiển thị popup không độ trễ
+    let localWon = false;
+    if (gameType === "TIC_TAC_TOE") {
+      localWon = checkTicTacToeWin(nextBoard);
+    } else {
+      localWon = checkCaroWin(nextBoard, index, mySymbol);
+    }
+    const localDraw = !localWon && nextBoard.every(c => c !== "");
+
+    if (localWon || localDraw) {
+      const outcome = localWon ? "WIN" : "DRAW";
+      if (outcome === "WIN") {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      }
+
+      // Ước tính phần thưởng nhanh hiển thị trên client
+      const level = profile.level;
+      let coins = outcome === "WIN" ? (10 + 2 * level) : Math.round(5 + 1.5 * level);
+      let exp = outcome === "WIN" ? (5 + Math.round(level * 0.2)) : 2;
+
+      if (profile.isPremium) {
+        coins = Math.round(coins * 1.5);
+        exp = exp * 2;
+      }
+      if (outcome === "WIN") {
+        coins += room.wager * 2;
+      } else if (outcome === "DRAW") {
+        coins += room.wager;
+      }
+
+      setGameResult({
+        finished: true,
+        outcome,
+        coinsGained: coins,
+        expGained: exp,
+        levelUp: profile.exp + exp >= 100 + profile.level * 5
+      });
+    }
 
     // Đổi lượt tạm thời trên Client để khóa người chơi, không cho click đúp liên tục
     const opponentId = isOnlineCreator ? room.playerOId : room.playerXId;

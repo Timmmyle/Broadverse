@@ -826,6 +826,13 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     // Kiểm tra thắng
     if (sunkList.length === 5) {
       setLocalStatus("FINISHED");
+      setGameResult({
+        finished: true,
+        outcome: "WIN",
+        coinsGained: 0,
+        expGained: 0,
+        levelUp: false
+      });
       handleEndBotMatch("WIN");
       return;
     }
@@ -891,6 +898,13 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
         // Kiểm tra xem Bot thắng chưa
         if (sunkList.length === 5) {
+          setGameResult({
+            finished: true,
+            outcome: "LOSE",
+            coinsGained: 0,
+            expGained: 0,
+            levelUp: false
+          });
           handleEndBotMatch("LOSE");
           return "FINISHED";
         }

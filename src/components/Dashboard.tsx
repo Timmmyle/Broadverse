@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getExpNeededForLevel, DailyMission, getRankFromElo, getRankFromDb, ACHIEVEMENTS } from "@/lib/progression";
+import confetti from "canvas-confetti";
+
 
 interface DashboardProps {
   onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
@@ -132,6 +134,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [loadingParty, setLoadingParty] = useState(false);
   const [partyMessages, setPartyMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const [claimingDiscord, setClaimingDiscord] = useState(false);
+
   
   // Lời mời tổ đội đang chờ
   const [activeInvite, setActiveInvite] = useState<{
@@ -317,6 +322,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         const data = await res.json();
         setActiveParty(data.party);
         setPartyMembers(data.party?.members || []);
+        setPartyMessages(data.party?.messages || []);
+
       }
     } catch (err) {
       console.error("Lỗi lấy thông tin tổ đội:", err);
@@ -537,27 +544,37 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
   const handleSendPartyChat = async () => {
     if (!profile || !chatInput.trim() || !activeParty) return;
+    const textToSend = chatInput.trim();
+    setChatInput(""); // Xóa input ngay lập tức để tạo cảm giác mượt mà
     try {
+      // Lưu tin nhắn vào Database
+      await fetch("/api/party/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: textToSend })
+      });
+
+      // Phát Realtime broadcast cho các thành viên
       const partyChannel = supabase.channel(`party_${activeParty.id}`);
       await partyChannel.send({
         type: "broadcast",
         event: "party_chat",
         payload: {
           senderUsername: profile.username,
-          message: chatInput.trim(),
+          message: textToSend,
           timestamp: new Date().toISOString()
         }
       });
       setPartyMessages((prev) => [...prev, {
         senderUsername: profile.username,
-        message: chatInput.trim(),
+        message: textToSend,
         timestamp: new Date().toISOString()
       }]);
-      setChatInput("");
     } catch (err) {
       console.error("Lỗi gửi tin nhắn:", err);
     }
   };
+
 
   const handleAcceptGameInvite = async () => {
     if (!activeGameInvite) return;
@@ -770,7 +787,48 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     };
   }, [profile]);
 
+  // 2b. Kiểm tra xem người chơi có vừa chơi xong để gợi ý Discord không
+  useEffect(() => {
+    if (profile && !profile.claimedDiscordReward) {
+      const justFinished = localStorage.getItem("game_played");
+      if (justFinished === "true") {
+        setShowDiscordModal(true);
+        localStorage.removeItem("game_played");
+      }
+    }
+  }, [profile]);
+
+  const handleClaimDiscord = async () => {
+    if (!profile || claimingDiscord) return;
+    setClaimingDiscord(true);
+    try {
+      // Mở link Discord trong tab mới
+      window.open("https://discord.gg/nBEaascSY", "_blank");
+
+
+      // Gọi API nhận thưởng
+      const res = await fetch("/api/user/claim-discord", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await refreshProfile();
+        setShowDiscordModal(false);
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        showAlert("Chúc mừng! Bạn đã nhận thành công 200 Trứng và Trang phục Gà Discord 👾!");
+      } else {
+        showAlert(data.error || "Có lỗi xảy ra khi nhận thưởng");
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert("Lỗi kết nối máy chủ");
+    } finally {
+      setClaimingDiscord(false);
+    }
+  };
+
   if (!profile) return null;
+
 
   // Lấy các trang bị hiện tại
   const frameItem = SHOP_ITEMS.find((i) => i.id === profile.avatarFrame);
@@ -1262,8 +1320,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       {/* Top Header */}
       <header className="border-b border-[#D4AF37]/15 py-4 px-6 bg-[#1C1C18] flex justify-between items-center sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] flex items-center justify-center">
-            <span className="font-bold text-[#141412] text-lg font-mono">V</span>
+          <div className="w-8 h-8 rounded overflow-hidden bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center">
+            <img src="/logo.png" className="w-full h-full object-cover" alt="Vuiga" />
           </div>
           <div>
             <h1 className="text-md font-bold uppercase tracking-wider text-white">vuiga.com</h1>
@@ -2662,40 +2720,41 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         </span>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="bg-black/30 p-3 rounded-lg border border-[#D4AF37]/5 flex flex-col justify-between space-y-2">
-                            <div>
-                              <span className="text-[8px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">Chung Sức</span>
-                              <h5 className="text-xs font-bold text-white mt-1">Cả đội thắng 5 trận cùng nhau</h5>
-                              <p className="text-[10px] text-[#F3E5AB]/60">Đấu co-op cược Trứng để hoàn tất.</p>
+                          {activeParty.missions && activeParty.missions.length > 0 ? (
+                            activeParty.missions.map((mission: any) => {
+                              const progressPercent = Math.min(100, Math.floor((mission.currentValue / mission.targetValue) * 100));
+                              return (
+                                <div key={mission.id} className="bg-black/30 p-3 rounded-lg border border-[#D4AF37]/5 flex flex-col justify-between space-y-2">
+                                  <div>
+                                    <span className="text-[8px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">
+                                      {mission.type === "WIN_GAMES" ? "Chung Sức" : "Kiên Trì"}
+                                    </span>
+                                    <h5 className="text-xs font-bold text-white mt-1">{mission.title}</h5>
+                                    <p className="text-[10px] text-[#F3E5AB]/60">
+                                      {mission.type === "WIN_GAMES" 
+                                        ? "Đấu co-op cược Trứng để hoàn tất." 
+                                        : "Chơi hoàn thành game không kể thắng thua."}
+                                    </p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px] font-bold">
+                                      <span className="text-[#F3E5AB]/50">Tiến độ: {mission.currentValue} / {mission.targetValue}</span>
+                                      <span className="text-[#D4AF37]">+{mission.rewardExp} EXP • +{mission.rewardCoins} Trứng</span>
+                                    </div>
+                                    <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
+                                      <div className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full" style={{ width: `${progressPercent}%` }}></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-[10px] text-[#F3E5AB]/30 text-center py-6 col-span-2">
+                              Không có nhiệm vụ tổ đội nào. Các nhiệm vụ sẽ tự động được tải khi bạn kết thúc trận đấu.
                             </div>
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-[10px] font-bold">
-                                <span className="text-[#F3E5AB]/50">Tiến độ: 2 / 5</span>
-                                <span className="text-yellow-500">+100 EXP • +30 Trứng</span>
-                              </div>
-                              <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-yellow-500 h-full" style={{ width: "40%" }}></div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="bg-black/30 p-3 rounded-lg border border-[#D4AF37]/5 flex flex-col justify-between space-y-2">
-                            <div>
-                              <span className="text-[8px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">Kiên Trì</span>
-                              <h5 className="text-xs font-bold text-white mt-1">Cả đội chơi 10 trận cùng nhau</h5>
-                              <p className="text-[10px] text-[#F3E5AB]/60">Chơi hoàn thành game không kể thắng thua.</p>
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-[10px] font-bold">
-                                <span className="text-[#F3E5AB]/50">Tiến độ: 6 / 10</span>
-                                <span className="text-yellow-500">+120 EXP • +40 Trứng</span>
-                              </div>
-                              <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
-                                <div className="bg-yellow-500 h-full" style={{ width: "60%" }}></div>
-                              </div>
-                            </div>
-                          </div>
+                          )}
                         </div>
+
                       </div>
                     </div>
                   )}
@@ -2711,8 +2770,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           {/* Profile Overview Card */}
           <div className={`pixel-box p-4 flex flex-col gap-4 relative overflow-hidden ${bannerItem?.visuals?.className || ""}`}>
             <div className="flex items-center gap-3 relative z-10">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center border border-[#D4AF37]/20 relative ${frameItem?.visuals?.className || ""} ${skinItem?.visuals?.className || "bg-[#141412]"}`}>
-                <span className="text-xl">🐔</span>
+              <div className={`w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center border border-[#D4AF37]/20 relative ${frameItem?.visuals?.className || ""} ${skinItem?.visuals?.className || "bg-[#141412] p-2"}`}>
+                <img src="/logo.png" className="w-full h-full object-contain" alt="Vuiga avatar" />
               </div>
               <div>
                 <h3 className="font-bold text-white flex items-center gap-1 drop-shadow-md">
@@ -3224,6 +3283,75 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 className="flex-1 pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2.5 text-xs font-bold transition"
               >
                 Từ chối
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hộp thoại Quà Tặng Discord */}
+      {showDiscordModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#18181b] border-2 border-[#5865F2]/45 rounded-2xl w-full max-w-sm p-6 relative overflow-hidden shadow-[0_0_40px_rgba(88,101,242,0.3)] text-center">
+            {/* Background glowing ambient */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#5865F2]/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            {/* Mascot header */}
+            <div className="flex flex-col items-center space-y-4 pt-2">
+              <div className="w-16 h-16 bg-[#5865F2] rounded-2xl flex items-center justify-center shadow-lg border border-[#5865F2]/30 shadow-[#5865F2]/20 animate-bounce">
+                <span className="text-4xl">👾</span>
+              </div>
+              <div className="space-y-1">
+                <span className="bg-[#5865F2]/15 text-[#5865F2] border border-[#5865F2]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                  SỰ KIỆN CỘNG ĐỒNG
+                </span>
+                <h3 className="text-base font-extrabold text-white">Gia Nhập Nhóm Discord</h3>
+                <p className="text-[10px] text-[#F3E5AB]/75 px-4 leading-relaxed">
+                  Nhận ngay phần quà độc quyền khi tham gia kênh Discord chính thức của vuiga.com!
+                </p>
+              </div>
+            </div>
+
+            {/* Gift details card */}
+            <div className="my-5 bg-black/45 p-4 rounded-xl border border-[#5865F2]/10 space-y-2 text-left font-mono">
+              <span className="block text-[8px] text-[#F3E5AB]/40 uppercase tracking-wider">Quà tặng của bạn:</span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-[#F3E5AB]/90 font-bold flex items-center gap-1.5">
+                  🥚 200 Trứng (Coin)
+                </span>
+                <span className="text-[#D4AF37] font-bold">+200</span>
+              </div>
+              <div className="flex justify-between items-center text-xs border-t border-[#5865F2]/10 pt-2">
+                <span className="text-[#F3E5AB]/90 font-bold flex items-center gap-1.5">
+                  👾 Skin Gà Discord Độc Quyền
+                </span>
+                <span className="bg-[#5865F2]/30 text-[#8ea1ff] text-[8px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">ĐẶC BIỆT</span>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleClaimDiscord}
+                disabled={claimingDiscord}
+                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(88,101,242,0.3)] flex items-center justify-center gap-2"
+              >
+                {claimingDiscord ? (
+                  <>
+                    <RefreshCw className="w-4.5 h-4.5 animate-spin" />
+                    <span>Đang gửi quà...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Tham Gia Discord & Nhận Quà</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowDiscordModal(false)}
+                className="w-full bg-transparent hover:bg-white/5 border border-white/10 text-white/50 hover:text-white py-2 rounded-xl text-[10px] font-bold transition"
+              >
+                Bỏ qua
               </button>
             </div>
           </div>

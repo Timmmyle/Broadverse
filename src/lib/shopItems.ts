@@ -104,6 +104,15 @@ export const SHOP_ITEMS: ShopItem[] = [
     visuals: { className: "bg-gradient-to-r from-red-600 to-orange-500 text-yellow-200 border-yellow-400 shadow-[0_0_15px_#ea580c] animate-pulse" },
     isPremiumOnly: true
   },
+  {
+    id: "skin_discord",
+    name: "👾 Discord Chicken",
+    type: "SKIN",
+    price: 99999,
+    description: "Trang phục chú gà Gamer Discord độc quyền từ vuiga.com.",
+    visuals: { className: "bg-[#5865F2] text-white border-white shadow-[0_0_10px_#5865F2]" }
+  },
+
 
   // 3. AVATAR FRAMES (Khung Avatar)
   {

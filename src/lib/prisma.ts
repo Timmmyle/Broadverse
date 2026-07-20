@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import { checkAndUnlockAchievements } from "./progression";
+
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -50,48 +52,114 @@ export const prisma = basePrisma.$extends({
               });
               console.log(`[PrismaExtension] Đã tự động tạo MatchHistory cho trận đấu: ${result.id}`);
 
-              // --- LOGIC LÊN CẤP TỔ ĐỘI ---
-              // Kiểm tra xem hai người chơi có ở chung một tổ đội không
-              if (result.playerXId && result.playerOId) {
+              // --- MỞ KHÓA THÀNH TỰU CÁ NHÂN ---
+              if (result.playerXId) {
+                await checkAndUnlockAchievements(result.playerXId, basePrisma);
+              }
+              if (result.playerOId && result.playerOId !== "bot") {
+                await checkAndUnlockAchievements(result.playerOId, basePrisma);
+              }
+
+              // --- LOGIC LÊN CẤP & NHIỆM VỤ TỔ ĐỘI ---
+              const partiesToUpdate = new Set<string>();
+              if (result.playerXId) {
                 const memberX = await basePrisma.partyMember.findUnique({
                   where: { userId: result.playerXId }
                 });
+                if (memberX) partiesToUpdate.add(memberX.partyId);
+              }
+              if (result.playerOId && result.playerOId !== "bot") {
                 const memberO = await basePrisma.partyMember.findUnique({
                   where: { userId: result.playerOId }
                 });
+                if (memberO) partiesToUpdate.add(memberO.partyId);
+              }
 
-                if (memberX && memberO && memberX.partyId === memberO.partyId) {
-                  const partyId = memberX.partyId;
-                  const party = await basePrisma.party.findUnique({
-                    where: { id: partyId }
-                  });
+              for (const partyId of partiesToUpdate) {
+                const party = await basePrisma.party.findUnique({
+                  where: { id: partyId },
+                  include: { members: true, missions: true }
+                });
 
-                  if (party) {
-                    // Cả đội thi đấu cùng nhau: +15 EXP hoàn thành, +40 EXP nếu có thắng cuộc (không hòa)
-                    const isDraw = result.draw === true;
-                    const expGained = isDraw ? 15 : 40;
+                if (party) {
+                  const memberIds = party.members.map(m => m.userId);
+                  const hasWinner = result.winnerId && memberIds.includes(result.winnerId);
+                  const isDraw = result.draw === true;
 
-                    let newExp = party.exp + expGained;
-                    let newLevel = party.level;
-                    let expNeeded = newLevel * 100; // 100 EXP * cấp độ hiện tại để lên cấp
+                  // Thưởng EXP cho tổ đội
+                  const expGained = hasWinner ? 40 : (isDraw ? 20 : 15);
+                  let newExp = party.exp + expGained;
+                  let newLevel = party.level;
+                  let expNeeded = newLevel * 100;
 
-                    while (newExp >= expNeeded) {
-                      newExp -= expNeeded;
-                      newLevel += 1;
-                      expNeeded = newLevel * 100;
+                  while (newExp >= expNeeded) {
+                    newExp -= expNeeded;
+                    newLevel += 1;
+                    expNeeded = newLevel * 100;
+                  }
+
+                  // Tạo nhiệm vụ mặc định nếu chưa có
+                  let missions = party.missions;
+                  if (missions.length === 0) {
+                    await basePrisma.partyMission.createMany({
+                      data: [
+                        { partyId, title: "Cả đội thắng 5 trận cùng nhau", type: "WIN_GAMES", targetValue: 5, rewardCoins: 30, rewardExp: 100 },
+                        { partyId, title: "Cả đội chơi 10 trận cùng nhau", type: "PLAY_GAMES", targetValue: 10, rewardCoins: 40, rewardExp: 120 }
+                      ]
+                    });
+                    missions = await basePrisma.partyMission.findMany({
+                      where: { partyId }
+                    });
+                  }
+
+                  // Cập nhật tiến độ nhiệm vụ tổ đội
+                  for (const mission of missions) {
+                    let increment = 0;
+                    if (mission.type === "PLAY_GAMES") {
+                      const playingMembers = party.members.filter(m => m.userId === result.playerXId || m.userId === result.playerOId).length;
+                      increment = playingMembers;
+                    } else if (mission.type === "WIN_GAMES" && hasWinner) {
+                      increment = 1;
                     }
 
-                    await basePrisma.party.update({
-                      where: { id: partyId },
-                      data: {
-                        level: newLevel,
-                        exp: newExp
+                    if (increment > 0) {
+                      const newCurrentValue = mission.currentValue + increment;
+                      const isCompletedNow = newCurrentValue >= mission.targetValue && mission.currentValue < mission.targetValue;
+
+                      await basePrisma.partyMission.update({
+                        where: { id: mission.id },
+                        data: { currentValue: Math.min(mission.targetValue, newCurrentValue) }
+                      });
+
+                      if (isCompletedNow) {
+                        newExp += mission.rewardExp;
+                        while (newExp >= expNeeded) {
+                          newExp -= expNeeded;
+                          newLevel += 1;
+                          expNeeded = newLevel * 100;
+                        }
+
+                        // Thưởng Trứng cho tất cả thành viên trong tổ đội
+                        await basePrisma.user.updateMany({
+                          where: { id: { in: memberIds } },
+                          data: { eggs: { increment: mission.rewardCoins } }
+                        });
+                        console.log(`[PartyMission] Tổ đội ${partyId} hoàn thành: ${mission.title}. Thưởng ${mission.rewardCoins} Trứng cho các thành viên.`);
                       }
-                    });
-                    console.log(`[PartyLeveling] Tổ đội ${partyId} nhận +${expGained} EXP. Cấp độ mới: ${newLevel} (${newExp}/${expNeeded} XP)`);
+                    }
                   }
+
+                  await basePrisma.party.update({
+                    where: { id: partyId },
+                    data: {
+                      level: newLevel,
+                      exp: newExp
+                    }
+                  });
+                  console.log(`[PartyLeveling] Tổ đội ${partyId} nhận +${expGained} EXP. Cấp độ mới: ${newLevel} (${newExp}/${expNeeded} XP)`);
                 }
               }
+
             }
           } catch (err) {
             console.error("Lỗi tự động ghi MatchHistory/Tổ đội trong Prisma extension:", err);

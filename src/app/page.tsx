@@ -112,8 +112,9 @@ function HomeContent() {
 
         <div className="relative z-10 flex flex-col items-center space-y-6">
           {/* Mascot icon wrapper */}
-          <div className="relative w-20 h-20 bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FF9F0A]/10 border border-[#D4AF37]/30 animate-bounce">
-            <span className="text-4xl">🐔</span>
+          <div className="relative w-20 h-20 overflow-hidden bg-[#1C1C18] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FF9F0A]/10 border border-[#D4AF37]/30 animate-bounce p-3">
+            <img src="/logo.png" className="w-full h-full object-contain animate-pulse" alt="Vuiga logo" />
+
             {/* Spinning decorative frame */}
             <div className="absolute -inset-1.5 border border-dashed border-[#D4AF37]/20 rounded-2xl animate-[spin_8s_linear_infinite]"></div>
           </div>
@@ -165,9 +166,11 @@ function HomeContent() {
 
   // Quay lại sảnh chính
   const handleBackToLobby = () => {
+    localStorage.setItem("game_played", "true");
     setScreen("LOBBY");
     setGameConfig(null);
   };
+
 
   return (
     <>

@@ -72,8 +72,8 @@ export default function LoginScreen() {
       {/* Navigation Header */}
       <header className="border-b border-[#D4AF37]/15 py-4 px-6 md:px-12 flex justify-between items-center relative z-20 bg-[#141412]/80 backdrop-blur-md sticky top-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-[#D4AF37] flex items-center justify-center shadow-lg shadow-[#D4AF37]/10">
-            <span className="font-bold text-[#141412] text-xl">🐔</span>
+          <div className="w-9 h-9 rounded-lg overflow-hidden bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center shadow-lg shadow-[#D4AF37]/10">
+            <img src="/logo.png" className="w-full h-full object-cover" alt="Vuiga" />
           </div>
           <div>
             <h1 className="text-xl font-bold uppercase tracking-wider text-white">Vuiga.com</h1>
@@ -447,7 +447,7 @@ export default function LoginScreen() {
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <a
-            href="https://discord.gg"
+            href="https://discord.gg/nBEaascSY"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold uppercase transition"
@@ -455,6 +455,7 @@ export default function LoginScreen() {
             <MessageSquare className="w-4 h-4 fill-white" />
             Discord Community
           </a>
+
           <a
             href="https://telegram.org"
             target="_blank"
@@ -470,8 +471,8 @@ export default function LoginScreen() {
       {/* Footer */}
       <footer className="border-t border-[#D4AF37]/10 py-12 px-6 md:px-12 bg-[#10100d] relative z-20 text-center space-y-4">
         <div className="flex items-center justify-center gap-2">
-          <div className="w-6 h-6 rounded bg-[#D4AF37] flex items-center justify-center">
-            <span className="font-bold text-[#141412] text-sm">🐔</span>
+          <div className="w-6 h-6 rounded overflow-hidden bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center">
+            <img src="/logo.png" className="w-full h-full object-cover" alt="Vuiga" />
           </div>
           <span className="text-sm font-bold uppercase tracking-wider text-white">Vuiga.com</span>
         </div>

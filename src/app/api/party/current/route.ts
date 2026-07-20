@@ -59,12 +59,35 @@ export async function GET() {
       profile: usersMap.get(m.userId) || null
     }));
 
+    // Lấy 50 tin nhắn chat gần nhất của tổ đội
+    const chatMessages = await prisma.chatMessage.findMany({
+      where: { partyId: party.id },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    });
+    chatMessages.reverse();
+
+    const senderIds = Array.from(new Set(chatMessages.map(m => m.senderId)));
+    const senders = await prisma.user.findMany({
+      where: { id: { in: senderIds } },
+      select: { id: true, username: true }
+    });
+    const sendersMap = new Map(senders.map(s => [s.id, s.username]));
+
+    const formattedMessages = chatMessages.map(m => ({
+      senderUsername: sendersMap.get(m.senderId) || "Người chơi",
+      message: m.content,
+      timestamp: m.createdAt.toISOString()
+    }));
+
     return NextResponse.json({
       party: {
         ...party,
-        members: membersWithProfile
+        members: membersWithProfile,
+        messages: formattedMessages
       }
     });
+
   } catch (error: any) {
     console.error("Lỗi lấy thông tin tổ đội hiện tại:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

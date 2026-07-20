@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { SHOP_ITEMS } from "@/lib/shopItems";
+import { checkAndUnlockAchievements } from "@/lib/progression";
 
 export async function POST(req: Request) {
   try {
@@ -54,7 +55,15 @@ export async function POST(req: Request) {
       }
     });
 
-    return NextResponse.json(updatedProfile);
+    // Quét thành tựu mới sau khi mua vật phẩm
+    await checkAndUnlockAchievements(user.id, prisma);
+
+    // Lấy lại profile mới nhất (đã cập nhật thành tựu và coin nếu có thưởng)
+    const finalProfile = await prisma.user.findUnique({
+      where: { id: user.id }
+    });
+
+    return NextResponse.json(finalProfile || updatedProfile);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -3,6 +3,8 @@
  * Định nghĩa công thức tính EXP, Battle Pass, Elo, Rank Divisions, Achievements và Nhiệm vụ hàng ngày.
  */
 
+import { SHOP_ITEMS } from "./shopItems";
+
 // 1. Công thức EXP người chơi
 // EXP_required(L) = 100 * L^1.5 + 500
 export function getExpNeededForLevel(level: number): number {
@@ -413,3 +415,114 @@ export function generateDailyMissions(): DailyMission[] {
     }
   ];
 }
+
+export async function checkAndUnlockAchievements(userId: string, prismaClient: any) {
+  const user = await prismaClient.user.findUnique({
+    where: { id: userId }
+  });
+  if (!user) return [];
+
+  const unlocked = new Set<string>(user.achievementsUnlocked);
+  const newlyUnlocked: string[] = [];
+
+  const unlock = (id: string) => {
+    if (!unlocked.has(id)) {
+      unlocked.add(id);
+      newlyUnlocked.push(id);
+    }
+  };
+
+  // 1. first_egg: "Sở hữu trang bị đầu tiên của chú Gà" (không phải mặc định)
+  const defaultItems = ["sym_classic", "frame_default", "theme_classic", "skin_default", "dice_wood", "banner_classic"];
+  const nonDefaultOwned = user.purchasedItems.filter((item: string) => !defaultItems.includes(item));
+  if (nonDefaultOwned.length >= 1) {
+    unlock("first_egg");
+  }
+
+  // 2. Wins achievements
+  const winCount = await prismaClient.matchHistory.count({
+    where: { winnerId: userId }
+  });
+
+  if (winCount >= 1) unlock("first_win");
+  if (winCount >= 10) unlock("wins_10");
+  if (winCount >= 100) unlock("wins_100");
+  if (winCount >= 1000) unlock("wins_1000");
+
+  // 3. chicken_collector: 5 skin chú Gà
+  const chickenSkinsCount = user.purchasedItems.filter((itemId: string) => {
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    return item && item.type === "SKIN";
+  }).length;
+  if (chickenSkinsCount >= 5) unlock("chicken_collector");
+
+  // 4. dice_master: 3 skin xúc xắc
+  const diceSkinsCount = user.purchasedItems.filter((itemId: string) => {
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    return item && item.type === "DICE";
+  }).length;
+  if (diceSkinsCount >= 3) unlock("dice_master");
+
+  // 5. board_master: 3 themes bàn cờ
+  const boardThemesCount = user.purchasedItems.filter((itemId: string) => {
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    return item && item.type === "THEME";
+  }).length;
+  if (boardThemesCount >= 3) unlock("board_master");
+
+  // 6. rank_up
+  if (user.rankTier >= 2) unlock("rank_up");
+
+  // 7. top_100
+  if (user.rankTier === 7) unlock("top_100");
+
+  // 8. legend_player
+  if (user.eloTicTacToe >= 2000 || user.eloGomoku >= 2000 || user.eloBattleship >= 2000 || user.eloBauCua >= 2000) {
+    unlock("legend_player");
+  }
+
+  // 9. phoenix
+  if (user.rankTier === 7) unlock("phoenix");
+
+  // 10. win_streak_10
+  const lastMatches = await prismaClient.matchHistory.findMany({
+    where: {
+      OR: [
+        { playerXId: userId },
+        { playerOId: userId }
+      ]
+    },
+    orderBy: { endedAt: "desc" },
+    take: 10
+  });
+  if (lastMatches.length >= 10 && lastMatches.every((m: any) => m.winnerId === userId)) {
+    unlock("win_streak_10");
+  }
+
+  // 11. comeback_king
+  if (winCount >= 5) {
+    unlock("comeback_king");
+  }
+
+  if (newlyUnlocked.length > 0) {
+    let totalEggReward = 0;
+    const achievementsMap = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
+    for (const achId of newlyUnlocked) {
+      const ach = achievementsMap.get(achId);
+      if (ach) {
+        totalEggReward += ach.rewardEggs;
+      }
+    }
+
+    await prismaClient.user.update({
+      where: { id: userId },
+      data: {
+        achievementsUnlocked: Array.from(unlocked),
+        eggs: { increment: totalEggReward }
+      }
+    });
+  }
+
+  return newlyUnlocked;
+}
+

@@ -40,6 +40,8 @@ model User {
   lastClaimedEventWin3  DateTime?                         // Thời gian cuối nhận thưởng NV Thắng 3 trận
   lastClaimedEventPlay5 DateTime?                         // Thời gian cuối nhận thưởng NV Chơi 5 trận
   createdAt             DateTime @default(now())
+  claimedDiscordReward  Boolean  @default(false)
+
 
   // Bậc xếp hạng Gà & Phân chia Division
   rankTier          Int      @default(1)             // Hạng Gà (1: Trứng -> 7: Phượng Hoàng)
@@ -213,12 +215,14 @@ model ChatMessage {
   senderId   String
   receiverId String?  // Nếu gửi riêng tư cho bạn bè
   guildId    String?  // Nếu gửi vào chat của Chuồng Gà
+  partyId    String?  // Nếu gửi vào chat của Tổ Đội
   content    String
   createdAt  DateTime @default(now())
 
   @@index([senderId])
   @@index([receiverId])
   @@index([guildId])
+  @@index([partyId])
 }
 
 // 5. Bảng lịch sử trận đấu MatchHistory

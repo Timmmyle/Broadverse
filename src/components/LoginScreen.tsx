@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export default function LoginScreen() {
-  const { loginGuest, loading } = useAuth();
+  const { loginGuest, loginWithGoogle, loading } = useAuth();
   const { showAlert } = useAlert();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -228,6 +228,23 @@ export default function LoginScreen() {
                       {authLoading ? "Đang đăng nhập..." : "Vào đấu trường"}
                     </>
                   )}
+                </button>
+
+                <div className="flex items-center my-4">
+                  <div className="flex-grow border-t border-[#D4AF37]/15"></div>
+                  <span className="mx-3 text-[9px] text-[#F3E5AB]/40 uppercase tracking-widest font-mono">Hoặc</span>
+                  <div className="flex-grow border-t border-[#D4AF37]/15"></div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={loginWithGoogle}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-[#D4AF37]/30 rounded bg-[#1C1C18] text-[#F3E5AB] hover:text-white text-xs font-bold transition hover:bg-[#252520]"
+                >
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.535 0-6.402-2.867-6.402-6.402s2.867-6.402 6.402-6.402c1.778 0 3.39.724 4.562 1.895l3.056-3.056C19.742 2.712 16.14 1.197 12.24 1.197c-5.96 0-10.793 4.834-10.793 10.794s4.833 10.793 10.793 10.793c5.565 0 10.37-3.957 10.37-10.793 0-.6-.056-1.173-.17-1.706H12.24z"/>
+                  </svg>
+                  Đăng nhập bằng Google
                 </button>
 
                 <div className="text-center pt-4">

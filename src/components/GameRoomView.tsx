@@ -27,7 +27,7 @@ interface GameRoomViewProps {
 }
 
 export default function GameRoomView({ gameType, mode, details, onBack }: GameRoomViewProps) {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, loginWithGoogle } = useAuth();
   const { showAlert } = useAlert();
   const supabase = createClient();
 
@@ -422,6 +422,40 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       )
       .on(
         "broadcast",
+        { event: "game_update" },
+        (payload: any) => {
+          const updatedRoom = payload.payload.room;
+          if (updatedRoom) {
+            setRoom((prevRoom: any) => {
+              if (!prevRoom) return updatedRoom;
+              
+              if (updatedRoom.board && updatedRoom.board !== prevRoom.board) {
+                const lastMoveByOpponent = updatedRoom.turnPlayerId === profile.id;
+                if (lastMoveByOpponent) {
+                  playMoveSFX();
+                }
+              }
+              
+              const newRoom = {
+                ...prevRoom,
+                ...updatedRoom,
+                playerX: prevRoom.playerX,
+                playerO: prevRoom.playerO
+              };
+              
+              if (newRoom.status === "FINISHED" && prevRoom.status !== "FINISHED") {
+                setTimeout(() => showOnlineResult(newRoom), 0);
+              }
+              
+              return newRoom;
+            });
+            setOptimisticBoard(null);
+            setOptimisticTurnId(null);
+          }
+        }
+      )
+      .on(
+        "broadcast",
         { event: "emoji" },
         (payload: any) => {
           const { senderId, emoji } = payload.payload;
@@ -753,7 +787,37 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         body: JSON.stringify({ roomId: room.id, position: index }),
       });
 
-      if (!res.ok) {
+      if (res.ok) {
+        const data = await res.json();
+        if (data.room) {
+          // Cập nhật trạng thái phòng cục bộ ngay lập tức
+          setRoom((prevRoom: any) => {
+            if (!prevRoom) return data.room;
+            return {
+              ...prevRoom,
+              ...data.room,
+              playerX: prevRoom.playerX,
+              playerO: prevRoom.playerO
+            };
+          });
+          setOptimisticBoard(null);
+          setOptimisticTurnId(null);
+
+          // Phát sóng broadcast nước đi chiến thắng/mới tới đối thủ lập tức (<100ms)
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: "broadcast",
+              event: "game_update",
+              payload: { room: data.room }
+            });
+          }
+
+          // Nếu game kết thúc, hiển thị kết quả luôn mà không chờ CDC
+          if (data.finished) {
+            showOnlineResult(data.room);
+          }
+        }
+      } else {
         const err = await res.json();
         showAlert(err.error || "Nước đi không hợp lệ!");
         // Rollback lại trạng thái cũ
@@ -1319,6 +1383,24 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 </div>
               )}
             </div>
+
+            {/* Guest Promo / Reward Box */}
+            {profile?.isGuest && (
+              <div className="pixel-box-nested p-4 bg-gradient-to-br from-[#D4AF37]/10 to-[#FF9F0A]/5 border border-[#D4AF37]/30 text-center space-y-3 mt-2">
+                <span className="block text-[9px] text-[#FF9F0A] uppercase tracking-widest font-extrabold animate-pulse">
+                  🎁 QUÀ LIÊN KẾT GMAIL TÂN THỦ 🎁
+                </span>
+                <p className="text-[9.5px] text-[#F3E5AB]/90 leading-relaxed">
+                  Đăng nhập tài khoản Gmail của bạn để nhận ngay **+200 Coin** và **Skin Gà Samurai** cực VIP, đồng thời bảo vệ vĩnh viễn tiến trình chơi game!
+                </p>
+                <button
+                  onClick={loginWithGoogle}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white text-[9.5px] uppercase font-extrabold py-2 px-4 rounded border-2 border-black flex items-center justify-center gap-1.5 transition duration-150 active:translate-y-[1px]"
+                >
+                  <span>🐔</span> ĐĂNG NHẬP VỚI GMAIL
+                </button>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="space-y-2">

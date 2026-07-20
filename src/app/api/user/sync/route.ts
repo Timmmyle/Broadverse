@@ -16,9 +16,10 @@ export async function POST() {
       where: { id: user.id },
     });
 
+    const isGuest = user.app_metadata.provider === "anonymous" || !user.email;
+
     // Nếu chưa tồn tại trong Prisma DB, tạo mới
     if (!profile) {
-      const isGuest = user.app_metadata.provider === "anonymous" || !user.email;
       const defaultUsername = isGuest 
         ? `Guest_${user.id.substring(0, 5).toUpperCase()}` 
         : user.email?.split("@")[0] || `Player_${user.id.substring(0, 5).toUpperCase()}`;
@@ -43,15 +44,33 @@ export async function POST() {
         },
       });
     } else {
-      // Nếu đã tồn tại, kiểm tra và tự động hết hạn Premium nếu quá hạn (dùng Coin mua 3 ngày)
-      if (profile.isPremium && profile.premiumUntil && new Date() > new Date(profile.premiumUntil)) {
+      // Nếu đã tồn tại, kiểm tra xem có nâng cấp từ Guest lên tài khoản đăng ký chính thức hay không
+      if (profile.isGuest && !isGuest) {
+        // Tặng thưởng nâng cấp tài khoản: +200 Coin và Skin Samurai
+        const startingSkinId = "skin_samurai";
+        const updatedPurchasedItems = Array.from(new Set([...profile.purchasedItems, startingSkinId]));
+
         profile = await prisma.user.update({
           where: { id: user.id },
           data: {
-            isPremium: false,
-            premiumUntil: null
-          }
+            isGuest: false,
+            email: user.email,
+            eggs: { increment: 200 }, // +200 coin
+            purchasedItems: updatedPurchasedItems,
+            equippedChickenSkin: startingSkinId, // Tự động trang bị skin Gà Samurai
+          },
         });
+      } else {
+        // Nếu đã tồn tại, kiểm tra và tự động hết hạn Premium nếu quá hạn (dùng Coin mua 3 ngày)
+        if (profile.isPremium && profile.premiumUntil && new Date() > new Date(profile.premiumUntil)) {
+          profile = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              isPremium: false,
+              premiumUntil: null
+            }
+          });
+        }
       }
     }
 

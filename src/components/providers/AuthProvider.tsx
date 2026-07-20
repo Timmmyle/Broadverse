@@ -10,6 +10,7 @@ interface AuthContextType {
   profile: User | null; // Prisma Profile User
   loading: boolean;
   loginGuest: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -57,12 +58,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Kiểm tra session hiện có khi load trang
     const checkSession = async () => {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        await syncUser();
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await syncUser();
+        } else {
+          // Tự động tạo tài khoản khách nếu chưa có tài khoản nào đăng nhập và không phải explicit_logout
+          const isExplicitLogout = localStorage.getItem("explicit_logout") === "true";
+          if (!isExplicitLogout) {
+            await loginGuest();
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi checkSession:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     checkSession();
@@ -90,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginGuest = async () => {
     setLoading(true);
     try {
+      localStorage.removeItem("explicit_logout");
       const { error } = await supabase.auth.signInAnonymously();
       if (error) throw error;
     } catch (error) {
@@ -100,10 +113,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Đăng nhập bằng Google / liên kết tài khoản
+  const loginWithGoogle = async () => {
+    setLoading(true);
+    try {
+      localStorage.removeItem("explicit_logout");
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const isGuest = session?.user?.app_metadata?.provider === "anonymous" || !session?.user?.email;
+
+      if (isGuest && session?.user) {
+        // Nếu là Guest, thử liên kết identity trước để giữ lại tiến trình
+        const { error } = await supabase.auth.linkIdentity({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}`,
+          },
+        });
+        if (!error) return; // Supabase sẽ tự động chuyển hướng
+        console.warn("Không thể liên kết tài khoản Google (tài khoản đã tồn tại), tiến hành đăng nhập trực tiếp:", error);
+      }
+
+      // Đăng nhập Google trực tiếp
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}`,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Lỗi đăng nhập Google:", error);
+      showAlert("Đăng nhập Google thất bại!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Đăng xuất
   const signOutUser = async () => {
     setLoading(true);
     try {
+      localStorage.setItem("explicit_logout", "true");
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
@@ -122,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         loading,
         loginGuest,
+        loginWithGoogle,
         signOutUser,
         refreshProfile,
       }}

@@ -14,6 +14,7 @@ import { getBattleshipBotMove } from "@/lib/botAi";
 import { SHOP_ITEMS } from "@/lib/shopItems";
 import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
+import { useAuth } from "./providers/AuthProvider";
 
 interface BattleshipViewProps {
   mode: "BOT" | "FRIEND" | "RANDOM";
@@ -77,6 +78,7 @@ const getShipColorClasses = (shipId: string, isSunk: boolean) => {
 };
 
 export default function BattleshipView({ mode, details, profile, onBack, refreshProfile }: BattleshipViewProps) {
+  const { loginWithGoogle } = useAuth();
   const supabase = createClient();
   const { showAlert } = useAlert();
   const roomId = details.roomId;
@@ -411,6 +413,60 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
             setRoom((prevRoom: any) => {
               if (!prevRoom) return null;
+              const newRoom = {
+                ...prevRoom,
+                ...updatedRoom,
+                playerX: prevRoom.playerX,
+                playerO: prevRoom.playerO
+              };
+              
+              const boardObj = JSON.parse(newRoom.board);
+              setPhase(boardObj.phase);
+
+              try {
+                const prevBoard = JSON.parse(prevRoom.board);
+                const nextBoard = JSON.parse(newRoom.board);
+                const isPlayerX = profile.id === newRoom.playerXId;
+                
+                const prevMyShots = isPlayerX ? prevBoard.shotsX : prevBoard.shotsO;
+                const nextMyShots = isPlayerX ? nextBoard.shotsX : nextBoard.shotsO;
+                
+                const prevOppShots = isPlayerX ? prevBoard.shotsO : prevBoard.shotsX;
+                const nextOppShots = isPlayerX ? nextBoard.shotsO : nextBoard.shotsX;
+
+                const prevRadarCount = isPlayerX ? (prevBoard.radarResultsX?.length || 0) : (prevBoard.radarResultsO?.length || 0);
+                const nextRadarCount = isPlayerX ? (nextBoard.radarResultsX?.length || 0) : (nextBoard.radarResultsO?.length || 0);
+
+                if (nextRadarCount > prevRadarCount) {
+                  playMoveSFX("radar");
+                } else if (nextMyShots.length > prevMyShots.length) {
+                  const lastShot = nextMyShots[nextMyShots.length - 1];
+                  playMoveSFX(lastShot.hit ? "hit" : "miss");
+                } else if (nextOppShots.length > prevOppShots.length) {
+                  const lastShot = nextOppShots[nextOppShots.length - 1];
+                  playMoveSFX(lastShot.hit ? "hit" : "miss");
+                }
+              } catch (e) {
+                console.error("Lỗi so sánh board phát sfx:", e);
+              }
+              
+              if (newRoom.status === "FINISHED" && prevRoom.status !== "FINISHED") {
+                showOnlineResult(newRoom);
+              }
+
+              return newRoom;
+            });
+          }
+        }
+      )
+      .on(
+        "broadcast",
+        { event: "game_update" },
+        (payload: any) => {
+          const updatedRoom = payload.payload.room;
+          if (updatedRoom) {
+            setRoom((prevRoom: any) => {
+              if (!prevRoom) return updatedRoom;
               const newRoom = {
                 ...prevRoom,
                 ...updatedRoom,
@@ -915,6 +971,16 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         roomRef.current = data.room;
         const boardObj = JSON.parse(data.room.board);
         setPhase(boardObj.phase);
+
+        // Gửi broadcast trạng thái cờ mới tới đối thủ lập tức (sub-100ms)
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "game_update",
+            payload: { room: data.room }
+          });
+        }
+
         if (data.finished) {
           showOnlineResult(data.room);
         }
@@ -1731,6 +1797,24 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                 </div>
               )}
             </div>
+
+            {/* Guest Promo / Reward Box */}
+            {profile?.isGuest && (
+              <div className="border border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/10 to-[#FF9F0A]/5 p-4 rounded-md text-center space-y-3 mt-2">
+                <span className="block text-[9px] text-[#FF9F0A] uppercase tracking-widest font-extrabold animate-pulse">
+                  🎁 QUÀ LIÊN KẾT GMAIL TÂN THỦ 🎁
+                </span>
+                <p className="text-[9.5px] text-[#F3E5AB]/90 leading-relaxed">
+                  Đăng nhập tài khoản Gmail của bạn để nhận ngay **+200 Coin** và **Skin Gà Samurai** cực VIP, đồng thời bảo vệ vĩnh viễn tiến trình chơi game!
+                </p>
+                <button
+                  onClick={loginWithGoogle}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white text-[9.5px] uppercase font-extrabold py-2 px-4 rounded border-2 border-black flex items-center justify-center gap-1.5 transition duration-150 active:translate-y-[1px]"
+                >
+                  <span>🐔</span> ĐĂNG NHẬP VỚI GMAIL
+                </button>
+              </div>
+            )}
 
             {/* Restart Buttons */}
             <div className="flex flex-col gap-2">

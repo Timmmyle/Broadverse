@@ -601,15 +601,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
               <div className="text-center space-y-3 z-10">
                 <Users className="w-12 h-12 text-[#F3E5AB]/30 mx-auto animate-pulse" />
                 <h3 className="text-xs font-bold text-[#F3E5AB] uppercase tracking-wider">Đang đợi các kỳ thủ sẵn sàng...</h3>
-                <p className="text-[9px] text-gray-500 max-w-sm mx-auto">Vui lòng bấm Sẵn Sàng. Chủ phòng có thể thêm Bot hoặc bấm Bắt đầu khi phòng có ít nhất 1 người chơi khác hoặc Bot.</p>
-                {isHost && (
-                  <button 
-                    onClick={handleAddBot}
-                    className="pixel-btn pixel-btn-gray py-2 px-4 text-[9.5px] font-bold mx-auto flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Thêm Bot AI
-                  </button>
-                )}
+                <p className="text-[9px] text-gray-500 max-w-sm mx-auto">Vui lòng bấm Sẵn Sàng. Chủ phòng có thể bấm Bắt đầu khi phòng có ít nhất 1 người chơi khác.</p>
               </div>
             )}
 
@@ -835,9 +827,9 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                 {isHost ? (
                   <button
                     onClick={handleStartGame}
-                    disabled={board.players.length < 2 && !board.players.some((p: any) => p.isBot)}
+                    disabled={board.players.length < 2}
                     className={`w-full pixel-btn py-3 text-xs font-bold gap-2 ${
-                      board.players.length >= 2 || board.players.some((p: any) => p.isBot) 
+                      board.players.length >= 2
                         ? "pixel-btn-yellow" 
                         : "pixel-btn-gray opacity-60"
                     }`}

@@ -1548,6 +1548,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             onClick={() => {
                               setSelectedGame("BAU_CUA");
                               setMatchWager(10); // Mặc định giới hạn 10 coin cho Bầu Cua
+                              if (selectedMode === "BOT") {
+                                setSelectedMode("RANDOM");
+                              }
                             }}
                             className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "BAU_CUA" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
@@ -1560,12 +1563,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       <div className="pixel-box-nested p-4 space-y-3">
                         <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold">2. Chế độ chơi:</span>
                         <div className="flex flex-col gap-2">
-                          <button
-                            onClick={() => setSelectedMode("BOT")}
-                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "BOT" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
-                          >
-                            <ChevronRight className="w-3 h-3 mr-2" /> Đấu với Bot (Offline)
-                          </button>
+                          {selectedGame !== "BAU_CUA" && (
+                            <button
+                              onClick={() => setSelectedMode("BOT")}
+                              className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "BOT" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            >
+                              <ChevronRight className="w-3 h-3 mr-2" /> Đấu với Bot (Offline)
+                            </button>
+                          )}
                           <button
                             onClick={() => setSelectedMode("FRIEND")}
                             className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "FRIEND" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}

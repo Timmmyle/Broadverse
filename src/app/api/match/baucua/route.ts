@@ -67,55 +67,7 @@ export async function POST(req: Request) {
 
     // 2. Hành động: THÊM BOT (ADD_BOT)
     if (action === "ADD_BOT") {
-      if (room.playerXId !== userId) {
-        return NextResponse.json({ error: "Chỉ chủ phòng mới có quyền thêm Bot" }, { status: 403 });
-      }
-
-      if (boardObj.players.length >= 4) {
-        return NextResponse.json({ error: "Phòng đã đầy" }, { status: 400 });
-      }
-
-      const botNames = ["BOT Kê Vương 🐓", "BOT Thần Bài 🃏", "BOT Lộc Phát 💸", "BOT Lắc Hũ 🎲", "BOT Vui Vẻ 🎉"];
-      const botName = botNames[Math.floor(Math.random() * botNames.length)] + ` #${Math.floor(Math.random() * 900 + 100)}`;
-      const botId = `bot_${Math.random().toString(36).substring(2, 9)}`;
-
-      boardObj.players.push({
-        id: botId,
-        username: botName,
-        avatarUrl: null,
-        ready: true,
-        isBot: true
-      });
-
-      // Tìm slot trống để gán botId vào cột DB
-      let botField: "playerOId" | "player3Id" | "player4Id" | null = null;
-      if (!room.playerOId) botField = "playerOId";
-      else if (!room.player3Id) botField = "player3Id";
-      else if (!room.player4Id) botField = "player4Id";
-
-      const updateData: any = { board: JSON.stringify(boardObj) };
-      if (botField) {
-        updateData[botField] = botId;
-        // Đảm bảo bot tồn tại trong DB (hoặc bot ảo)
-        await prisma.user.upsert({
-          where: { id: botId },
-          update: { username: botName, isGuest: true },
-          create: {
-            id: botId,
-            username: botName,
-            email: `${botId}@bot.com`,
-            isGuest: true,
-            eggs: 1000
-          }
-        });
-      }
-
-      const updatedRoom = await prisma.gameRoom.update({
-        where: { id: roomId },
-        data: updateData
-      });
-
-      return NextResponse.json({ room: updatedRoom });
+      return NextResponse.json({ error: "Tính năng thêm Bot đã bị vô hiệu hóa" }, { status: 400 });
     }
 
     // 3. Hành động: BẮT ĐẦU (START)

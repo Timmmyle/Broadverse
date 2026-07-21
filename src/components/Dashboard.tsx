@@ -2776,7 +2776,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           <div className={`pixel-box p-4 flex flex-col gap-4 relative overflow-hidden ${bannerItem?.visuals?.className || ""}`}>
             <div className="flex items-center gap-3 relative z-10">
               <div className={`w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center border border-[#D4AF37]/20 relative ${frameItem?.visuals?.className || ""} ${skinItem?.visuals?.className || "bg-[#141412] p-2"}`}>
-                <img src="/logo.png" className="w-full h-full object-contain" alt="Vuiga avatar" />
+                <img src={profile.avatarUrl || "/logo.png"} className="w-full h-full object-contain" alt="Vuiga avatar" />
               </div>
               <div>
                 <h3 className="font-bold text-white flex items-center gap-1 drop-shadow-md">

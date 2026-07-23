@@ -2869,93 +2869,81 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </div>
             </div>
 
-            {/* Rank Points (RP) bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[12px] font-mono">
-                <span>Tiến trình Rank:</span>
-                <span>{profile.rankPoints} / 100 RP</span>
-              </div>
-              <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden border border-[#D4AF37]/10">
-                <div className="bg-[#FF9F0A] h-full transition-all duration-300" style={{ width: `${profile.rankPoints}%` }}></div>
-              </div>
-            </div>
-
             {/* Prestige Leveling Trigger Button */}
             {profile.level >= 50 && (
               <button
                 onClick={handlePrestige}
                 disabled={prestigeLoading}
-                className="w-full bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] py-2 rounded-lg text-[9.5px] font-extrabold uppercase transition hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5 shadow"
+                className="w-full bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] py-2 rounded-lg text-[10px] font-extrabold uppercase transition hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-1.5 shadow"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 {prestigeLoading ? "Đang tiến hành..." : "Kích Hoạt Danh Vọng"}
               </button>
             )}
 
-            {/* Mastery Stats / Game Ranks (CS2 Style) */}
-            <div className="border-t border-[#D4AF37]/10 pt-3 space-y-2">
-              <span className="text-[12px] text-[#F3E5AB]/50 font-semibold block mb-1">Xếp hạng kỳ thủ</span>
+            {/* Mastery Stats / Game Ranks (Hiển thị EXP Rank từng trò) */}
+            <div className="border-t border-[#D4AF37]/10 pt-3 space-y-2.5">
+              <span className="text-[12px] text-[#F3E5AB]/70 font-bold block mb-1">Xếp Hạng & Tiến Trình Rank</span>
               
-              <div className="grid grid-cols-2 gap-2">
-                {/* Caro 3x3 */}
-                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Caro 3x3</span>
-                  <span className={`text-[12px] font-bold truncate ${(() => {
-                    const r = getRankFromDb(profile.rankTierTicTacToe || 1, profile.rankDivisionTicTacToe || 4, profile.rankPointsTicTacToe || 0);
-                    return r.className;
-                  })()}`}>
-                    {(() => {
-                      const r = getRankFromDb(profile.rankTierTicTacToe || 1, profile.rankDivisionTicTacToe || 4, profile.rankPointsTicTacToe || 0);
-                      return `${r.icon} ${r.name} ${r.divisionName}`;
-                    })()}
-                  </span>
-                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloTicTacToe || 1000}</span>
-                </div>
+              <div className="space-y-2">
+                {[
+                  {
+                    name: "Caro 3x3",
+                    tier: profile.rankTierTicTacToe || 1,
+                    division: profile.rankDivisionTicTacToe || 3,
+                    points: profile.rankPointsTicTacToe || 0,
+                    elo: profile.eloTicTacToe || 1000,
+                  },
+                  {
+                    name: "Gomoku (Caro 5)",
+                    tier: profile.rankTierCaro || 1,
+                    division: profile.rankDivisionCaro || 3,
+                    points: profile.rankPointsCaro || 0,
+                    elo: profile.eloGomoku || 1000,
+                  },
+                  {
+                    name: "Battleship (Bắn Tàu)",
+                    tier: profile.rankTierBattleship || 1,
+                    division: profile.rankDivisionBattleship || 3,
+                    points: profile.rankPointsBattleship || 0,
+                    elo: profile.eloBattleship || 1000,
+                  },
+                  {
+                    name: "Bầu Cua Tôm Cá",
+                    tier: profile.rankTierBauCua || 1,
+                    division: profile.rankDivisionBauCua || 3,
+                    points: profile.rankPointsBauCua || 0,
+                    elo: profile.eloBauCua || 1000,
+                  },
+                ].map((gameRank, idx) => {
+                  const r = getRankFromDb(gameRank.tier, gameRank.division, gameRank.points);
+                  const rpPercent = Math.min(100, Math.max(0, gameRank.points));
+                  return (
+                    <div key={idx} className="bg-[#141412] p-2.5 rounded-xl border border-[#D4AF37]/10 space-y-1.5">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-[#F3E5AB]/80 font-bold font-mono">{gameRank.name}</span>
+                        <span className="text-[#F3E5AB]/50 font-mono text-[10px]">ELO: {gameRank.elo}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <span className={`text-[12px] font-bold ${r.className}`}>
+                          {r.icon} {r.name} {r.divisionName}
+                        </span>
+                        <span className="text-[11px] font-mono text-[#D4AF37] font-bold">
+                          {gameRank.points} / 100 RP
+                        </span>
+                      </div>
 
-                {/* Gomoku */}
-                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Gomoku</span>
-                  <span className={`text-[12px] font-bold truncate ${(() => {
-                    const r = getRankFromDb(profile.rankTierCaro || 1, profile.rankDivisionCaro || 4, profile.rankPointsCaro || 0);
-                    return r.className;
-                  })()}`}>
-                    {(() => {
-                      const r = getRankFromDb(profile.rankTierCaro || 1, profile.rankDivisionCaro || 4, profile.rankPointsCaro || 0);
-                      return `${r.icon} ${r.name} ${r.divisionName}`;
-                    })()}
-                  </span>
-                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloGomoku || 1000}</span>
-                </div>
-
-                {/* Battleship */}
-                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Battleship</span>
-                  <span className={`text-[12px] font-bold truncate ${(() => {
-                    const r = getRankFromDb(profile.rankTierBattleship || 1, profile.rankDivisionBattleship || 4, profile.rankPointsBattleship || 0);
-                    return r.className;
-                  })()}`}>
-                    {(() => {
-                      const r = getRankFromDb(profile.rankTierBattleship || 1, profile.rankDivisionBattleship || 4, profile.rankPointsBattleship || 0);
-                      return `${r.icon} ${r.name} ${r.divisionName}`;
-                    })()}
-                  </span>
-                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBattleship || 1000}</span>
-                </div>
-
-                {/* Bầu Cua */}
-                <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
-                  <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Bầu Cua</span>
-                  <span className={`text-[12px] font-bold truncate ${(() => {
-                    const r = getRankFromDb(profile.rankTierBauCua || 1, profile.rankDivisionBauCua || 4, profile.rankPointsBauCua || 0);
-                    return r.className;
-                  })()}`}>
-                    {(() => {
-                      const r = getRankFromDb(profile.rankTierBauCua || 1, profile.rankDivisionBauCua || 4, profile.rankPointsBauCua || 0);
-                      return `${r.icon} ${r.name} ${r.divisionName}`;
-                    })()}
-                  </span>
-                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBauCua || 1000}</span>
-                </div>
+                      {/* Mini progress bar for game rank */}
+                      <div className="w-full bg-black/60 h-2 rounded-full overflow-hidden border border-[#D4AF37]/15">
+                        <div 
+                          className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full transition-all duration-300 rounded-full" 
+                          style={{ width: `${rpPercent}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

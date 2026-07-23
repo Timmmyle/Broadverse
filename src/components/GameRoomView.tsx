@@ -28,7 +28,7 @@ interface GameRoomViewProps {
 
 export default function GameRoomView({ gameType, mode, details, onBack }: GameRoomViewProps) {
   const { profile, refreshProfile, loginWithGoogle } = useAuth();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
   const supabase = createClient();
 
   const playMoveSFX = () => {
@@ -156,6 +156,8 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
     expGained?: number;
     levelUp?: boolean;
   } | null>(null);
+  const [showResultModal, setShowResultModal] = useState<boolean>(true);
+  const [lastMoveIndex, setLastMoveIndex] = useState<number | null>(null);
 
   // AFK Countdown & Timeout
   const [afkTimeLeft, setAfkTimeLeft] = useState<number>(60);
@@ -629,15 +631,18 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       coins += finishedRoom.wager;
     }
 
-    setGameResult({
-      finished: true,
-      outcome,
-      coinsGained: coins,
-      expGained: exp,
-      levelUp: profile.exp + exp >= 100 + profile.level * 5
-    });
-
-    refreshProfile();
+    // Trì hoãn 1.5s để người chơi thấy rõ nước đi cuối cùng trên bàn cờ
+    setTimeout(() => {
+      setGameResult({
+        finished: true,
+        outcome,
+        coinsGained: coins,
+        expGained: exp,
+        levelUp: profile.exp + exp >= 100 + profile.level * 5
+      });
+      setShowResultModal(true);
+      refreshProfile();
+    }, 1500);
   };
 
   // 5. CLICK ĐÁNH CỜ
@@ -676,6 +681,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       const nextBoard = [...localBoard];
       nextBoard[index] = "X";
       setLocalBoard(nextBoard);
+      setLastMoveIndex(index);
       playMoveSFX();
 
       // Kiểm tra luật cấm Renju trong game đấu Bot (nếu eloGomoku >= 1200)
@@ -684,14 +690,17 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         if (renjuCheck.forbidden) {
           setLocalStatus("FINISHED");
           setLocalWinner("BOT");
-          setGameResult({
-            finished: true,
-            outcome: "LOSE",
-            coinsGained: 0,
-            expGained: 0,
-            levelUp: false,
-          });
-          handleEndBotMatch("LOSE");
+          setTimeout(() => {
+            setGameResult({
+              finished: true,
+              outcome: "LOSE",
+              coinsGained: 0,
+              expGained: 0,
+              levelUp: false,
+            });
+            setShowResultModal(true);
+            handleEndBotMatch("LOSE");
+          }, 1500);
           return;
         }
       }
@@ -710,28 +719,34 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         setLocalStatus("FINISHED");
         setLocalWinner("PLAYER");
         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        setGameResult({
-          finished: true,
-          outcome: "WIN",
-          coinsGained: 0,
-          expGained: 0,
-          levelUp: false,
-        });
-        handleEndBotMatch("WIN");
+        setTimeout(() => {
+          setGameResult({
+            finished: true,
+            outcome: "WIN",
+            coinsGained: 0,
+            expGained: 0,
+            levelUp: false,
+          });
+          setShowResultModal(true);
+          handleEndBotMatch("WIN");
+        }, 1500);
         return;
       }
 
       if (draw) {
         setLocalStatus("FINISHED");
         setLocalWinner("DRAW");
-        setGameResult({
-          finished: true,
-          outcome: "DRAW",
-          coinsGained: 0,
-          expGained: 0,
-          levelUp: false,
-        });
-        handleEndBotMatch("DRAW");
+        setTimeout(() => {
+          setGameResult({
+            finished: true,
+            outcome: "DRAW",
+            coinsGained: 0,
+            expGained: 0,
+            levelUp: false,
+          });
+          setShowResultModal(true);
+          handleEndBotMatch("DRAW");
+        }, 1500);
         return;
       }
 
@@ -752,6 +767,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
           if (botMove !== -1) {
             botBoard[botMove] = "O";
+            setLastMoveIndex(botMove);
             playMoveSFX();
 
             // Kiểm tra thắng của Bot
@@ -767,25 +783,31 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             if (botWon) {
               setLocalStatus("FINISHED");
               setLocalWinner("BOT");
-              setGameResult({
-                finished: true,
-                outcome: "LOSE",
-                coinsGained: 0,
-                expGained: 0,
-                levelUp: false,
-              });
-              handleEndBotMatch("LOSE");
+              setTimeout(() => {
+                setGameResult({
+                  finished: true,
+                  outcome: "LOSE",
+                  coinsGained: 0,
+                  expGained: 0,
+                  levelUp: false,
+                });
+                setShowResultModal(true);
+                handleEndBotMatch("LOSE");
+              }, 1500);
             } else if (botDraw) {
               setLocalStatus("FINISHED");
               setLocalWinner("DRAW");
-              setGameResult({
-                finished: true,
-                outcome: "DRAW",
-                coinsGained: 0,
-                expGained: 0,
-                levelUp: false,
-              });
-              handleEndBotMatch("DRAW");
+              setTimeout(() => {
+                setGameResult({
+                  finished: true,
+                  outcome: "DRAW",
+                  coinsGained: 0,
+                  expGained: 0,
+                  levelUp: false,
+                });
+                setShowResultModal(true);
+                handleEndBotMatch("DRAW");
+              }, 1500);
             } else {
               setLocalTurn("X");
             }
@@ -809,6 +831,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
     const nextBoard = [...currentBoard];
     nextBoard[index] = mySymbol;
     setOptimisticBoard(nextBoard);
+    setLastMoveIndex(index);
     playMoveSFX();
 
     // Kiểm tra kết quả trận đấu cục bộ ngay lập tức để hiển thị popup không độ trễ
@@ -841,13 +864,16 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         coins += room.wager;
       }
 
-      setGameResult({
-        finished: true,
-        outcome,
-        coinsGained: coins,
-        expGained: exp,
-        levelUp: profile.exp + exp >= 100 + profile.level * 5
-      });
+      setTimeout(() => {
+        setGameResult({
+          finished: true,
+          outcome,
+          coinsGained: coins,
+          expGained: exp,
+          levelUp: profile.exp + exp >= 100 + profile.level * 5
+        });
+        setShowResultModal(true);
+      }, 1500);
     }
 
     // Đổi lượt tạm thời trên Client để khóa người chơi, không cho click đúp liên tục
@@ -931,28 +957,39 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
   };
 
   // Đầu hàng (Surrender) hoặc Yêu cầu xử thắng do hết giờ (Claim AFK)
-  const handleForfeit = async (action: "SURRENDER" | "CLAIM_TIMEOUT") => {
+  const handleForfeit = (action: "SURRENDER" | "CLAIM_TIMEOUT") => {
     if (!roomId) return;
-    const confirmMsg = action === "SURRENDER" 
-      ? "Bạn có chắc chắn muốn đầu hàng cờ không? (Bạn sẽ thua cuộc và mất tiền cược)" 
-      : "Đối thủ đã hết thời gian lượt đi cờ, bạn muốn xử thắng?";
-    
-    if (!confirm(confirmMsg)) return;
+    const isSurrender = action === "SURRENDER";
+    const title = isSurrender ? "Xác Nhận Đầu Hàng" : "Yêu Cầu Xử Thắng";
+    const confirmMsg = isSurrender 
+      ? "Bạn có chắc chắn muốn đầu hàng cờ không?\n(Bạn sẽ thua cuộc và mất tiền cược)" 
+      : "Đối thủ đã hết thời gian lượt đi cờ, bạn muốn xử thắng ngay không?";
+    const confirmText = isSurrender ? "Đầu Hàng" : "Xử Thắng";
 
-    try {
-      const res = await fetch("/api/match/forfeit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, action }),
-      });
+    showConfirm({
+      title,
+      message: confirmMsg,
+      confirmText,
+      cancelText: "Hủy",
+      variant: "danger",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/match/forfeit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roomId, action }),
+          });
 
-      if (!res.ok) {
-        const err = await res.json();
-        showAlert(err.error || "Không thể thực hiện hành động!");
+          if (!res.ok) {
+            const err = await res.json();
+            showAlert(err.error || "Không thể thực hiện hành động!");
+          }
+        } catch (err) {
+          console.error(err);
+          showAlert("Lỗi kết nối máy chủ!");
+        }
       }
-    } catch (err) {
-      console.error(err);
-    }
+    });
   };
 
   // Copy mã mời / link phòng
@@ -1026,11 +1063,11 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
           <div className="pixel-box p-6 w-full max-w-lg bg-[#1C1C18] border border-[#D4AF37]/35 text-center space-y-6">
             <div className="space-y-1">
-              <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                 Bài Học Chuyển Giao: Rank Bạch Kim Gomoku
               </span>
               <h2 className="text-base font-extrabold text-white">Luật Renju Quốc Tế Cho Quân Đen</h2>
-              <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed max-w-sm mx-auto">
+              <p className="text-[12px] text-[#F3E5AB]/75 leading-relaxed max-w-sm mx-auto">
                 Để cân bằng tỷ lệ thắng của bên đi trước (Đen), luật Renju cấm quân Đen tạo nước cờ lỗi đôi <strong>Double 3 (Đôi ba)</strong>, <strong>Double 4 (Đôi bốn)</strong>, và <strong>Overline (&gt;5 quân)</strong>. Hãy hoàn thành 3 bài đố vui để mở khóa sảnh chơi và nhận thưởng <strong>100 Coins</strong>!
               </p>
             </div>
@@ -1064,7 +1101,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                   localStorage.setItem(`renju_onboard_completed_${profile.id}`, "true");
                   setShowOnboard(false);
                 }}
-                className="bg-[#1C1C18] hover:bg-[#272722] text-[#F3E5AB]/60 border border-[#D4AF37]/15 py-2 px-6 rounded-lg text-[10px] font-bold uppercase transition"
+                className="bg-[#1C1C18] hover:bg-[#272722] text-[#F3E5AB]/60 border border-[#D4AF37]/15 py-2 px-6 rounded-lg text-[12px] font-bold uppercase transition"
               >
                 Bỏ qua (Không nhận Coin)
               </button>
@@ -1075,16 +1112,16 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       
       {/* Top Navigation */}
       <header className="w-full bg-[#16161c]/90 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between">
-        <button onClick={onBack} className="pixel-btn pixel-btn-red py-2 px-3 text-[9px] flex items-center gap-2">
+        <button onClick={onBack} className="pixel-btn pixel-btn-red py-2 px-3 text-[12px] flex items-center gap-2">
           <ArrowLeft className="w-3 h-3" />
           Rời Phòng
         </button>
         
         <div className="text-center font-bold">
-          <span className="block text-[8px] text-pixel-blue uppercase tracking-widest">
+          <span className="block text-[12px] text-pixel-blue uppercase tracking-widest">
             {gameType === "TIC_TAC_TOE" ? "Tic-Tac-Toe 3x3" : "Caro 12x12"}
           </span>
-          <span className="text-[10px] text-pixel-yellow uppercase mt-1">
+          <span className="text-[12px] text-pixel-yellow uppercase mt-1">
             {mode === "BOT" ? "Luyện tập Bot" : `Đấu cược (${room?.wager || 0} Coin)`}
           </span>
         </div>
@@ -1108,13 +1145,13 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       {loading ? (
         <div className="flex-grow flex flex-col items-center justify-center space-y-4">
           <RefreshCw className="w-8 h-8 text-pixel-yellow animate-spin" />
-          <p className="text-[10px] text-pixel-yellow font-medium">Đang nạp bàn cờ...</p>
+          <p className="text-[12px] text-pixel-yellow font-medium">Đang nạp bàn cờ...</p>
         </div>
       ) : errorMsg ? (
         <div className="flex-grow flex flex-col items-center justify-center p-6 space-y-4">
           <AlertTriangle className="w-10 h-10 text-pixel-red" />
           <p className="text-center text-xs text-pixel-red font-mono bg-pixel-red/10 border-2 border-pixel-red p-4 max-w-md">[ERROR]: {errorMsg}</p>
-          <button onClick={onBack} className="pixel-btn pixel-btn-yellow py-2 px-6 text-[9px] font-bold">Quay lại sảnh</button>
+          <button onClick={onBack} className="pixel-btn pixel-btn-yellow py-2 px-6 text-[12px] font-bold">Quay lại sảnh</button>
         </div>
       ) : room?.status === "WAITING" ? (
         /* CHỜ BẠN BÈ JOIN PHÒNG (FRIEND MODE WAITING) */
@@ -1122,7 +1159,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
           <div className="pixel-box bg-[#16161c] p-6 w-full text-center space-y-6">
             <h2 className="text-xs text-pixel-yellow uppercase tracking-wider border-b border-black pb-3">Phòng Đấu Bạn Bè</h2>
             
-            <p className="text-[9px] text-gray-400 leading-relaxed uppercase">
+            <p className="text-[12px] text-gray-400 leading-relaxed uppercase">
               Hãy gửi link mời bên dưới cho bạn bè để cùng tham gia đấu cờ cược {room.wager} Coin.
             </p>
 
@@ -1131,13 +1168,13 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               <div className="bg-white p-2 border-4 border-black mb-4">
                 <QRCodeSVG value={typeof window !== "undefined" ? `${window.location.origin}?joinRoom=${room.id}` : room.id} size={128} />
               </div>
-              <span className="text-[8px] text-gray-500 font-mono select-all">ID: {room.id}</span>
+              <span className="text-[12px] text-gray-500 font-mono select-all">ID: {room.id}</span>
             </div>
 
             <div className="space-y-2">
               <button 
                 onClick={handleCopyLink} 
-                className="w-full pixel-btn pixel-btn-blue py-3 text-[10px] uppercase font-bold flex items-center justify-center gap-2"
+                className="w-full pixel-btn pixel-btn-blue py-3 text-[12px] uppercase font-bold flex items-center justify-center gap-2"
               >
                 {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedLink ? "Đã copy link mời!" : "Copy Link Mời Trực Tiếp"}
@@ -1146,12 +1183,12 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
             {/* Danh sách bạn bè trực tuyến để mời trực tiếp */}
             <div className="border-t border-black/20 pt-4 space-y-3 text-left">
-              <span className="block text-[8px] text-gray-500 uppercase tracking-wider font-semibold">Mời bạn bè trực tuyến:</span>
+              <span className="block text-[12px] text-gray-500 uppercase tracking-wider font-semibold">Mời bạn bè trực tuyến:</span>
               <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
                 {friends.length === 0 ? (
-                  <div className="text-[9px] text-gray-500 text-center py-2">Chưa có bạn bè</div>
+                  <div className="text-[12px] text-gray-500 text-center py-2">Chưa có bạn bè</div>
                 ) : friends.filter(f => onlineUsers.has(f.id)).length === 0 ? (
-                  <div className="text-[9px] text-gray-500 text-center py-2">Không có bạn bè trực tuyến</div>
+                  <div className="text-[12px] text-gray-500 text-center py-2">Không có bạn bè trực tuyến</div>
                 ) : (
                   friends.filter(f => onlineUsers.has(f.id)).map((f) => (
                     <div key={f.id} className="flex justify-between items-center bg-black/20 p-2 rounded border border-[#D4AF37]/10 text-xs">
@@ -1159,7 +1196,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                       <button
                         onClick={() => handleInviteToGame(f.id, f.username)}
                         disabled={invitingFriendId === f.id}
-                        className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-3 py-1 rounded text-[9px] font-bold transition"
+                        className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-3 py-1 rounded text-[12px] font-bold transition"
                       >
                         {invitingFriendId === f.id ? "Đang mời..." : "Mời đấu"}
                       </button>
@@ -1169,7 +1206,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               </div>
             </div>
             
-            <div className="text-[8px] text-pixel-blue animate-pulse uppercase tracking-wider">
+            <div className="text-[12px] text-pixel-blue animate-pulse uppercase tracking-wider">
               === Đang chờ bạn bè kết nối ===
             </div>
           </div>
@@ -1201,13 +1238,13 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 </span>
               </div>
               <div className="overflow-hidden">
-                <span className="block text-[9px] font-bold text-pixel-yellow truncate uppercase tracking-wider">
+                <span className="block text-[12px] font-bold text-pixel-yellow truncate uppercase tracking-wider">
                   {mode === "BOT" ? profile.username : room.playerX.username}
                 </span>
-                <span className="text-[7px] text-gray-400 font-mono">Lv.{mode === "BOT" ? profile.level : room.playerX.level}</span>
+                <span className="text-[12px] text-gray-400 font-mono">Lv.{mode === "BOT" ? profile.level : room.playerX.level}</span>
               </div>
               {((mode === "BOT" && localTurn === "X") || (mode !== "BOT" && room.turnPlayerId === room.playerXId)) && (
-                <span className="absolute -top-2 left-2 bg-pixel-yellow text-black text-[8px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">
+                <span className="absolute -top-2 left-2 bg-pixel-yellow text-black text-[12px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">
                   Lượt đi
                 </span>
               )}
@@ -1233,13 +1270,13 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 </span>
               </div>
               <div className="overflow-hidden">
-                <span className="block text-[9px] font-bold text-pixel-blue truncate uppercase tracking-wider">
+                <span className="block text-[12px] font-bold text-pixel-blue truncate uppercase tracking-wider">
                   {getOpponentUsername()}
                 </span>
-                <span className="text-[7px] text-gray-400 font-mono">Lv.{mode === "BOT" ? opponentProfile?.level : (room?.playerOId === "bot" ? profile?.level : room?.playerO?.level || 1)}</span>
+                <span className="text-[12px] text-gray-400 font-mono">Lv.{mode === "BOT" ? opponentProfile?.level : (room?.playerOId === "bot" ? profile?.level : room?.playerO?.level || 1)}</span>
               </div>
               {((mode === "BOT" && localTurn === "O") || (mode !== "BOT" && room.turnPlayerId === room.playerOId)) && (
-                <span className="absolute -top-2 left-2 bg-pixel-blue text-white text-[8px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">
+                <span className="absolute -top-2 left-2 bg-pixel-blue text-white text-[12px] border border-white/10 rounded-full font-bold uppercase px-2 py-0.5 animate-pulse">
                   Lượt đi
                 </span>
               )}
@@ -1249,7 +1286,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
           {/* TURN INDICATOR TEXT */}
           <div className="h-6 flex items-center justify-center">
             {room?.status === "PLAYING" || localStatus === "PLAYING" ? (
-              <span className="text-[8px] text-pixel-yellow font-bold uppercase tracking-wider animate-pulse flex items-center gap-2">
+              <span className="text-[12px] text-pixel-yellow font-bold uppercase tracking-wider animate-pulse flex items-center gap-2">
                 <Clock className="w-3 h-3 text-pixel-yellow" />
                 Lượt của: {currentTurnPlayer} {mode !== "BOT" && `(${afkTimeLeft}s)`}
               </span>
@@ -1259,7 +1296,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
           {/* EMOJI QUICK CHAT BAR */}
           {mode !== "BOT" && room && room.status === "PLAYING" && (
             <div className="flex gap-2 bg-black bg-opacity-25 border border-white/5 p-1 px-3 rounded-full items-center select-none">
-              <span className="text-[6.5px] text-gray-500 font-mono uppercase mr-1">Biểu cảm:</span>
+              <span className="text-[12px] text-gray-500 font-mono uppercase mr-1">Biểu cảm:</span>
               {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).map(emojiItem => (
                 <button
                   key={emojiItem.id}
@@ -1271,7 +1308,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 </button>
               ))}
               {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).length === 0 && (
-                <span className="text-[6.5px] text-gray-400 italic">Chưa sở hữu biểu cảm nào</span>
+                <span className="text-[12px] text-gray-400 italic">Chưa sở hữu biểu cảm nào</span>
               )}
             </div>
           )}
@@ -1289,6 +1326,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 const isX = cell === "X";
                 const isO = cell === "O";
                 const isGhost = (ghostCell === idx);
+                const isLastMove = idx === lastMoveIndex;
                 
                 // Trả về visual quân cờ đúng (bao gồm ghost piece nếu là click nháp)
                 const visual = isX 
@@ -1303,25 +1341,31 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                     key={idx}
                     onClick={() => handleCellClick(idx)}
                     disabled={(mode === "BOT" ? localStatus !== "PLAYING" : room.status !== "PLAYING") || (cell !== "" && !isGhost) || !myTurn}
-                    className={`pixel-box-nested aspect-square flex items-center justify-center font-bold transition-all duration-75 cursor-pointer select-none ${
+                    className={`pixel-box-nested aspect-square flex items-center justify-center font-bold transition-all duration-75 cursor-pointer select-none relative ${
                       cell === "" 
                         ? (myTurn ? (isGhost ? (isForbiddenCell ? "bg-red-950/20 border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] animate-pulse" : "bg-yellow-500/10 border-yellow-400/50 animate-pulse") : "hover:bg-white/10") : "cursor-not-allowed") 
                         : ""
                     } ${
-                      gameType === "TIC_TAC_TOE" ? "text-2xl sm:text-3xl" : "text-[10px] sm:text-xs"
+                      gameType === "TIC_TAC_TOE" ? "text-2xl sm:text-3xl" : "text-[12px] sm:text-xs"
                     }`}
                     style={{
                       backgroundColor: cell === "" ? (isGhost ? (isForbiddenCell ? "rgba(220,38,38,0.1)" : "rgba(212,175,55,0.15)") : "rgba(0,0,0,0.4)") : "rgba(0,0,0,0.25)",
-                      boxShadow: "inset 1px 1px 0px 0px rgba(255,255,255,0.05)",
-                      border: isForbiddenCell ? "1.5px solid #ef4444" : (isGhost ? "1.5px solid #D4AF37" : "1px solid rgba(255,255,255,0.08)")
+                      boxShadow: isLastMove ? "0 0 12px rgba(250, 204, 21, 0.8), inset 0 0 8px rgba(250, 204, 21, 0.6)" : "inset 1px 1px 0px 0px rgba(255,255,255,0.05)",
+                      border: isForbiddenCell ? "1.5px solid #ef4444" : (isLastMove ? "2px solid #facc15" : (isGhost ? "1.5px solid #D4AF37" : "1px solid rgba(255,255,255,0.08)"))
                     }}
                   >
+                    {isLastMove && cell !== "" && (
+                      <span className="absolute -top-1 -right-1 z-20 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500 border border-black"></span>
+                      </span>
+                    )}
                     {isX ? (
-                      <span className="w-11/12 h-11/12 rounded-full bg-gradient-to-br from-red-500 to-red-700 text-white flex items-center justify-center shadow-lg transform scale-95 border border-red-400">
+                      <span className={`w-11/12 h-11/12 rounded-full bg-gradient-to-br from-red-500 to-red-700 text-white flex items-center justify-center shadow-lg transform scale-95 border ${isLastMove ? "border-yellow-300 ring-2 ring-yellow-400/80 animate-pulse" : "border-red-400"}`}>
                         {visual}
                       </span>
                     ) : isO ? (
-                      <span className="w-11/12 h-11/12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg transform scale-95 border border-blue-400">
+                      <span className={`w-11/12 h-11/12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center shadow-lg transform scale-95 border ${isLastMove ? "border-yellow-300 ring-2 ring-yellow-400/80 animate-pulse" : "border-blue-400"}`}>
                         {visual}
                       </span>
                     ) : isGhost ? (
@@ -1344,7 +1388,19 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             <div className="w-full max-w-[320px] sm:max-w-[384px] mx-auto text-red-400 text-xs font-bold text-center mt-4 px-4 bg-red-950/20 py-2.5 rounded-xl border border-red-500/30 animate-pulse relative z-20">
               ⚠️ CẢNH BÁO PHẠM QUY RENJU:<br />
               <span className="text-white mt-1 block font-extrabold">{renjuError}</span>
-              <span className="text-[10px] text-gray-400 mt-1 block font-medium">Bấm lần nữa để xác nhận đặt cờ và BỊ XỬ THUA!</span>
+              <span className="text-[12px] text-gray-400 mt-1 block font-medium">Bấm lần nữa để xác nhận đặt cờ và BỊ XỬ THUA!</span>
+            </div>
+          )}
+
+          {/* NÚT XEM KẾT QUẢ KHI ẨN MODAL KẾT QUẢ */}
+          {gameResult?.finished && !showResultModal && (
+            <div className="mt-4 flex justify-center z-20">
+              <button
+                onClick={() => setShowResultModal(true)}
+                className="pixel-btn pixel-btn-yellow py-2.5 px-6 text-xs uppercase font-extrabold flex items-center gap-2 shadow-xl animate-bounce"
+              >
+                🏆 Xem Kết Quả Trận Đấu
+              </button>
             </div>
           )}
 
@@ -1353,7 +1409,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             <div className="w-full max-w-xs flex gap-3">
               <button 
                 onClick={() => handleForfeit("SURRENDER")} 
-                className="flex-grow pixel-btn pixel-btn-red py-2 px-3 text-[9px] uppercase font-bold"
+                className="flex-grow pixel-btn pixel-btn-red py-2 px-3 text-[12px] uppercase font-bold"
               >
                 Đầu hàng cờ
               </button>
@@ -1362,7 +1418,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
               {room.turnPlayerId !== profile.id && afkTimeLeft === 0 && (
                 <button
                   onClick={() => handleForfeit("CLAIM_TIMEOUT")}
-                  className="flex-grow pixel-btn pixel-btn-yellow py-2 px-3 text-[9px] uppercase font-bold animate-[pulse_1s_infinite]"
+                  className="flex-grow pixel-btn pixel-btn-yellow py-2 px-3 text-[12px] uppercase font-bold animate-[pulse_1s_infinite]"
                 >
                   Xử thắng đối thủ
                 </button>
@@ -1391,8 +1447,8 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                   <Award className="w-5 h-5 text-red-500" />
                 </div>
                 <div className="text-left flex-grow">
-                  <span className="block text-[8px] text-pixel-yellow uppercase font-bold tracking-wide">KHUNG RỒNG LỬA CHỈ 50 COIN</span>
-                  <p className="text-[7px] text-gray-400 leading-tight mt-0.5">Vào Cửa Hàng mua ngay khung avatar rực cháy huyền thoại!</p>
+                  <span className="block text-[12px] text-pixel-yellow uppercase font-bold tracking-wide">KHUNG RỒNG LỬA CHỈ 50 COIN</span>
+                  <p className="text-[12px] text-gray-400 leading-tight mt-0.5">Vào Cửa Hàng mua ngay khung avatar rực cháy huyền thoại!</p>
                 </div>
               </div>
             </div>
@@ -1402,7 +1458,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
       )}
 
       {/* GAME END OVERLAY PANEL */}
-      {gameResult?.finished && (
+      {gameResult?.finished && showResultModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 animate-fade-in">
           <div className="pixel-box bg-[#16161c] max-w-sm w-full p-6 text-center space-y-6 relative border-4 border-black">
             
@@ -1422,27 +1478,27 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
                 </h1>
               )}
               
-              <p className="text-[8px] text-gray-500 mt-2 uppercase font-mono tracking-widest">
+              <p className="text-[12px] text-gray-500 mt-2 uppercase font-mono tracking-widest">
                 Trận đấu đã khép lại
               </p>
             </div>
 
             {/* Rewards Card */}
             <div className="pixel-box-nested p-4 bg-black/60 space-y-3">
-              <span className="block text-[8px] text-pixel-blue uppercase tracking-widest border-b border-black pb-1 mb-2">
+              <span className="block text-[12px] text-pixel-blue uppercase tracking-widest border-b border-black pb-1 mb-2">
                 Phần thưởng nhận được
               </span>
               
               <div className="flex items-center justify-around">
                 <div className="flex flex-col items-center">
-                  <span className="text-[8px] text-gray-400 uppercase">Coin thưởng</span>
+                  <span className="text-[12px] text-gray-400 uppercase">Coin thưởng</span>
                   <span className="text-sm font-bold text-pixel-yellow mt-1 flex items-center gap-1">
                     +{gameResult.coinsGained} <Coins className="w-3.5 h-3.5 fill-pixel-yellow text-pixel-yellow" />
                   </span>
                 </div>
                 <div className="h-6 w-[2px] bg-black"></div>
                 <div className="flex flex-col items-center">
-                  <span className="text-[8px] text-gray-400 uppercase">Kinh nghiệm</span>
+                  <span className="text-[12px] text-gray-400 uppercase">Kinh nghiệm</span>
                   <span className="text-sm font-bold text-pixel-blue mt-1 flex items-center gap-1">
                     +{gameResult.expGained} <Award className="w-3.5 h-3.5 text-pixel-blue" />
                   </span>
@@ -1451,7 +1507,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
               {gameResult.levelUp && (
                 <div className="bg-pixel-yellow/20 border border-pixel-yellow p-2 mt-3 animate-pulse">
-                  <span className="text-[9px] text-pixel-yellow uppercase font-bold tracking-widest">
+                  <span className="text-[12px] text-pixel-yellow uppercase font-bold tracking-widest">
                     ⭐ Đã Tăng Cấp Level! ⭐
                   </span>
                 </div>
@@ -1461,7 +1517,7 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             {/* Guest Promo / Reward Box */}
             {profile?.isGuest && (
               <div className="pixel-box-nested p-4 bg-gradient-to-br from-[#D4AF37]/10 to-[#FF9F0A]/5 border border-[#D4AF37]/30 text-center space-y-3 mt-2">
-                <span className="block text-[9px] text-[#FF9F0A] uppercase tracking-widest font-extrabold animate-pulse">
+                <span className="block text-[12px] text-[#FF9F0A] uppercase tracking-widest font-extrabold animate-pulse">
                   🎁 QUÀ LIÊN KẾT GMAIL TÂN THỦ 🎁
                 </span>
                 <p className="text-[9.5px] text-[#F3E5AB]/90 leading-relaxed">
@@ -1478,17 +1534,23 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
 
             {/* Action Buttons */}
             <div className="space-y-2">
+              <button
+                onClick={() => setShowResultModal(false)}
+                className="w-full bg-white/10 hover:bg-white/20 text-white py-2.5 text-[12px] uppercase font-bold rounded border border-white/20 flex items-center justify-center gap-2"
+              >
+                🔍 Xem Lại Bàn Cờ
+              </button>
               {mode === "BOT" && (
                 <button
                   onClick={handleRestartBotMatch}
-                  className="w-full pixel-btn pixel-btn-blue py-3 text-[10px] uppercase font-bold"
+                  className="w-full pixel-btn pixel-btn-blue py-3 text-[12px] uppercase font-bold"
                 >
                   Đấu lại Bot
                 </button>
               )}
               <button
                 onClick={onBack}
-                className="w-full pixel-btn pixel-btn-yellow py-3 text-[10px] uppercase font-bold"
+                className="w-full pixel-btn pixel-btn-yellow py-3 text-[12px] uppercase font-bold"
               >
                 Quay lại sảnh
               </button>

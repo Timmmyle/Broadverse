@@ -9,7 +9,7 @@ import {
   Coins, Trophy, LogOut, ShoppingBag, Settings, Play, 
   User as UserIcon, X, Swords, RefreshCw, Sparkles, Check, ChevronRight,
   CreditCard, Calendar, Gift, Volume2, Smile, Flame, ShieldAlert, Award, Star, Eye, UserPlus, Link2, Users,
-  Crown, Music, Flag, Dice5, Lock, ChevronLeft, Gamepad2
+  Crown, Music, Flag, Dice5, Lock, ChevronLeft, Gamepad2, Mail
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { getExpNeededForLevel, DailyMission, getRankFromElo, getRankFromDb, ACHIEVEMENTS } from "@/lib/progression";
@@ -21,8 +21,8 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onSelectGame }: DashboardProps) {
-  const { profile, signOutUser, refreshProfile } = useAuth();
-  const { showAlert } = useAlert();
+  const { profile, signOutUser, refreshProfile, loginWithGoogle } = useAuth();
+  const { showAlert, showConfirm } = useAlert();
   const supabase = createClient();
 
   // Tab chính trên PC: "PLAY" | "SHOP" | "SETTINGS"
@@ -135,6 +135,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [partyMessages, setPartyMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const [showGuestLinkModal, setShowGuestLinkModal] = useState(false);
   const [claimingDiscord, setClaimingDiscord] = useState(false);
 
   
@@ -368,70 +369,85 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     }
   };
 
-  const handleLeaveParty = async () => {
+  const handleLeaveParty = () => {
     if (!profile) return;
-    try {
-      const res = await fetch("/api/party/leave", { method: "POST" });
-      if (res.ok) {
-        if (activeParty && activeParty.leaderId === profile.id) {
-          const channel = supabase.channel(`party_${activeParty.id}`);
-          await channel.subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
-              await channel.send({
-                type: "broadcast",
-                event: "party_disband",
-                payload: {}
+    showConfirm({
+      title: "Rời Chuồng Gà",
+      message: "Bạn có chắc chắn muốn rời Chuồng Gà (tổ đội) này không?",
+      confirmText: "Rời Chuồng",
+      cancelText: "Hủy",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/party/leave", { method: "POST" });
+          if (res.ok) {
+            if (activeParty && activeParty.leaderId === profile.id) {
+              const channel = supabase.channel(`party_${activeParty.id}`);
+              await channel.subscribe(async (status) => {
+                if (status === "SUBSCRIBED") {
+                  await channel.send({
+                    type: "broadcast",
+                    event: "party_disband",
+                    payload: {}
+                  });
+                  supabase.removeChannel(channel);
+                }
               });
-              supabase.removeChannel(channel);
-            }
-          });
-        } else if (activeParty) {
-          const channel = supabase.channel(`party_${activeParty.id}`);
-          await channel.subscribe(async (status) => {
-            if (status === "SUBSCRIBED") {
-              await channel.send({
-                type: "broadcast",
-                event: "party_update",
-                payload: {}
+            } else if (activeParty) {
+              const channel = supabase.channel(`party_${activeParty.id}`);
+              await channel.subscribe(async (status) => {
+                if (status === "SUBSCRIBED") {
+                  await channel.send({
+                    type: "broadcast",
+                    event: "party_update",
+                    payload: {}
+                  });
+                  supabase.removeChannel(channel);
+                }
               });
-              supabase.removeChannel(channel);
             }
-          });
+            setActiveParty(null);
+            setPartyMembers([]);
+            showAlert("Đã rời tổ đội");
+          }
+        } catch (err) {
+          console.error(err);
         }
-        setActiveParty(null);
-        setPartyMembers([]);
-        showAlert("Đã rời tổ đội");
       }
-    } catch (err) {
-      console.error(err);
-    }
+    });
   };
 
-  const handleKickMember = async (targetUserId: string) => {
-    if (!confirm("Trục xuất thành viên này khỏi tổ đội?")) return;
-    try {
-      const res = await fetch("/api/party/kick", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId })
-      });
-      if (res.ok) {
-        const channel = supabase.channel(`party_${activeParty.id}`);
-        await channel.subscribe(async (status) => {
-          if (status === "SUBSCRIBED") {
-            await channel.send({
-              type: "broadcast",
-              event: "party_update",
-              payload: {}
+  const handleKickMember = (targetUserId: string) => {
+    showConfirm({
+      title: "Trục Xuất Thành Viên",
+      message: "Bạn có chắc chắn muốn trục xuất thành viên này khỏi Chuồng Gà?",
+      confirmText: "Trục Xuất",
+      cancelText: "Hủy",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/party/kick", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ targetUserId })
+          });
+          if (res.ok) {
+            const channel = supabase.channel(`party_${activeParty.id}`);
+            await channel.subscribe(async (status) => {
+              if (status === "SUBSCRIBED") {
+                await channel.send({
+                  type: "broadcast",
+                  event: "party_update",
+                  payload: {}
+                });
+                supabase.removeChannel(channel);
+              }
             });
-            supabase.removeChannel(channel);
+            fetchCurrentParty();
           }
-        });
-        fetchCurrentParty();
+        } catch (err) {
+          console.error(err);
+        }
       }
-    } catch (err) {
-      console.error(err);
-    }
+    });
   };
 
   const handleUpdatePartyConfig = async (gameType: string, wager: number) => {
@@ -787,24 +803,29 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
     };
   }, [profile]);
 
-  // 2b. Kiểm tra xem người chơi có vừa chơi xong để gợi ý Discord không
+  // 2b. Kiểm tra xem người chơi có vừa chơi xong không
   useEffect(() => {
-    if (profile && !profile.claimedDiscordReward) {
+    if (profile) {
       const justFinished = localStorage.getItem("game_played");
       if (justFinished === "true") {
-        setShowDiscordModal(true);
         localStorage.removeItem("game_played");
+        if (profile.isGuest) {
+          // Khách vừa chơi xong -> hiện popup gợi ý Liên kết Gmail để lưu lại tài khoản
+          setShowGuestLinkModal(true);
+        } else if (!profile.claimedDiscordReward) {
+          // Đã đăng nhập -> hiện popup Tham gia Discord nhận quà nếu chưa nhận
+          setShowDiscordModal(true);
+        }
       }
     }
   }, [profile]);
 
   const handleClaimDiscord = async () => {
-    if (!profile || claimingDiscord) return;
+    if (!profile || profile.isGuest || claimingDiscord) return;
     setClaimingDiscord(true);
     try {
       // Mở link Discord trong tab mới
       window.open("https://discord.gg/nBEaascSY", "_blank");
-
 
       // Gọi API nhận thưởng
       const res = await fetch("/api/user/claim-discord", {
@@ -1334,7 +1355,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           {/* Cấp độ & Thanh EXP mini trên Header */}
           <div className="hidden sm:flex items-center gap-2 bg-[#141412] px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
             <div className="text-left shrink-0">
-              <span className="text-[7px] text-[#F3E5AB]/65 uppercase block">Cấp độ</span>
+              <span className="text-[12px] text-[#F3E5AB]/65 uppercase block">Cấp độ</span>
               <span className="text-xs font-bold text-white flex items-center gap-0.5">
                 {profile.prestigeLevel > 0 && <Star className="w-3 h-3 text-[#FF9F0A] fill-[#FF9F0A]" />}
                 {profile.level}
@@ -1349,7 +1370,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           <div className="flex items-center gap-2 bg-[#141412] px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
             <span className="text-sm">🥚</span>
             <div className="text-right">
-              <span className="text-[6.5px] text-[#F3E5AB]/60 uppercase block">Trứng Gà</span>
+              <span className="text-[12px] text-[#F3E5AB]/60 uppercase block">Trứng Gà</span>
               <span className="text-xs text-white font-mono font-bold">{profile.eggs}</span>
             </div>
             <button 
@@ -1360,27 +1381,20 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </button>
           </div>
 
-          {/* Tiền tệ: Golden Eggs */}
-          <div className="flex items-center gap-2 bg-[#141412] px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
-            <span className="text-sm">✨</span>
-            <div className="text-right">
-              <span className="text-[6.5px] text-[#F3E5AB]/60 uppercase block">Trứng Vàng</span>
-              <span className="text-xs text-[#FF9F0A] font-mono font-bold">{profile.goldenEggs ?? 0}</span>
-            </div>
-          </div>
+
 
           {/* Premium tag */}
           {profile.isPremium ? (
             <span 
               title={profile.premiumUntil ? `Hạn dùng: ${new Date(profile.premiumUntil).toLocaleDateString("vi-VN")}` : "Hạn dùng: Vĩnh viễn"}
-              className="hidden md:inline-flex items-center gap-1 text-[8px] bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] px-2.5 py-1 rounded-full font-extrabold uppercase shadow-md cursor-help"
+              className="hidden md:inline-flex items-center gap-1 text-[12px] bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] text-[#141412] px-2.5 py-1 rounded-full font-extrabold uppercase shadow-md cursor-help"
             >
               👑 Premium
             </span>
           ) : (
             <button
               onClick={() => setActiveTab("SETTINGS")}
-              className="hidden md:flex items-center gap-1 text-[8px] bg-[#1C1C18] border border-[#D4AF37]/35 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#141412] px-2.5 py-1 rounded-full font-bold uppercase transition"
+              className="hidden md:flex items-center gap-1 text-[12px] bg-[#1C1C18] border border-[#D4AF37]/35 text-[#D4AF37] hover:bg-[#D4AF37] hover:text-[#141412] px-2.5 py-1 rounded-full font-bold uppercase transition"
             >
               👑 Nâng Cấp
             </button>
@@ -1444,21 +1458,67 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               {/* Event Banner */}
               <div className="pixel-box-nested p-4 bg-gradient-to-br from-[#1C1C18] via-[#141412] to-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="text-left space-y-1">
-                  <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     Sự Kiện Đặc Biệt
                   </span>
                   <h3 className="text-base font-extrabold text-white">Đêm Hoàng Kim (Golden Night)</h3>
-                  <p className="text-[10px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
+                  <p className="text-[12px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
                     Đổi Visual vàng kim sang trọng, nhân đôi EXP vĩnh viễn cuối tuần, và mở khóa Event Shop vật phẩm đặc chế Obsidian Hoàng Gia.
                   </p>
                 </div>
                 <button
                   onClick={() => setActiveTab("BP")}
-                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-4 rounded-lg uppercase text-[10px] font-extrabold transition shrink-0"
+                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-4 rounded-lg uppercase text-[12px] font-extrabold transition shrink-0"
                 >
                   Khám phá ngay
                 </button>
               </div>
+
+              {/* Banner Liên Kết Gmail cho Tài Khoản Khách */}
+              {profile.isGuest && (
+                <div className="pixel-box-nested p-4 bg-gradient-to-r from-[#D4AF37]/20 via-[#141412] to-[#FF9F0A]/10 border border-[#D4AF37]/40 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4 shadow-[0_0_25px_rgba(212,175,55,0.15)]">
+                  <div className="text-left space-y-1">
+                    <span className="bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                      🔒 BẢO VỆ TÀI KHOẢN
+                    </span>
+                    <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                      <span>📧</span> Đăng Nhập / Liên Kết Gmail Giúp Lưu Lại Tài Khoản
+                    </h3>
+                    <p className="text-[12px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
+                      Liên kết Gmail ngay để lưu giữ vĩnh viễn tiến trình chơi, vật phẩm và điểm số Rank của bạn khỏi bị mất!
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowGuestLinkModal(true)}
+                    className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] hover:brightness-110 text-[#141412] py-2.5 px-5 rounded-lg uppercase text-[12px] font-extrabold transition shrink-0 shadow-lg cursor-pointer active:scale-95"
+                  >
+                    ĐĂNG NHẬP GMAIL LƯU TÀI KHOẢN
+                  </button>
+                </div>
+              )}
+
+              {/* Banner Discord cho Người Dùng Đã Đăng Nhập Gmail */}
+              {!profile.isGuest && !profile.claimedDiscordReward && (
+                <div className="pixel-box-nested p-4 bg-gradient-to-r from-[#5865F2]/20 via-[#141412] to-[#5865F2]/10 border border-[#5865F2]/40 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="text-left space-y-1">
+                    <span className="bg-[#5865F2]/20 text-[#8ea1ff] border border-[#5865F2]/40 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                      SỰ KIỆN CỘNG ĐỒNG
+                    </span>
+                    <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                      <span>👾</span> Mở Khóa Quà Discord (200 🥚 + Skin Gà Discord)
+                    </h3>
+                    <p className="text-[12px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
+                      Tham gia nhóm Discord chính thức của Vuiga.com để nhận ngay phần quà độc quyền!
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowDiscordModal(true)}
+                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white py-2 px-4 rounded-lg uppercase text-[12px] font-extrabold transition shrink-0 shadow-[0_0_15px_rgba(88,101,242,0.4)] cursor-pointer"
+                  >
+                    THAM GIA DISCORD & NHẬN QUÀ
+                  </button>
+                </div>
+              )}
 
               {/* Matchmaking Active Overlay */}
               {matchmaking?.active ? (
@@ -1470,11 +1530,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <h3 className="text-xs text-white uppercase tracking-widest font-extrabold animate-pulse">
                       Đang tìm đối thủ xếp hạng...
                     </h3>
-                    <p className="text-[10px] text-[#FF9F0A] mt-2 uppercase font-mono">
+                    <p className="text-[12px] text-[#FF9F0A] mt-2 uppercase font-mono">
                       Game: {matchmaking.gameType === "CARO" ? "Gomoku" : matchmaking.gameType} | Cược: {matchmaking.wager} Coin
                     </p>
                   </div>
-                  <button onClick={handleCancelMatchmaking} className="pixel-btn pixel-btn-red py-2 px-6 uppercase text-[9px]">
+                  <button onClick={handleCancelMatchmaking} className="pixel-btn pixel-btn-red py-2 px-6 uppercase text-[12px]">
                     Hủy tìm trận
                   </button>
                 </div>
@@ -1484,7 +1544,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   {lastMatch && (
                     <div className="pixel-box-nested p-4 border-l-4 border-l-[#FF9F0A] bg-[#1C1C18]/60 flex justify-between items-center gap-4">
                       <div>
-                        <span className="text-[8px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold">LẦN ĐẤU TRƯỚC</span>
+                        <span className="text-[12px] text-[#F3E5AB]/50 uppercase tracking-widest font-bold">LẦN ĐẤU TRƯỚC</span>
                         <h4 className="text-xs font-bold text-white mt-0.5">
                           {lastMatch.winnerId === profile.id ? "Thắng" : lastMatch.winnerId ? "Thua" : "Hòa"} game {lastMatch.gameType === "CARO" ? "Gomoku" : lastMatch.gameType} vs{" "}
                           <span className="text-[#D4AF37]">
@@ -1499,7 +1559,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           setMatchWager(lastMatch.wager);
                           handleStartMatchmaking();
                         }}
-                        className="bg-[#FF9F0A] hover:bg-[#D4AF37] text-[#141412] px-4 py-2 rounded-lg text-[9px] font-extrabold uppercase transition"
+                        className="bg-[#FF9F0A] hover:bg-[#D4AF37] text-[#141412] px-4 py-2 rounded-lg text-[12px] font-extrabold uppercase transition"
                       >
                         Phục Hận Ngay
                       </button>
@@ -1515,14 +1575,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Chọn game */}
                       <div className="pixel-box-nested p-4 space-y-3">
-                        <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold">1. Chọn trò chơi:</span>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <span className="block text-[12px] text-[#F3E5AB]/60 font-semibold">1. Chọn trò chơi:</span>
+                        <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                           <button
                             onClick={() => {
                               setSelectedGame("CARO");
                               setMatchWager(0);
                             }}
-                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "CARO" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${selectedGame === "CARO" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Gomoku
                           </button>
@@ -1531,7 +1591,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               setSelectedGame("BATTLESHIP");
                               setMatchWager(0);
                             }}
-                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "BATTLESHIP" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${selectedGame === "BATTLESHIP" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Battleship
                           </button>
@@ -1540,7 +1600,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               setSelectedGame("TIC_TAC_TOE");
                               setMatchWager(0);
                             }}
-                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "TIC_TAC_TOE" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${selectedGame === "TIC_TAC_TOE" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Caro 3x3
                           </button>
@@ -1552,7 +1612,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                 setSelectedMode("RANDOM");
                               }
                             }}
-                            className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${selectedGame === "BAU_CUA" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${selectedGame === "BAU_CUA" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             Bầu Cua
                           </button>
@@ -1561,25 +1621,25 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                       {/* Chọn chế độ */}
                       <div className="pixel-box-nested p-4 space-y-3">
-                        <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold">2. Chế độ chơi:</span>
+                        <span className="block text-[12px] text-[#F3E5AB]/60 font-semibold">2. Chế độ chơi:</span>
                         <div className="flex flex-col gap-2">
                           {selectedGame !== "BAU_CUA" && (
                             <button
                               onClick={() => setSelectedMode("BOT")}
-                              className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "BOT" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                              className={`flex items-center justify-start py-2 px-3 rounded-lg text-[12px] font-semibold transition border ${selectedMode === "BOT" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                             >
                               <ChevronRight className="w-3 h-3 mr-2" /> Đấu với Bot (Offline)
                             </button>
                           )}
                           <button
                             onClick={() => setSelectedMode("FRIEND")}
-                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "FRIEND" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[12px] font-semibold transition border ${selectedMode === "FRIEND" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             <ChevronRight className="w-3 h-3 mr-2" /> Đấu với bạn (Mã phòng)
                           </button>
                           <button
                             onClick={() => setSelectedMode("RANDOM")}
-                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[10px] font-semibold transition border ${selectedMode === "RANDOM" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                            className={`flex items-center justify-start py-2 px-3 rounded-lg text-[12px] font-semibold transition border ${selectedMode === "RANDOM" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                           >
                             <ChevronRight className="w-3 h-3 mr-2" /> Xếp hạng (Online)
                           </button>
@@ -1592,23 +1652,23 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {selectedMode === "BOT" && (
                         <div className="space-y-4">
                           <div>
-                            <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold mb-2">Độ khó của Bot:</span>
+                            <span className="block text-[12px] text-[#F3E5AB]/60 font-semibold mb-2">Độ khó của Bot:</span>
                             <div className="grid grid-cols-3 gap-2">
                               <button
                                 onClick={() => setBotDifficulty("RANDOM")}
-                                className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${botDifficulty === "RANDOM" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                                className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${botDifficulty === "RANDOM" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                               >
                                 Ngẫu nhiên
                               </button>
                               <button
                                 onClick={() => setBotDifficulty("EASY")}
-                                className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${botDifficulty === "EASY" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                                className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${botDifficulty === "EASY" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                               >
                                 Dễ (Chặn)
                               </button>
                               <button
                                 onClick={() => setBotDifficulty("HARD")}
-                                className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${botDifficulty === "HARD" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                                className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${botDifficulty === "HARD" ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                               >
                                 Khó
                               </button>
@@ -1626,13 +1686,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {selectedMode === "FRIEND" && (
                         <div className="space-y-4">
                           <div>
-                            <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược Coin (Mỗi người):</span>
+                            <span className="block text-[12px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược Coin (Mỗi người):</span>
                             <div className="grid grid-cols-4 gap-2">
                               {(selectedGame === "BAU_CUA" ? [10, 50, 100, 999999] : [0, 10, 50, 100]).map((c) => (
                                 <button
                                   key={c}
                                   onClick={() => setMatchWager(c)}
-                                  className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${matchWager === c ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                                  className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${matchWager === c ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                                 >
                                   {c === 999999 ? "K.Giới Hạn" : `${c} Coin`}
                                 </button>
@@ -1654,13 +1714,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         <div className="space-y-4">
                           {selectedGame !== "BAU_CUA" ? (
                             <div>
-                              <span className="block text-[10px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược trận đấu (Coin):</span>
+                              <span className="block text-[12px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược trận đấu (Coin):</span>
                               <div className="grid grid-cols-4 gap-2">
                                 {[0, 10, 50, 100].map((c) => (
                                   <button
                                     key={c}
                                     onClick={() => setMatchWager(c)}
-                                    className={`py-2 rounded-lg text-[10px] font-semibold transition border text-center ${matchWager === c ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                                    className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center ${matchWager === c ? "border-[#D4AF37]/45 bg-[#232319] text-[#D4AF37]" : "border-transparent bg-[#1C1C18] text-[#F3E5AB]/60 hover:bg-[#1C1C18]/80 hover:text-white"}`}
                                   >
                                     {c} Coin
                                   </button>
@@ -1691,9 +1751,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       Lịch Sử Đấu Gần Nhất
                     </h3>
                     {loadingHistory ? (
-                      <div className="text-center py-6 text-[10px] text-[#F3E5AB]/60 uppercase animate-pulse">Đang tải lịch sử...</div>
+                      <div className="text-center py-6 text-[12px] text-[#F3E5AB]/60 uppercase animate-pulse">Đang tải lịch sử...</div>
                     ) : matchHistory.length === 0 ? (
-                      <div className="text-center py-6 text-[10px] text-[#F3E5AB]/50 uppercase">Chưa tham gia đấu trận nào</div>
+                      <div className="text-center py-6 text-[12px] text-[#F3E5AB]/50 uppercase">Chưa tham gia đấu trận nào</div>
                     ) : (
                       <div className="space-y-2">
                         {matchHistory.map((m) => {
@@ -1710,14 +1770,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             <div key={m.id} className="bg-[#1C1C18] border border-[#D4AF37]/10 p-3 rounded-xl flex justify-between items-center text-xs">
                               <div>
                                 <span className="font-bold text-white uppercase">{m.gameType === "CARO" ? "Gomoku" : m.gameType}</span>
-                                <span className="text-[#F3E5AB]/60 block text-[10px]">Đối thủ: @{opponent || "Bot"}</span>
+                                <span className="text-[#F3E5AB]/60 block text-[12px]">Đối thủ: @{opponent || "Bot"}</span>
                               </div>
                               <div className="text-right">
                                 <span className={`font-extrabold uppercase ${win ? "text-green-400" : draw ? "text-gray-400" : "text-red-400"}`}>
                                   {win ? "Thắng" : draw ? "Hòa" : "Thua"}
                                 </span>
                                 {m.wager > 0 && (
-                                  <span className="block font-mono text-[9px] text-[#D4AF37]">
+                                  <span className="block font-mono text-[12px] text-[#D4AF37]">
                                     {win ? `+${m.wager}` : `-${m.wager}`} 🥚
                                   </span>
                                 )}
@@ -1772,7 +1832,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3">
                       <div>
                         <div className="flex justify-between items-start">
-                          <span className="text-[8px] bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-0.5 rounded font-bold font-mono">
+                          <span className="text-[12px] bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-0.5 rounded font-bold font-mono">
                             {item.type === "SYMBOL" ? "Quân cờ" :
                              item.type === "FRAME" ? "Khung ảnh" :
                              item.type === "THEME" ? "Bàn cờ" :
@@ -1780,32 +1840,38 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                              item.type === "EMOJI" ? "Biểu cảm" : item.type}
                           </span>
                           {!isOwned && (
-                            <span className="text-[10px] text-white font-mono font-bold flex items-center gap-0.5">
+                            <span className="text-[12px] text-white font-mono font-bold flex items-center gap-0.5">
                               <Coins className="w-3 h-3 text-[#D4AF37]" /> {item.price}
                             </span>
                           )}
                         </div>
                         <h4 className="font-bold text-white text-sm mt-2">{item.name}</h4>
-                        <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed mt-1">{item.description}</p>
+                        <p className="text-[12px] text-[#F3E5AB]/75 leading-relaxed mt-1">{item.description}</p>
                       </div>
 
                       <div className="flex gap-2">
                         {isOwned ? (
                           isEquipped ? (
-                            <button className="w-full bg-[#1C1C18] border border-green-500/30 text-green-400 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 cursor-not-allowed">
+                            <button className="w-full bg-[#1C1C18] border border-green-500/30 text-green-400 text-[12px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 cursor-not-allowed">
                               <Check className="w-3.5 h-3.5" /> Đang dùng
                             </button>
                           ) : (
                             <button
                               onClick={() => {
                                 if (item.type === "SYMBOL") {
-                                  const slot = confirm("Bạn có muốn trang bị làm Quân Đen (đi trước - X) không? Chọn Cancel (Hủy) để trang bị làm Quân Trắng (đi sau - O).") ? "X" : "O";
-                                  handleEquipItem(item.id, slot);
+                                  showConfirm({
+                                    title: "Trang Bị Vị Trí Cờ",
+                                    message: "Bạn có muốn trang bị mẫu cờ này cho Quân Đen (Đi trước - X) hay Quân Trắng (Đi sau - O)?",
+                                    confirmText: "Quân Đen (X)",
+                                    cancelText: "Quân Trắng (O)",
+                                    onConfirm: () => handleEquipItem(item.id, "X"),
+                                    onCancel: () => handleEquipItem(item.id, "O")
+                                  });
                                 } else {
                                   handleEquipItem(item.id);
                                 }
                               }}
-                              className="w-full pixel-btn pixel-btn-secondary text-[11px] font-bold py-2 rounded-lg transition"
+                              className="w-full pixel-btn pixel-btn-secondary text-[12px] font-bold py-2 rounded-lg transition"
                             >
                               Trang bị
                             </button>
@@ -1813,7 +1879,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         ) : (
                           <button
                             onClick={() => handleBuyItem(item.id)}
-                            className="w-full pixel-btn pixel-btn-yellow text-[11px] font-bold py-2 rounded-lg transition"
+                            className="w-full pixel-btn pixel-btn-yellow text-[12px] font-bold py-2 rounded-lg transition"
                           >
                             Mua ngay
                           </button>
@@ -1839,14 +1905,14 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               {/* Header */}
               <div className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-[#D4AF37]/15 pb-4 gap-4">
                 <div>
-                  <span className="inline-block bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="inline-block bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     Mùa Giải 1
                   </span>
                   <h2 className="text-xl font-bold uppercase text-white mt-1">Battle Pass: Đêm Hoàng Kim</h2>
                   
                   {/* Progress overview */}
                   <div className="mt-4 min-w-[280px] md:w-[380px] space-y-1.5">
-                    <div className="flex justify-between items-end text-[10px]">
+                    <div className="flex justify-between items-end text-[12px]">
                       <span className="font-medium text-[#F3E5AB]/75">
                         Cấp Battle Pass: <strong className="text-white font-mono text-xs">{profile.battlePassLevel} / 50</strong>
                       </span>
@@ -1895,18 +1961,18 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     {/* Golden Chicken card label */}
                     <div className="h-[80px] bg-gradient-to-br from-[#232319] to-[#1C1C18] border border-[#D4AF37]/35 rounded-xl flex flex-col justify-center items-center text-center p-2 shadow-inner">
                       <Crown className="w-4 h-4 text-[#D4AF37] mb-1 animate-pulse" />
-                      <span className="text-[9px] uppercase tracking-wider font-black text-[#D4AF37]">Golden Chicken</span>
+                      <span className="text-[12px] uppercase tracking-wider font-black text-[#D4AF37]">Golden Chicken</span>
                     </div>
 
                     {/* Spacer matching level label height */}
                     <div className="h-8 flex items-center justify-center">
-                      <span className="text-[8px] text-[#F3E5AB]/40 uppercase tracking-widest font-extrabold">Cấp Độ</span>
+                      <span className="text-[12px] text-[#F3E5AB]/40 uppercase tracking-widest font-extrabold">Cấp Độ</span>
                     </div>
 
                     {/* Free card label */}
                     <div className="h-[80px] bg-[#141412] border border-white/5 rounded-xl flex flex-col justify-center items-center text-center p-2">
-                      <span className="text-[8px] uppercase tracking-wider text-gray-400 font-bold mb-1">Miễn Phí</span>
-                      <span className="text-[10px] uppercase tracking-wide font-black text-[#F3E5AB]/70">Free</span>
+                      <span className="text-[12px] uppercase tracking-wider text-gray-400 font-bold mb-1">Miễn Phí</span>
+                      <span className="text-[12px] uppercase tracking-wide font-black text-[#F3E5AB]/70">Free</span>
                     </div>
                   </div>
 
@@ -1979,13 +2045,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                             {/* LEVEL DIVISION INDICATOR */}
                             <div className="h-8 flex flex-col justify-center items-center text-center">
-                              <span className={`text-[9px] font-extrabold uppercase font-mono tracking-wider ${
+                              <span className={`text-[12px] font-extrabold uppercase font-mono tracking-wider ${
                                 isActive ? "text-[#D4AF37]" : isLevelUnlocked ? "text-gray-300" : "text-gray-500"
                               }`}>
                                 Cấp {reward.level}
                               </span>
                               {isActive && (
-                                <span className="text-[7px] text-[#D4AF37] font-bold -mt-0.5 tracking-tight">bạn ở đây</span>
+                                <span className="text-[12px] text-[#D4AF37] font-bold -mt-0.5 tracking-tight">bạn ở đây</span>
                               )}
                             </div>
 
@@ -1998,17 +2064,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               }`}
                             >
                               {/* Coin Circle Icon */}
-                              <div className="w-6 h-6 bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 rounded-full flex items-center justify-center text-[10px] mb-1">
+                              <div className="w-6 h-6 bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 rounded-full flex items-center justify-center text-[12px] mb-1">
                                 {reward.freeIcon}
                               </div>
                               
                               {/* Reward Value */}
-                              <span className="text-[9px] font-mono font-bold text-white">
+                              <span className="text-[12px] font-mono font-bold text-white">
                                 {reward.freeVal}
                               </span>
                               
                               {reward.extra && (
-                                <span className="text-[6.5px] text-[#D4AF37] uppercase font-bold leading-none mt-0.5">
+                                <span className="text-[12px] text-[#D4AF37] uppercase font-bold leading-none mt-0.5">
                                   {reward.extra}
                                 </span>
                               )}
@@ -2066,7 +2132,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             )}
                           </div>
                           
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
                             isLevelUnlocked ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-gray-500/10 text-gray-400 border border-white/5"
                           }`}>
                             {isLevelUnlocked ? "Đã Đạt ✓" : "Chưa Đạt 🔒"}
@@ -2085,7 +2151,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               {reward.freeIcon}
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-[7px] text-gray-400 uppercase tracking-widest font-bold">Miễn Phí</span>
+                              <span className="text-[12px] text-gray-400 uppercase tracking-widest font-bold">Miễn Phí</span>
                               <span className="text-[9.5px] font-mono font-bold text-white leading-none mt-0.5">
                                 {reward.freeVal}
                               </span>
@@ -2107,7 +2173,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                 {reward.icon}
                               </div>
                               <div className="flex flex-col">
-                                <span className="text-[7px] text-[#D4AF37] uppercase tracking-widest font-black">Golden Chicken</span>
+                                <span className="text-[12px] text-[#D4AF37] uppercase tracking-widest font-black">Golden Chicken</span>
                                 <span className={`text-[9.5px] font-bold leading-none mt-0.5 ${
                                   isPremiumUnlocked ? "text-white" : "text-gray-400"
                                 }`}>
@@ -2167,7 +2233,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <h3 className="text-xs font-bold text-white uppercase">Hồ sơ công khai</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-[9px] uppercase text-[#F3E5AB]/60 mb-2">Tên hiển thị (Username):</label>
+                    <label className="block text-[12px] uppercase text-[#F3E5AB]/60 mb-2">Tên hiển thị (Username):</label>
                     {editingUsername ? (
                       <div className="flex gap-2">
                         <input
@@ -2182,7 +2248,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     ) : (
                       <div className="flex items-center justify-between bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10">
                         <span className="font-mono font-bold text-white">{profile.username}</span>
-                        <button onClick={() => setEditingUsername(true)} className="text-[#FF9F0A] text-[9px] uppercase font-bold hover:underline">Đổi Tên</button>
+                        <button onClick={() => setEditingUsername(true)} className="text-[#FF9F0A] text-[12px] uppercase font-bold hover:underline">Đổi Tên</button>
                       </div>
                     )}
                   </div>
@@ -2195,7 +2261,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   <h3 className="text-xs font-bold text-[#D4AF37] uppercase flex items-center gap-1.5">
                     👑 Trạng thái Premium Membership
                   </h3>
-                  <p className="text-[10px] text-[#F3E5AB]/85">
+                  <p className="text-[12px] text-[#F3E5AB]/85">
                     Bạn đang là VIP Premium. Thời hạn sử dụng đến ngày:{" "}
                     <strong className="text-white font-mono">
                       {profile.premiumUntil
@@ -2217,13 +2283,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <h3 className="text-xs font-extrabold text-white uppercase flex items-center gap-1.5">
                   👑 Đăng Ký Premium Membership
                 </h3>
-                <p className="text-[10px] text-[#F3E5AB]/85 leading-relaxed">
+                <p className="text-[12px] text-[#F3E5AB]/85 leading-relaxed">
                   Trở thành VIP để nhận các quyền lợi: Tắt quảng cáo, +15% EXP mỗi trận đấu, giảm 10% giá Cửa hàng, và nhận ngay Premium Track của Battle Pass mùa này.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div className="bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-center">
-                    <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 1 Tháng</span>
+                    <span className="block text-[12px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 1 Tháng</span>
                     <span className="text-sm font-bold text-white font-mono block mt-1">69,000 VNĐ</span>
                     <button
                       onClick={() => handleBuyPremium(1)}
@@ -2235,7 +2301,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   </div>
 
                   <div className="bg-[#141412] p-3 rounded-lg border border-[#D4AF37]/10 text-center">
-                    <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 6 Tháng</span>
+                    <span className="block text-[12px] text-[#F3E5AB]/50 uppercase font-semibold">Gói 6 Tháng</span>
                     <span className="text-sm font-bold text-white font-mono block mt-1">349,000 VNĐ</span>
                     <button
                       onClick={() => handleBuyPremium(6)}
@@ -2256,7 +2322,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <ShieldAlert className="w-4 h-4 text-red-400" />
                     Bảo Vệ Tài Khoản Khách
                   </h3>
-                  <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                  <p className="text-[12px] text-[#F3E5AB]/75 leading-relaxed">
                     Bạn đang chơi bằng tài khoản Khách vô danh. Liên kết với Email chính thức để tránh bị mất tiến trình, Skin và điểm số khi xóa cache trình duyệt!
                   </p>
                   <form onSubmit={handleUpgradeAccount} className="space-y-3">
@@ -2279,7 +2345,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     <button
                       type="submit"
                       disabled={upgradeLoading}
-                      className="bg-red-500 hover:bg-red-600 text-white text-[10px] uppercase font-bold py-2 px-6 rounded-lg transition"
+                      className="bg-red-500 hover:bg-red-600 text-white text-[12px] uppercase font-bold py-2 px-6 rounded-lg transition"
                     >
                       {upgradeLoading ? "Đang xử lý..." : "Xác nhận Liên Kết"}
                     </button>
@@ -2298,7 +2364,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setSocialSubTab("FRIENDS")}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold border transition ${
+                    className={`px-3 py-1.5 rounded-lg text-[12px] uppercase font-bold border transition ${
                       socialSubTab === "FRIENDS" 
                         ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]" 
                         : "bg-[#1C1C18] border-[#D4AF37]/15 text-[#F3E5AB]/75 hover:border-[#D4AF37]"
@@ -2308,7 +2374,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   </button>
                   <button 
                     onClick={() => setSocialSubTab("ACHIEVEMENTS")}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold border transition ${
+                    className={`px-3 py-1.5 rounded-lg text-[12px] uppercase font-bold border transition ${
                       socialSubTab === "ACHIEVEMENTS" 
                         ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]" 
                         : "bg-[#1C1C18] border-[#D4AF37]/15 text-[#F3E5AB]/75 hover:border-[#D4AF37]"
@@ -2318,7 +2384,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   </button>
                   <button 
                     onClick={() => setSocialSubTab("GUILD")}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] uppercase font-bold border transition ${
+                    className={`px-3 py-1.5 rounded-lg text-[12px] uppercase font-bold border transition ${
                       socialSubTab === "GUILD" 
                         ? "bg-[#D4AF37] border-[#D4AF37] text-[#141412]" 
                         : "bg-[#1C1C18] border-[#D4AF37]/15 text-[#F3E5AB]/75 hover:border-[#D4AF37]"
@@ -2334,13 +2400,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <div className="space-y-6">
                   {/* Friends lists */}
                   <div className="space-y-3 bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/10">
-                    <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-2">
+                    <span className="block text-[12px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold border-b border-[#D4AF37]/5 pb-2">
                       Danh Sách Bạn Bè (Giới hạn 30 bạn)
                     </span>
                     
                     <div className="space-y-3">
                       {friends.length === 0 ? (
-                        <p className="text-[10px] text-[#F3E5AB]/50 text-center py-4">Chưa có bạn bè nào. Hãy gửi lời mời kết bạn bên dưới!</p>
+                        <p className="text-[12px] text-[#F3E5AB]/50 text-center py-4">Chưa có bạn bè nào. Hãy gửi lời mời kết bạn bên dưới!</p>
                       ) : (
                         friends.map((f) => {
                           const isOnline = onlineUsers.has(f.id);
@@ -2359,20 +2425,20 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                 {isOnline && (
                                   <button
                                     onClick={() => handleInviteFriend(f.id, f.username)}
-                                    className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[9px] font-bold transition"
+                                    className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[12px] font-bold transition"
                                   >
                                     Mời
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleBlockUser(f.id)}
-                                  className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 py-1 px-2 rounded-lg text-[9px] font-bold transition"
+                                  className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 py-1 px-2 rounded-lg text-[12px] font-bold transition"
                                 >
                                   Chặn
                                 </button>
                                 <button
                                   onClick={() => handleRemoveFriend(f.id)}
-                                  className="bg-black/30 hover:bg-black/70 text-[#F3E5AB]/60 hover:text-white border border-[#D4AF37]/10 py-1 px-2 rounded-lg text-[9px] font-bold transition"
+                                  className="bg-black/30 hover:bg-black/70 text-[#F3E5AB]/60 hover:text-white border border-[#D4AF37]/10 py-1 px-2 rounded-lg text-[12px] font-bold transition"
                                 >
                                   Hủy
                                 </button>
@@ -2386,24 +2452,24 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     {/* Lời mời kết bạn chờ duyệt */}
                     {pendingFriends.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-[#D4AF37]/10 space-y-2">
-                        <span className="block text-[8px] text-yellow-500 uppercase tracking-wider font-semibold animate-pulse">Lời mời kết bạn đang chờ ({pendingFriends.length})</span>
+                        <span className="block text-[12px] text-yellow-500 uppercase tracking-wider font-semibold animate-pulse">Lời mời kết bạn đang chờ ({pendingFriends.length})</span>
                         <div className="space-y-2">
                           {pendingFriends.map((req) => (
                             <div key={req.id} className="flex justify-between items-center text-xs bg-[#D4AF37]/5 p-2.5 rounded-lg border border-[#D4AF37]/15">
                               <div>
                                 <span className="font-bold text-white block">@{req.username}</span>
-                                <span className="text-[9px] text-[#F3E5AB]/50 block">Lv.{req.level || 1} • ELO: {req.eloGomoku || 1000}</span>
+                                <span className="text-[12px] text-[#F3E5AB]/50 block">Lv.{req.level || 1} • ELO: {req.eloGomoku || 1000}</span>
                               </div>
                               <div className="flex gap-1.5">
                                 <button
                                   onClick={() => handleAcceptFriendRequest(req.id)}
-                                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[9px] font-bold transition"
+                                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-1 px-3 rounded-lg text-[12px] font-bold transition"
                                 >
                                   Đồng ý
                                 </button>
                                 <button
                                   onClick={() => handleRejectFriendRequest(req.id)}
-                                  className="bg-black/40 hover:bg-black/80 text-red-400 py-1 px-3 rounded-lg text-[9px] font-bold transition"
+                                  className="bg-black/40 hover:bg-black/80 text-red-400 py-1 px-3 rounded-lg text-[12px] font-bold transition"
                                 >
                                   Từ chối
                                 </button>
@@ -2416,7 +2482,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                     {/* Form Kết bạn bằng Username */}
                     <div className="mt-4 pt-4 border-t border-[#D4AF37]/10 space-y-2">
-                      <span className="block text-[8px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">Kết bạn bằng Username</span>
+                      <span className="block text-[12px] text-[#F3E5AB]/60 uppercase tracking-wider font-semibold">Kết bạn bằng Username</span>
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -2428,7 +2494,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         <button
                           onClick={handleSendFriendRequest}
                           disabled={addFriendLoading}
-                          className="pixel-btn pixel-btn-yellow text-[10px] py-1.5 px-4 font-bold"
+                          className="pixel-btn pixel-btn-yellow text-[12px] py-1.5 px-4 font-bold"
                         >
                           {addFriendLoading ? "Đang gửi..." : "Gửi lời mời"}
                         </button>
@@ -2443,19 +2509,19 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         <Users className="w-4 h-4 text-[#D4AF37]" />
                         Chuồng Gà Đang Hoạt Động
                       </h4>
-                      <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                      <p className="text-[12px] text-[#F3E5AB]/75 leading-relaxed">
                         Bạn đang ở trong Chuồng Gà. Hãy chuyển qua trang quản lý Chuồng Gà để mời bạn bè, cày nhiệm vụ nâng cấp và bắt đầu đấu cờ!
                       </p>
                       <div className="flex gap-2 justify-center">
                         <button
                           onClick={() => setSocialSubTab("GUILD")}
-                          className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] font-bold"
+                          className="pixel-btn pixel-btn-yellow py-2 px-6 text-[12px] font-bold"
                         >
                           Vào Chuồng Gà
                         </button>
                         <button
                           onClick={handleLeaveParty}
-                          className="pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2 px-4 text-[10px] font-bold"
+                          className="pixel-btn pixel-btn-secondary border-red-500/30 text-red-500 hover:bg-red-500/10 py-2 px-4 text-[12px] font-bold"
                         >
                           Rời Chuồng
                         </button>
@@ -2467,12 +2533,12 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         <UserPlus className="w-4 h-4 text-[#D4AF37]" />
                         Tạo Chuồng Gà
                       </h4>
-                      <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                      <p className="text-[12px] text-[#F3E5AB]/75 leading-relaxed">
                         Tạo Chuồng Gà để cùng bạn bè nhận EXP thưởng thêm, làm nhiệm vụ thăng cấp và thách đấu cược Trứng!
                       </p>
                       <button
                         onClick={handleCreateParty}
-                        className="pixel-btn pixel-btn-yellow py-2 px-6 text-[10px] font-bold"
+                        className="pixel-btn pixel-btn-yellow py-2 px-6 text-[12px] font-bold"
                       >
                         Tạo Chuồng Gà
                       </button>
@@ -2520,10 +2586,10 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                             <h4 className={`text-xs font-bold truncate ${unlocked ? "text-white" : "text-gray-400"}`}>
                               {ach.name}
                             </h4>
-                            <p className="text-[9px] text-[#F3E5AB]/65 leading-tight mt-0.5">
+                            <p className="text-[12px] text-[#F3E5AB]/65 leading-tight mt-0.5">
                               {ach.description}
                             </p>
-                            <span className="text-[8px] text-[#D4AF37] font-mono block mt-1">
+                            <span className="text-[12px] text-[#D4AF37] font-mono block mt-1">
                               {unlocked ? "✓ Đã mở" : `Thưởng: +${ach.rewardEggs} 🥚`}
                             </span>
                           </div>
@@ -2540,11 +2606,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   {/* Guild overview */}
                   <div className="bg-[#1C1C18] p-4 rounded-xl border border-[#D4AF37]/20 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gradient-to-br from-[#1C1C18] to-[#D4AF37]/5">
                     <div className="text-left space-y-1">
-                      <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[12px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
                         BẢNG ĐIỀU KHIỂN CHUỒNG GÀ (TỔ ĐỘI)
                       </span>
                       <h3 className="text-base font-extrabold text-white">🏡 Chuồng Gà Đồng Đội</h3>
-                      <p className="text-[10px] text-[#F3E5AB]/75 leading-relaxed">
+                      <p className="text-[12px] text-[#F3E5AB]/75 leading-relaxed">
                         Nơi các chiến hữu cùng Chuồng tụ họp, trò chuyện thời gian thực và cày cuốc nâng cấp Chuồng!
                       </p>
                     </div>
@@ -2574,7 +2640,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       </div>
                       <div className="space-y-2 max-w-sm mx-auto">
                         <h4 className="text-xs font-bold text-white uppercase">Bạn Chưa Gia Nhập Chuồng Gà</h4>
-                        <p className="text-[10px] text-[#F3E5AB]/70 leading-relaxed">
+                        <p className="text-[12px] text-[#F3E5AB]/70 leading-relaxed">
                           Tạo ngay một Chuồng Gà mới và mời bạn bè vào cày chung để nâng cấp Chuồng và mở khóa nhiều phần quà!
                         </p>
                       </div>
@@ -2616,11 +2682,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           {/* Messages list */}
                           <div className="flex-grow overflow-y-auto my-3 space-y-2 pr-1 text-xs">
                             {partyMessages.length === 0 ? (
-                              <div className="text-[10px] text-[#F3E5AB]/30 text-center py-12">Chưa có tin nhắn nào trong Chuồng. Hãy gáy lên nào! 🐔</div>
+                              <div className="text-[12px] text-[#F3E5AB]/30 text-center py-12">Chưa có tin nhắn nào trong Chuồng. Hãy gáy lên nào! 🐔</div>
                             ) : (
                               partyMessages.map((msg, i) => (
                                 <div key={i} className="space-y-0.5 bg-black/15 p-2 rounded border border-[#D4AF37]/5">
-                                  <div className="flex justify-between items-center text-[9px] text-[#F3E5AB]/50 font-bold">
+                                  <div className="flex justify-between items-center text-[12px] text-[#F3E5AB]/50 font-bold">
                                     <span>@{msg.senderUsername}</span>
                                     <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   </div>
@@ -2665,18 +2731,18 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                                 <div key={member.id} className="flex justify-between items-center text-xs bg-black/20 p-2 rounded-lg border border-[#D4AF37]/5">
                                   <div className="flex items-center gap-2">
                                     <div className="relative">
-                                      <div className="w-8 h-8 rounded-full bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center text-white text-[10px] font-bold">
+                                      <div className="w-8 h-8 rounded-full bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center text-white text-[12px] font-bold">
                                         {memberProfile?.username?.substring(0, 2).toUpperCase() || "..."}
                                       </div>
                                       {isLeader && (
-                                        <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[7px] font-extrabold px-1 rounded-full border border-black" title="Chủ chuồng">
+                                        <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[12px] font-extrabold px-1 rounded-full border border-black" title="Chủ chuồng">
                                           👑
                                         </span>
                                       )}
                                     </div>
                                     <div>
                                       <span className="font-bold text-white block">@{memberProfile?.username || "Đang tải..."}</span>
-                                      <span className="text-[9px] text-[#F3E5AB]/50 block">Lv.{memberProfile?.level || 1} • ELO: {memberProfile?.eloGomoku || 1000}</span>
+                                      <span className="text-[12px] text-[#F3E5AB]/50 block">Lv.{memberProfile?.level || 1} • ELO: {memberProfile?.eloGomoku || 1000}</span>
                                     </div>
                                   </div>
                                   
@@ -2697,16 +2763,16 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           {/* Mời nhanh bạn bè online vào chuồng */}
                           {activeParty.leaderId === profile.id && (
                             <div className="pt-2 border-t border-[#D4AF37]/5 space-y-2">
-                              <span className="block text-[8px] text-[#F3E5AB]/50 uppercase font-semibold">Mời bạn vào Chuồng:</span>
+                              <span className="block text-[12px] text-[#F3E5AB]/50 uppercase font-semibold">Mời bạn vào Chuồng:</span>
                               <div className="flex gap-1.5 overflow-x-auto pb-1 max-w-full">
                                 {friends.filter(f => onlineUsers.has(f.id)).length === 0 ? (
-                                  <span className="text-[9px] text-[#F3E5AB]/40">Không có bạn bè trực tuyến</span>
+                                  <span className="text-[12px] text-[#F3E5AB]/40">Không có bạn bè trực tuyến</span>
                                 ) : (
                                   friends.filter(f => onlineUsers.has(f.id)).map(f => (
                                     <button
                                       key={f.id}
                                       onClick={() => handleInviteFriend(f.id, f.username)}
-                                      className="bg-[#D4AF37]/10 hover:bg-[#D4AF37] border border-[#D4AF37]/25 text-[#D4AF37] hover:text-[#141412] py-1 px-2.5 rounded text-[8px] font-bold shrink-0 transition"
+                                      className="bg-[#D4AF37]/10 hover:bg-[#D4AF37] border border-[#D4AF37]/25 text-[#D4AF37] hover:text-[#141412] py-1 px-2.5 rounded text-[12px] font-bold shrink-0 transition"
                                     >
                                       + Mời @{f.username}
                                     </button>
@@ -2731,18 +2797,18 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               return (
                                 <div key={mission.id} className="bg-black/30 p-3 rounded-lg border border-[#D4AF37]/5 flex flex-col justify-between space-y-2">
                                   <div>
-                                    <span className="text-[8px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">
+                                    <span className="text-[12px] bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded font-bold uppercase">
                                       {mission.type === "WIN_GAMES" ? "Chung Sức" : "Kiên Trì"}
                                     </span>
                                     <h5 className="text-xs font-bold text-white mt-1">{mission.title}</h5>
-                                    <p className="text-[10px] text-[#F3E5AB]/60">
+                                    <p className="text-[12px] text-[#F3E5AB]/60">
                                       {mission.type === "WIN_GAMES" 
                                         ? "Đấu co-op cược Trứng để hoàn tất." 
                                         : "Chơi hoàn thành game không kể thắng thua."}
                                     </p>
                                   </div>
                                   <div className="space-y-1">
-                                    <div className="flex justify-between text-[10px] font-bold">
+                                    <div className="flex justify-between text-[12px] font-bold">
                                       <span className="text-[#F3E5AB]/50">Tiến độ: {mission.currentValue} / {mission.targetValue}</span>
                                       <span className="text-[#D4AF37]">+{mission.rewardExp} EXP • +{mission.rewardCoins} Trứng</span>
                                     </div>
@@ -2754,7 +2820,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                               );
                             })
                           ) : (
-                            <div className="text-[10px] text-[#F3E5AB]/30 text-center py-6 col-span-2">
+                            <div className="text-[12px] text-[#F3E5AB]/30 text-center py-6 col-span-2">
                               Không có nhiệm vụ tổ đội nào. Các nhiệm vụ sẽ tự động được tải khi bạn kết thúc trận đấu.
                             </div>
                           )}
@@ -2783,7 +2849,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                   {profile.prestigeLevel > 0 && <Star className="w-4 h-4 text-[#FF9F0A] fill-[#FF9F0A]" />}
                   {profile.username}
                 </h3>
-                <div className="flex items-center gap-1.5 text-[9px] drop-shadow">
+                <div className="flex items-center gap-1.5 text-[12px] drop-shadow">
                   <span className={`${rankInfo?.className || "text-gray-400"} font-extrabold`}>
                     {rankInfo?.icon} {rankInfo?.name} {rankInfo?.divisionName}
                   </span>
@@ -2794,7 +2860,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             {/* EXP bar */}
             <div className="space-y-1">
-              <div className="flex justify-between text-[9px] font-mono">
+              <div className="flex justify-between text-[12px] font-mono">
                 <span>Kinh nghiệm:</span>
                 <span>{profile.exp} / {expNeeded} XP</span>
               </div>
@@ -2805,7 +2871,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             {/* Rank Points (RP) bar */}
             <div className="space-y-1">
-              <div className="flex justify-between text-[9px] font-mono">
+              <div className="flex justify-between text-[12px] font-mono">
                 <span>Tiến trình Rank:</span>
                 <span>{profile.rankPoints} / 100 RP</span>
               </div>
@@ -2828,13 +2894,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             {/* Mastery Stats / Game Ranks (CS2 Style) */}
             <div className="border-t border-[#D4AF37]/10 pt-3 space-y-2">
-              <span className="text-[10px] text-[#F3E5AB]/50 font-semibold block mb-1">Xếp hạng kỳ thủ</span>
+              <span className="text-[12px] text-[#F3E5AB]/50 font-semibold block mb-1">Xếp hạng kỳ thủ</span>
               
               <div className="grid grid-cols-2 gap-2">
                 {/* Caro 3x3 */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
                   <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Caro 3x3</span>
-                  <span className={`text-[9px] font-bold truncate ${(() => {
+                  <span className={`text-[12px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierTicTacToe || 1, profile.rankDivisionTicTacToe || 4, profile.rankPointsTicTacToe || 0);
                     return r.className;
                   })()}`}>
@@ -2843,13 +2909,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       return `${r.icon} ${r.name} ${r.divisionName}`;
                     })()}
                   </span>
-                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloTicTacToe || 1000}</span>
+                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloTicTacToe || 1000}</span>
                 </div>
 
                 {/* Gomoku */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
                   <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Gomoku</span>
-                  <span className={`text-[9px] font-bold truncate ${(() => {
+                  <span className={`text-[12px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierCaro || 1, profile.rankDivisionCaro || 4, profile.rankPointsCaro || 0);
                     return r.className;
                   })()}`}>
@@ -2858,13 +2924,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       return `${r.icon} ${r.name} ${r.divisionName}`;
                     })()}
                   </span>
-                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloGomoku || 1000}</span>
+                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloGomoku || 1000}</span>
                 </div>
 
                 {/* Battleship */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
                   <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Battleship</span>
-                  <span className={`text-[9px] font-bold truncate ${(() => {
+                  <span className={`text-[12px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierBattleship || 1, profile.rankDivisionBattleship || 4, profile.rankPointsBattleship || 0);
                     return r.className;
                   })()}`}>
@@ -2873,13 +2939,13 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       return `${r.icon} ${r.name} ${r.divisionName}`;
                     })()}
                   </span>
-                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBattleship || 1000}</span>
+                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBattleship || 1000}</span>
                 </div>
 
                 {/* Bầu Cua */}
                 <div className="bg-black/40 p-1.5 rounded border border-[#D4AF37]/5 flex flex-col gap-0.5">
                   <span className="text-[7.5px] text-[#F3E5AB]/40 font-semibold font-mono">Bầu Cua</span>
-                  <span className={`text-[9px] font-bold truncate ${(() => {
+                  <span className={`text-[12px] font-bold truncate ${(() => {
                     const r = getRankFromDb(profile.rankTierBauCua || 1, profile.rankDivisionBauCua || 4, profile.rankPointsBauCua || 0);
                     return r.className;
                   })()}`}>
@@ -2888,7 +2954,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       return `${r.icon} ${r.name} ${r.divisionName}`;
                     })()}
                   </span>
-                  <span className="text-[7px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBauCua || 1000}</span>
+                  <span className="text-[12px] text-[#F3E5AB]/60 font-mono">ELO: {profile.eloBauCua || 1000}</span>
                 </div>
               </div>
             </div>
@@ -2902,7 +2968,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </h4>
 
             {loadingMissions ? (
-              <div className="text-center text-[10px] text-gray-400 uppercase py-3">Đang cập nhật...</div>
+              <div className="text-center text-[12px] text-gray-400 uppercase py-3">Đang cập nhật...</div>
             ) : (
               <div className="space-y-3">
                 {missions.map((m) => {
@@ -2929,7 +2995,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           {done && (
                             <button
                               onClick={() => handleClaimMission(m.id)}
-                              className="pixel-btn pixel-btn-yellow text-[9px] px-2 py-1 rounded transition shrink-0"
+                              className="pixel-btn pixel-btn-yellow text-[12px] px-2 py-1 rounded transition shrink-0"
                             >
                               Nhận
                             </button>
@@ -2938,7 +3004,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       )}
                       
                       {m.claimed && (
-                        <span className="text-[8px] text-green-400 font-mono block">✓ Đã nhận thưởng (+{m.rewardCoins} 🥚)</span>
+                        <span className="text-[12px] text-green-400 font-mono block">✓ Đã nhận thưởng (+{m.rewardCoins} 🥚)</span>
                       )}
                     </div>
                   );
@@ -2954,17 +3020,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <Calendar className="w-4 h-4 text-[#FF9F0A]" />
                 Điểm danh 7 ngày
               </h4>
-              <span className="text-[9px] bg-[#FF9F0A]/10 border border-[#FF9F0A]/35 text-[#FF9F0A] px-2 py-0.5 rounded font-mono font-bold">
+              <span className="text-[12px] bg-[#FF9F0A]/10 border border-[#FF9F0A]/35 text-[#FF9F0A] px-2 py-0.5 rounded font-mono font-bold">
                 Chuỗi: {profile.loginStreak}
               </span>
             </div>
 
             {/* Streak freezes */}
-            <div className="flex justify-between items-center text-[10px] bg-[#141412] p-2 rounded-lg border border-[#D4AF37]/5">
+            <div className="flex justify-between items-center text-[12px] bg-[#141412] p-2 rounded-lg border border-[#D4AF37]/5">
               <span>Đóng băng chuỗi: <strong className="font-mono text-[#D4AF37]">{profile.streakFreezes}</strong></span>
               <button
                 onClick={handleBuyStreakFreeze}
-                className="text-[9px] font-bold text-[#FF9F0A] hover:underline"
+                className="text-[12px] font-bold text-[#FF9F0A] hover:underline"
               >
                 Mua (+10 🥚)
               </button>
@@ -2985,19 +3051,19 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     }`}
                   >
                     <span>Ng{day}</span>
-                    <span className="font-mono text-[7px] text-[#D4AF37] font-semibold">+{claimCoins}🥚</span>
+                    <span className="font-mono text-[12px] text-[#D4AF37] font-semibold">+{claimCoins}🥚</span>
                   </div>
                 );
               })}
             </div>
 
-            {dailyClaimMessage && <p className="text-[9px] text-green-400 font-mono">{dailyClaimMessage}</p>}
-            {dailyClaimError && <p className="text-[9px] text-red-400 font-mono">{dailyClaimError}</p>}
+            {dailyClaimMessage && <p className="text-[12px] text-green-400 font-mono">{dailyClaimMessage}</p>}
+            {dailyClaimError && <p className="text-[12px] text-red-400 font-mono">{dailyClaimError}</p>}
 
             <button
               onClick={handleClaimDaily}
               disabled={claimingDaily}
-              className="w-full pixel-btn pixel-btn-yellow py-2 text-[10px] font-bold transition"
+              className="w-full pixel-btn pixel-btn-yellow py-2 text-[12px] font-bold transition"
             >
               {claimingDaily ? "Đang nhận..." : "Điểm danh ngày"}
             </button>
@@ -3012,7 +3078,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             <div className="space-y-3">
               {friends.length === 0 ? (
-                <div className="text-[10px] text-[#F3E5AB]/40 text-center py-2">Chưa có bạn bè</div>
+                <div className="text-[12px] text-[#F3E5AB]/40 text-center py-2">Chưa có bạn bè</div>
               ) : (
                 friends.slice(0, 10).map((f) => {
                   const isOnline = onlineUsers.has(f.id);
@@ -3031,7 +3097,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                         {isOnline && (
                           <button
                             onClick={() => handleInviteFriend(f.id, f.username)}
-                            className="pixel-btn pixel-btn-yellow px-2 py-1 text-[9px] font-bold transition"
+                            className="pixel-btn pixel-btn-yellow px-2 py-1 text-[12px] font-bold transition"
                           >
                             Mời
                           </button>
@@ -3066,7 +3132,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "PLAY" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Swords className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Đấu trường</span>
+          <span className="text-[12px] font-medium">Đấu trường</span>
         </button>
 
         <button
@@ -3074,7 +3140,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SHOP" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <ShoppingBag className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Cửa hàng</span>
+          <span className="text-[12px] font-medium">Cửa hàng</span>
         </button>
 
         <button
@@ -3082,7 +3148,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "BP" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Award className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Battle Pass</span>
+          <span className="text-[12px] font-medium">Battle Pass</span>
         </button>
 
         <button
@@ -3090,7 +3156,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SOCIAL" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Users className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Bạn bè</span>
+          <span className="text-[12px] font-medium">Bạn bè</span>
         </button>
 
         <button
@@ -3098,7 +3164,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
           className={`flex flex-col items-center gap-0.5 flex-1 ${activeTab === "SETTINGS" ? "text-[#D4AF37]" : "text-[#F3E5AB]/55"}`}
         >
           <Settings className="w-5 h-5" />
-          <span className="text-[9px] font-medium">Cài đặt</span>
+          <span className="text-[12px] font-medium">Cài đặt</span>
         </button>
       </nav>
 
@@ -3117,7 +3183,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </div>
 
             <div className="space-y-2">
-              <span className="block text-[8px] text-[#F3E5AB]/65 uppercase font-semibold">Chọn gói nạp:</span>
+              <span className="block text-[12px] text-[#F3E5AB]/65 uppercase font-semibold">Chọn gói nạp:</span>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {topupPackages.map((pkg) => (
                   <button
@@ -3130,7 +3196,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     }`}
                   >
                     <span className="text-xs font-bold font-mono">{pkg.label}</span>
-                    <span className="text-[9px] text-[#D4AF37] font-bold mt-1 font-mono">+{pkg.coins} Coins</span>
+                    <span className="text-[12px] text-[#D4AF37] font-bold mt-1 font-mono">+{pkg.coins} Coins</span>
                   </button>
                 ))}
               </div>
@@ -3145,9 +3211,9 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 fgColor="#F3E5AB"
               />
               <div>
-                <p className="text-[10px] text-white font-bold">NGÂN HÀNG QUÂN ĐỘI (MB)</p>
+                <p className="text-[12px] text-white font-bold">NGÂN HÀNG QUÂN ĐỘI (MB)</p>
                 <p className="text-[10.5px] text-[#D4AF37] font-mono font-bold mt-0.5">Số tài khoản: 0999999999999</p>
-                <p className="text-[9px] text-[#F3E5AB]/65 mt-1">Nội dung CK: <strong className="font-mono text-[#FF9F0A]">{profile.username} NAPCOIN</strong></p>
+                <p className="text-[12px] text-[#F3E5AB]/65 mt-1">Nội dung CK: <strong className="font-mono text-[#FF9F0A]">{profile.username} NAPCOIN</strong></p>
               </div>
             </div>
 
@@ -3294,8 +3360,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
         </div>
       )}
 
-      {/* Hộp thoại Quà Tặng Discord */}
-      {showDiscordModal && (
+      {/* Hộp thoại Quà Tặng Discord (Chỉ hiển thị khi đã đăng nhập Gmail - không phải Guest) */}
+      {showDiscordModal && !profile.isGuest && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-[#18181b] border-2 border-[#5865F2]/45 rounded-2xl w-full max-w-sm p-6 relative overflow-hidden shadow-[0_0_40px_rgba(88,101,242,0.3)] text-center">
             {/* Background glowing ambient */}
@@ -3307,11 +3373,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <span className="text-4xl">👾</span>
               </div>
               <div className="space-y-1">
-                <span className="bg-[#5865F2]/15 text-[#5865F2] border border-[#5865F2]/30 text-[8px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                <span className="bg-[#5865F2]/15 text-[#5865F2] border border-[#5865F2]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
                   SỰ KIỆN CỘNG ĐỒNG
                 </span>
                 <h3 className="text-base font-extrabold text-white">Gia Nhập Nhóm Discord</h3>
-                <p className="text-[10px] text-[#F3E5AB]/75 px-4 leading-relaxed">
+                <p className="text-[12px] text-[#F3E5AB]/75 px-4 leading-relaxed">
                   Nhận ngay phần quà độc quyền khi tham gia kênh Discord chính thức của vuiga.com!
                 </p>
               </div>
@@ -3319,7 +3385,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             {/* Gift details card */}
             <div className="my-5 bg-black/45 p-4 rounded-xl border border-[#5865F2]/10 space-y-2 text-left font-mono">
-              <span className="block text-[8px] text-[#F3E5AB]/40 uppercase tracking-wider">Quà tặng của bạn:</span>
+              <span className="block text-[12px] text-[#F3E5AB]/40 uppercase tracking-wider">Quà tặng của bạn:</span>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-[#F3E5AB]/90 font-bold flex items-center gap-1.5">
                   🥚 200 Trứng (Coin)
@@ -3330,7 +3396,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 <span className="text-[#F3E5AB]/90 font-bold flex items-center gap-1.5">
                   👾 Skin Gà Discord Độc Quyền
                 </span>
-                <span className="bg-[#5865F2]/30 text-[#8ea1ff] text-[8px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">ĐẶC BIỆT</span>
+                <span className="bg-[#5865F2]/30 text-[#8ea1ff] text-[12px] px-2 py-0.5 rounded uppercase font-bold tracking-wider">ĐẶC BIỆT</span>
               </div>
             </div>
 
@@ -3339,7 +3405,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               <button
                 onClick={handleClaimDiscord}
                 disabled={claimingDiscord}
-                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(88,101,242,0.3)] flex items-center justify-center gap-2"
+                className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white py-3 rounded-xl text-xs font-bold transition-all shadow-[0_4px_12px_rgba(88,101,242,0.3)] flex items-center justify-center gap-2 cursor-pointer"
               >
                 {claimingDiscord ? (
                   <>
@@ -3354,11 +3420,97 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </button>
               <button
                 onClick={() => setShowDiscordModal(false)}
-                className="w-full bg-transparent hover:bg-white/5 border border-white/10 text-white/50 hover:text-white py-2 rounded-xl text-[10px] font-bold transition"
+                className="w-full bg-transparent hover:bg-white/5 border border-white/10 text-white/50 hover:text-white py-2 rounded-xl text-[12px] font-bold transition cursor-pointer"
               >
                 Bỏ qua
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hộp thoại Đăng Nhập / Liên Kết Gmail Cho Tài Khoản Khách */}
+      {showGuestLinkModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-[#1C1C18] border-2 border-[#D4AF37]/50 rounded-2xl w-full max-w-md p-6 relative overflow-hidden shadow-[0_0_40px_rgba(212,175,55,0.2)] text-center">
+            {/* Background ambient */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-[#D4AF37]/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            {/* Close button */}
+            <button 
+              onClick={() => setShowGuestLinkModal(false)}
+              className="absolute top-4 right-4 text-[#F3E5AB]/60 hover:text-[#D4AF37] transition p-1 rounded-lg cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="flex flex-col items-center space-y-3 pt-2">
+              <div className="w-14 h-14 bg-gradient-to-br from-[#D4AF37] to-[#FF9F0A] rounded-2xl flex items-center justify-center shadow-lg border border-white/20 shadow-[#D4AF37]/20 animate-bounce">
+                <Mail className="w-7 h-7 text-[#141412]" />
+              </div>
+              <div className="space-y-1">
+                <span className="bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                  BẢO VỆ TẠI KHỎAN
+                </span>
+                <h3 className="text-base font-extrabold text-white">Đăng Nhập Gmail Giúp Lưu Lại Tài Khoản</h3>
+                <p className="text-[12px] text-[#F3E5AB]/75 px-2 leading-relaxed">
+                  Nhập Email / Gmail của bạn để lưu giữ vĩnh viễn dữ liệu, cấp độ, Skin và số Trứng 🥚 khỏi bị mất!
+                </p>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleUpgradeAccount} className="my-5 space-y-3 text-left">
+              <div className="space-y-1">
+                <label className="block text-[12px] text-[#F3E5AB]/70 font-semibold">Email / Gmail của bạn:</label>
+                <input
+                  type="email"
+                  value={upgradeEmail}
+                  onChange={(e) => setUpgradeEmail(e.target.value)}
+                  placeholder="nhap-email-cua-ban@gmail.com"
+                  required
+                  className="w-full pixel-input py-2 px-3 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[12px] text-[#F3E5AB]/70 font-semibold">Tạo mật khẩu bảo vệ:</label>
+                <input
+                  type="password"
+                  value={upgradePassword}
+                  onChange={(e) => setUpgradePassword(e.target.value)}
+                  placeholder="Tối thiểu 6 ký tự"
+                  required
+                  className="w-full pixel-input py-2 px-3 text-xs"
+                />
+              </div>
+
+              {upgradeSuccessMsg ? (
+                <p className="text-xs text-green-400 font-mono text-center pt-1">{upgradeSuccessMsg}</p>
+              ) : null}
+
+              <button
+                type="submit"
+                disabled={upgradeLoading}
+                className="w-full pixel-btn pixel-btn-yellow py-3 text-xs font-extrabold uppercase tracking-wider mt-2 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {upgradeLoading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Đang lưu tài khoản...</span>
+                  </>
+                ) : (
+                  <span>Xác Nhận Lưu Lại Tài Khoản</span>
+                )}
+              </button>
+            </form>
+
+            <button
+              onClick={() => setShowGuestLinkModal(false)}
+              className="text-[12px] text-[#F3E5AB]/50 hover:text-white transition cursor-pointer"
+            >
+              Bỏ qua (Tiếp tục chơi với tư cách Khách)
+            </button>
           </div>
         </div>
       )}

@@ -77,7 +77,7 @@ export default function LoginScreen() {
           </div>
           <div>
             <h1 className="text-xl font-bold uppercase tracking-wider text-white">Vuiga.com</h1>
-            <p className="text-[8px] text-[#FF9F0A] tracking-widest uppercase">Trứng đến Phượng Hoàng</p>
+            <p className="text-[12px] text-[#FF9F0A] tracking-widest uppercase">Trứng đến Phượng Hoàng</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -122,7 +122,7 @@ export default function LoginScreen() {
               <Gamepad2 className="w-5 h-5 stroke-[2.5px]" />
               {loading ? "Đang kết nối..." : "Chơi ngay trong 3 giây"}
             </button>
-            <p className="text-[10px] text-[#F3E5AB]/50 max-w-[200px] text-center sm:text-left">
+            <p className="text-[12px] text-[#F3E5AB]/50 max-w-[200px] text-center sm:text-left">
               Chế độ Khách (Guest Mode) không cần đăng ký, lưu tiến trình trên trình duyệt này!
             </p>
           </div>
@@ -167,7 +167,7 @@ export default function LoginScreen() {
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-sm font-bold text-white">Bắt đầu như khách vô danh</h3>
-                  <p className="text-[11px] text-[#F3E5AB]/70 leading-relaxed">
+                  <p className="text-[12px] text-[#F3E5AB]/70 leading-relaxed">
                     Trải nghiệm đầy đủ các tính năng đấu trí. Sau này bạn có thể nâng cấp lên tài khoản chính thức bất kỳ lúc nào để lưu vĩnh viễn tiến trình!
                   </p>
                 </div>
@@ -183,7 +183,7 @@ export default function LoginScreen() {
             ) : (
               <form onSubmit={handleEmailAuth} className="space-y-4 text-left">
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] text-[#F3E5AB]/60 font-semibold">Email:</label>
+                  <label className="block text-[12px] text-[#F3E5AB]/60 font-semibold">Email:</label>
                   <div className="relative">
                     <input
                       type="email"
@@ -198,7 +198,7 @@ export default function LoginScreen() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] text-[#F3E5AB]/60 font-semibold">Mật khẩu:</label>
+                  <label className="block text-[12px] text-[#F3E5AB]/60 font-semibold">Mật khẩu:</label>
                   <div className="relative">
                     <input
                       type="password"
@@ -232,7 +232,7 @@ export default function LoginScreen() {
 
                 <div className="flex items-center my-4">
                   <div className="flex-grow border-t border-[#D4AF37]/15"></div>
-                  <span className="mx-3 text-[9px] text-[#F3E5AB]/40 uppercase tracking-widest font-mono">Hoặc</span>
+                  <span className="mx-3 text-[12px] text-[#F3E5AB]/40 uppercase tracking-widest font-mono">Hoặc</span>
                   <div className="flex-grow border-t border-[#D4AF37]/15"></div>
                 </div>
 
@@ -251,7 +251,7 @@ export default function LoginScreen() {
                   <button
                     type="button"
                     onClick={() => setIsRegistering(!isRegistering)}
-                    className="text-[10px] text-[#FF9F0A] hover:underline font-bold"
+                    className="text-[12px] text-[#FF9F0A] hover:underline font-bold"
                   >
                     {isRegistering ? "<< Trở lại đăng nhập" : "Chưa có tài khoản? Đăng ký tại đây >>"}
                   </button>
@@ -281,7 +281,7 @@ export default function LoginScreen() {
               </div>
               <div className="flex justify-between items-center">
                 <h4 className="text-lg font-bold text-white group-hover:text-[#D4AF37] transition">Gomoku (Caro 5 Quân)</h4>
-                <span className="text-[10px] bg-[#FF9F0A]/10 text-[#FF9F0A] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="text-[12px] bg-[#FF9F0A]/10 text-[#FF9F0A] px-2.5 py-0.5 rounded-full font-bold">
                   ● 482 Đang chơi
                 </span>
               </div>
@@ -302,7 +302,7 @@ export default function LoginScreen() {
               </div>
               <div className="flex justify-between items-center">
                 <h4 className="text-lg font-bold text-white group-hover:text-[#D4AF37] transition">Battleship (Hạm Đội)</h4>
-                <span className="text-[10px] bg-[#FF9F0A]/10 text-[#FF9F0A] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="text-[12px] bg-[#FF9F0A]/10 text-[#FF9F0A] px-2.5 py-0.5 rounded-full font-bold">
                   ● 312 Đang chơi
                 </span>
               </div>
@@ -323,7 +323,7 @@ export default function LoginScreen() {
               </div>
               <div className="flex justify-between items-center">
                 <h4 className="text-lg font-bold text-white group-hover:text-[#D4AF37] transition">Tic Tac Toe (3x3)</h4>
-                <span className="text-[10px] bg-[#FF9F0A]/10 text-[#FF9F0A] px-2.5 py-0.5 rounded-full font-bold">
+                <span className="text-[12px] bg-[#FF9F0A]/10 text-[#FF9F0A] px-2.5 py-0.5 rounded-full font-bold">
                   ● 129 Đang chơi
                 </span>
               </div>
@@ -353,7 +353,7 @@ export default function LoginScreen() {
             <div className="bg-[#1C1C18] border border-[#D4AF37]/10 p-4 rounded-xl flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-bold text-white">Connect Four (Cờ Thả 4 Quân)</h4>
-                <p className="text-[10px] text-[#F3E5AB]/60">Lối chơi Gomoku thêm yếu tố vật lý trọng lực cực kỳ kịch tính</p>
+                <p className="text-[12px] text-[#F3E5AB]/60">Lối chơi Gomoku thêm yếu tố vật lý trọng lực cực kỳ kịch tính</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-mono font-bold text-[#D4AF37]">{votes.connectFour} phiếu</span>
@@ -370,7 +370,7 @@ export default function LoginScreen() {
             <div className="bg-[#1C1C18] border border-[#D4AF37]/10 p-4 rounded-xl flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-bold text-white">Chess (Cờ Vua Cổ Điển)</h4>
-                <p className="text-[10px] text-[#F3E5AB]/60">Trận chiến tư duy sâu sắc nhất mọi thời đại</p>
+                <p className="text-[12px] text-[#F3E5AB]/60">Trận chiến tư duy sâu sắc nhất mọi thời đại</p>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs font-mono font-bold text-[#D4AF37]">{votes.chess} phiếu</span>
@@ -398,7 +398,7 @@ export default function LoginScreen() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">Tiến trình Dài hạn & Reset Mùa giải</h4>
-                <p className="text-[10px] text-[#F3E5AB]/75">Lên cấp, tích lũy chỉ số Master và reset mùa giải 60 ngày nhận thưởng Trứng 🥚 và Trứng Vàng ✨.</p>
+                <p className="text-[12px] text-[#F3E5AB]/75">Lên cấp, tích lũy chỉ số Master và reset mùa giải 60 ngày nhận thưởng Trứng 🥚.</p>
               </div>
             </li>
             <li className="flex gap-3">
@@ -407,7 +407,7 @@ export default function LoginScreen() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">Cửa Hàng Skin Gà Độc Quyền & Khung</h4>
-                <p className="text-[10px] text-[#F3E5AB]/75">Sở hữu các skin Samurai, Ninja, Cyber Chicken cực độc, khung gỗ, sắt, vàng và âm thanh gõ cờ sinh động.</p>
+                <p className="text-[12px] text-[#F3E5AB]/75">Sở hữu các skin Samurai, Ninja, Cyber Chicken cực độc, khung gỗ, sắt, vàng và âm thanh gõ cờ sinh động.</p>
               </div>
             </li>
             <li className="flex gap-3">
@@ -416,7 +416,7 @@ export default function LoginScreen() {
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">Đấu Xếp Hạng & Bảng Vinh Danh</h4>
-                <p className="text-[10px] text-[#F3E5AB]/75">Chu kỳ giải đấu xếp hạng kéo dài 2-3 tháng. Bảng xếp hạng cập nhật mỗi giờ vinh danh các cao thủ.</p>
+                <p className="text-[12px] text-[#F3E5AB]/75">Chu kỳ giải đấu xếp hạng kéo dài 2-3 tháng. Bảng xếp hạng cập nhật mỗi giờ vinh danh các cao thủ.</p>
               </div>
             </li>
           </ul>
@@ -425,15 +425,15 @@ export default function LoginScreen() {
           <div className="pt-6 border-t border-[#D4AF37]/10 grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-lg font-bold font-mono text-white">100K+</p>
-              <p className="text-[9px] text-[#F3E5AB]/50 uppercase font-semibold">Trận Đấu</p>
+              <p className="text-[12px] text-[#F3E5AB]/50 uppercase font-semibold">Trận Đấu</p>
             </div>
             <div>
               <p className="text-lg font-bold font-mono text-white">50K+</p>
-              <p className="text-[9px] text-[#F3E5AB]/50 uppercase font-semibold">Kỳ Thủ</p>
+              <p className="text-[12px] text-[#F3E5AB]/50 uppercase font-semibold">Kỳ Thủ</p>
             </div>
             <div>
               <p className="text-lg font-bold font-mono text-white">99.9%</p>
-              <p className="text-[9px] text-[#F3E5AB]/50 uppercase font-semibold">Thời Gian Chờ &lt; 5s</p>
+              <p className="text-[12px] text-[#F3E5AB]/50 uppercase font-semibold">Thời Gian Chờ &lt; 5s</p>
             </div>
           </div>
         </div>
@@ -476,7 +476,7 @@ export default function LoginScreen() {
           </div>
           <span className="text-sm font-bold uppercase tracking-wider text-white">Vuiga.com</span>
         </div>
-        <p className="text-[10px] text-[#F3E5AB]/50 uppercase tracking-widest leading-relaxed">
+        <p className="text-[12px] text-[#F3E5AB]/50 uppercase tracking-widest leading-relaxed">
           © 2026 Vuiga.com Board Games. Bảo lưu mọi quyền.<br />
           Thiết kế bởi Product & Game Design Team (Steam, Discord, Chess.com, Plato inspiration).
         </p>

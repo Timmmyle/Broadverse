@@ -225,6 +225,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     expGained?: number;
     levelUp?: boolean;
   } | null>(null);
+  const [showResultModal, setShowResultModal] = useState<boolean>(true);
 
   const fetchFriends = async () => {
     try {
@@ -553,19 +554,21 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     let coinsGained = outcome === "WIN" ? (10 + 2 * myLevel + wager * 2) : Math.round(5 + 1.5 * myLevel);
     let expGained = outcome === "WIN" ? (5 + Math.round(myLevel * 0.2)) : 2;
 
-    setGameResult({
-      finished: true,
-      outcome,
-      coinsGained,
-      expGained,
-      levelUp: profile.exp + expGained >= 100 + profile.level * 5
-    });
-
     if (outcome === "WIN") {
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     }
-    
-    refreshProfile();
+
+    setTimeout(() => {
+      setGameResult({
+        finished: true,
+        outcome,
+        coinsGained,
+        expGained,
+        levelUp: profile.exp + expGained >= 100 + profile.level * 5
+      });
+      setShowResultModal(true);
+      refreshProfile();
+    }, 1500);
   };
 
   // Generate random ship positions (for Bot or for player autofill)
@@ -826,14 +829,18 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
     // Kiểm tra thắng
     if (sunkList.length === 5) {
       setLocalStatus("FINISHED");
-      setGameResult({
-        finished: true,
-        outcome: "WIN",
-        coinsGained: 0,
-        expGained: 0,
-        levelUp: false
-      });
-      handleEndBotMatch("WIN");
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      setTimeout(() => {
+        setGameResult({
+          finished: true,
+          outcome: "WIN",
+          coinsGained: 0,
+          expGained: 0,
+          levelUp: false
+        });
+        setShowResultModal(true);
+        handleEndBotMatch("WIN");
+      }, 1500);
       return;
     }
 
@@ -898,14 +905,17 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
         // Kiểm tra xem Bot thắng chưa
         if (sunkList.length === 5) {
-          setGameResult({
-            finished: true,
-            outcome: "LOSE",
-            coinsGained: 0,
-            expGained: 0,
-            levelUp: false
-          });
-          handleEndBotMatch("LOSE");
+          setTimeout(() => {
+            setGameResult({
+              finished: true,
+              outcome: "LOSE",
+              coinsGained: 0,
+              expGained: 0,
+              levelUp: false
+            });
+            setShowResultModal(true);
+            handleEndBotMatch("LOSE");
+          }, 1500);
           return "FINISHED";
         }
 
@@ -1204,10 +1214,10 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         onClick={() => handlePlacementClick(x, y)}
         onMouseEnter={() => setHoverCell(idx)}
         onMouseLeave={() => setHoverCell(null)}
-        className={`w-full aspect-square border text-[7px] font-mono flex items-center justify-center cursor-pointer relative transition-all duration-150 ${cellBg}`}
+        className={`w-full aspect-square border text-[12px] font-mono flex items-center justify-center cursor-pointer relative transition-all duration-150 ${cellBg}`}
       >
         {ship && (
-          <div className={`absolute inset-1 border rounded-sm flex items-center justify-center text-[7px] uppercase font-bold tracking-tighter ${shipBadgeClass}`}>
+          <div className={`absolute inset-1 border rounded-sm flex items-center justify-center text-[12px] uppercase font-bold tracking-tighter ${shipBadgeClass}`}>
             {ship.name[0]}
           </div>
         )}
@@ -1268,17 +1278,17 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         }}
         onMouseEnter={() => setHoverCell(idx)}
         onMouseLeave={() => setHoverCell(null)}
-        className={`w-full aspect-square border text-[7px] font-mono flex items-center justify-center cursor-pointer relative transition-all duration-150 ${cellBg}`}
+        className={`w-full aspect-square border text-[12px] font-mono flex items-center justify-center cursor-pointer relative transition-all duration-150 ${cellBg}`}
       >
         {shot && shot.hit && shot.sunk && shot.shipId && (
-          <div className={`absolute inset-1 border rounded-sm flex items-center justify-center text-[7px] uppercase font-bold tracking-tighter ${shipBadgeClass}`}>
+          <div className={`absolute inset-1 border rounded-sm flex items-center justify-center text-[12px] uppercase font-bold tracking-tighter ${shipBadgeClass}`}>
             {BATTLESHIP_SHIPS_CONFIG.find(c => c.id === shot.shipId)?.name[0]}
           </div>
         )}
         {shot && !(shot.hit && shot.sunk) && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             {shot.hit ? (
-              <span className="w-2 h-2 flex items-center justify-center font-bold text-[10px] text-red-600">X</span>
+              <span className="w-2 h-2 flex items-center justify-center font-bold text-[12px] text-red-600">X</span>
             ) : (
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-40" />
             )}
@@ -1288,7 +1298,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         {/* Radar Center indicator */}
         {currentRadarResults.some((r: any) => r.x === x && r.y === y) && (
           <div className="absolute inset-0 flex items-center justify-center bg-cyan-500 bg-opacity-10 pointer-events-none">
-            <span className="text-[9px] font-bold text-cyan-400 font-sans">
+            <span className="text-[12px] font-bold text-cyan-400 font-sans">
               {currentRadarResults.find((r: any) => r.x === x && r.y === y).count}
             </span>
           </div>
@@ -1312,7 +1322,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
             <h1 className="text-xs font-bold text-pixel-yellow uppercase tracking-widest flex items-center gap-1.5">
               <Swords className="w-3.5 h-3.5" /> BATTLESHIP (Tàu chiến)
             </h1>
-            <p className="text-[7px] text-gray-400">
+            <p className="text-[12px] text-gray-400">
               {mode === "BOT" ? `ĐẤU BOT [${details.difficulty || "EASY"}]` : `ĐẤU ONLINE - PHÒNG: ${roomId?.substring(0, 8)}`}
             </p>
           </div>
@@ -1328,7 +1338,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
       {/* ERROR MESSAGE BAR */}
       {errorMsg && (
-        <div className="bg-red-950 border-b border-red-800 text-red-400 text-[9px] py-1.5 px-4 flex items-center gap-2">
+        <div className="bg-red-950 border-b border-red-800 text-red-400 text-[12px] py-1.5 px-4 flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -1357,7 +1367,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
             <div className="pixel-box bg-[#16161c] p-6 w-full text-center space-y-6 border-4 border-black">
               <h2 className="text-xs text-pixel-yellow uppercase tracking-wider border-b border-black pb-3">Phòng Đấu Bạn Bè (Battleship)</h2>
               
-              <p className="text-[9px] text-gray-400 leading-relaxed uppercase">
+              <p className="text-[12px] text-gray-400 leading-relaxed uppercase">
                 Hãy gửi link mời bên dưới cho bạn bè để cùng tham gia đấu tàu cược {room.wager} Coin.
               </p>
 
@@ -1366,13 +1376,13 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                 <div className="bg-white p-2 border-4 border-black mb-4">
                   <QRCodeSVG value={typeof window !== "undefined" ? `${window.location.origin}?joinRoom=${room.id}` : room.id} size={128} />
                 </div>
-                <span className="text-[8px] text-gray-500 font-mono select-all">ID: {room.id}</span>
+                <span className="text-[12px] text-gray-500 font-mono select-all">ID: {room.id}</span>
               </div>
 
               <div className="space-y-2">
                 <button 
                   onClick={handleCopyLink} 
-                  className="w-full pixel-btn pixel-btn-blue py-3 text-[10px] uppercase font-bold flex items-center justify-center gap-2"
+                  className="w-full pixel-btn pixel-btn-blue py-3 text-[12px] uppercase font-bold flex items-center justify-center gap-2"
                 >
                   {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   {copiedLink ? "Đã copy link mời!" : "Copy Link Mời Trực Tiếp"}
@@ -1381,12 +1391,12 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
               {/* Danh sách bạn bè trực tuyến để mời trực tiếp */}
               <div className="border-t border-black/20 pt-4 space-y-3 text-left">
-                <span className="block text-[8px] text-gray-500 uppercase tracking-wider font-semibold">Mời bạn bè trực tuyến:</span>
+                <span className="block text-[12px] text-gray-500 uppercase tracking-wider font-semibold">Mời bạn bè trực tuyến:</span>
                 <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
                   {friends.length === 0 ? (
-                    <div className="text-[9px] text-gray-500 text-center py-2">Chưa có bạn bè</div>
+                    <div className="text-[12px] text-gray-500 text-center py-2">Chưa có bạn bè</div>
                   ) : friends.filter(f => onlineUsers.has(f.id)).length === 0 ? (
-                    <div className="text-[9px] text-gray-500 text-center py-2">Không có bạn bè trực tuyến</div>
+                    <div className="text-[12px] text-gray-500 text-center py-2">Không có bạn bè trực tuyến</div>
                   ) : (
                     friends.filter(f => onlineUsers.has(f.id)).map((f) => (
                       <div key={f.id} className="flex justify-between items-center bg-black/20 p-2 rounded border border-[#D4AF37]/10 text-xs">
@@ -1394,7 +1404,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                         <button
                           onClick={() => handleInviteToGame(f.id, f.username)}
                           disabled={invitingFriendId === f.id}
-                          className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-3 py-1 rounded text-[9px] font-bold transition"
+                          className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] px-3 py-1 rounded text-[12px] font-bold transition"
                         >
                           {invitingFriendId === f.id ? "Đang mời..." : "Mời đấu"}
                         </button>
@@ -1404,7 +1414,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                 </div>
               </div>
               
-              <div className="text-[8px] text-pixel-blue animate-pulse uppercase tracking-wider">
+              <div className="text-[12px] text-pixel-blue animate-pulse uppercase tracking-wider">
                 === Đang chờ bạn bè kết nối ===
               </div>
             </div>
@@ -1417,10 +1427,10 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
             {/* Cột trái: Lưới của mình */}
             <div className="w-full md:w-[450px] shrink-0">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[10px] text-pixel-blue font-bold uppercase tracking-wider">
+                <span className="text-[12px] text-pixel-blue font-bold uppercase tracking-wider">
                   Bản đồ của bạn
                 </span>
-                <span className="text-[8px] text-gray-400">
+                <span className="text-[12px] text-gray-400">
                   {isReady ? "ĐÃ SẴN SÀNG" : "ĐANG BỐ TRÍ"}
                 </span>
               </div>
@@ -1436,7 +1446,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
             <div className="flex-1 w-full bg-[#121215] border border-black p-4 rounded-md space-y-4">
               <div>
                 <h3 className="text-xs font-bold text-pixel-yellow uppercase mb-1">Thiết lập hạm đội</h3>
-                <p className="text-[8px] text-gray-400">
+                <p className="text-[12px] text-gray-400">
                   Hãy xếp 5 chiếc tàu vào vùng biển của bạn. Click vào ô cờ để đặt tàu đầu.
                 </p>
               </div>
@@ -1445,17 +1455,17 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                 <>
                   {/* Hướng đặt tàu */}
                   <div className="pixel-box-nested p-3 space-y-2">
-                    <span className="block text-[8px] text-gray-400 uppercase">HƯỚNG TÀU:</span>
+                    <span className="block text-[12px] text-gray-400 uppercase">HƯỚNG TÀU:</span>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setPlacementOrientation("H")}
-                        className={`pixel-btn text-[9px] py-1.5 flex-1 justify-center ${placementOrientation === "H" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                        className={`pixel-btn text-[12px] py-1.5 flex-1 justify-center ${placementOrientation === "H" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                       >
                         Ngang (Horizontal)
                       </button>
                       <button
                         onClick={() => setPlacementOrientation("V")}
-                        className={`pixel-btn text-[9px] py-1.5 flex-1 justify-center ${placementOrientation === "V" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
+                        className={`pixel-btn text-[12px] py-1.5 flex-1 justify-center ${placementOrientation === "V" ? "pixel-btn-yellow" : "pixel-btn-gray"}`}
                       >
                         Dọc (Vertical)
                       </button>
@@ -1464,7 +1474,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
                   {/* Chọn loại tàu đặt */}
                   <div className="pixel-box-nested p-3 space-y-2">
-                    <span className="block text-[8px] text-gray-400 uppercase">CHỌN TÀU:</span>
+                    <span className="block text-[12px] text-gray-400 uppercase">CHỌN TÀU:</span>
                     <div className="grid grid-cols-1 gap-1.5">
                       {BATTLESHIP_SHIPS_CONFIG.map((ship) => {
                         const isPlaced = (mode === "BOT" ? myShips : myOnlineShips).some(s => s.id === ship.id);
@@ -1472,12 +1482,12 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                           <button
                             key={ship.id}
                             onClick={() => setSelectedShipId(ship.id)}
-                            className={`pixel-btn text-[9px] py-2 px-3 justify-between ${selectedShipId === ship.id ? "pixel-btn-blue" : "pixel-btn-gray"}`}
+                            className={`pixel-btn text-[12px] py-2 px-3 justify-between ${selectedShipId === ship.id ? "pixel-btn-blue" : "pixel-btn-gray"}`}
                           >
                             <span className="flex items-center gap-2">
-                              {ship.name} <span className="text-[7px] text-gray-400">({ship.size} ô)</span>
+                              {ship.name} <span className="text-[12px] text-gray-400">({ship.size} ô)</span>
                             </span>
-                            <span className={`text-[7px] px-1 py-0.5 rounded-sm ${isPlaced ? "bg-green-950 text-green-400 border border-green-800" : "bg-red-950 text-red-400 border border-red-800"}`}>
+                            <span className={`text-[12px] px-1 py-0.5 rounded-sm ${isPlaced ? "bg-green-950 text-green-400 border border-green-800" : "bg-red-950 text-red-400 border border-red-800"}`}>
                               {isPlaced ? "Đã đặt" : "Chưa đặt"}
                             </span>
                           </button>
@@ -1490,7 +1500,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                   <div className="flex gap-2 pt-2">
                     <button
                       onClick={handleAutofillShips}
-                      className="pixel-btn pixel-btn-blue text-[10px] py-2.5 flex-1 justify-center gap-1.5 uppercase font-bold"
+                      className="pixel-btn pixel-btn-blue text-[12px] py-2.5 flex-1 justify-center gap-1.5 uppercase font-bold"
                     >
                       <RotateCw className="w-3.5 h-3.5" /> Xếp ngẫu nhiên
                     </button>
@@ -1498,7 +1508,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                     <button
                       onClick={handleCommitPlacement}
                       disabled={loading || (mode === "BOT" ? myShips.length !== 5 : myOnlineShips.length !== 5)}
-                      className="pixel-btn pixel-btn-yellow text-[10px] py-2.5 flex-1 justify-center gap-1.5 uppercase font-bold disabled:opacity-50"
+                      className="pixel-btn pixel-btn-yellow text-[12px] py-2.5 flex-1 justify-center gap-1.5 uppercase font-bold disabled:opacity-50"
                     >
                       {loading ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1516,24 +1526,24 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                   </div>
                   <div className="space-y-1">
                     <h4 className="text-xs font-bold text-green-400 uppercase">ĐÃ SẴN SÀNG!</h4>
-                    <p className="text-[8px] text-gray-400">
+                    <p className="text-[12px] text-gray-400">
                       Đang đợi đối thủ xếp tàu hoàn tất để bắt đầu chiến đấu...
                     </p>
                   </div>
                   
                   {mode !== "BOT" && room && !room.playerOId && (
                     <div className="p-3 border border-slate-800 bg-[#0a0a0c] rounded-md space-y-2 mt-4">
-                      <span className="text-[7px] text-gray-400 block uppercase">Chia sẻ mã mời để đấu online:</span>
+                      <span className="text-[12px] text-gray-400 block uppercase">Chia sẻ mã mời để đấu online:</span>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           readOnly
                           value={`${window.location.origin}/?joinRoom=${roomId}`}
-                          className="flex-1 bg-[#121215] border border-black text-[8px] px-2.5 py-1.5 rounded-sm focus:outline-none font-sans"
+                          className="flex-1 bg-[#121215] border border-black text-[12px] px-2.5 py-1.5 rounded-sm focus:outline-none font-sans"
                         />
                         <button
                           onClick={handleCopyLink}
-                          className="pixel-btn pixel-btn-gray py-1.5 text-[8px]"
+                          className="pixel-btn pixel-btn-gray py-1.5 text-[12px]"
                         >
                           {copiedLink ? "Đã copy" : "Copy"}
                         </button>
@@ -1558,7 +1568,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                   <h3 className="text-xs font-bold text-gray-300">
                     LƯỢT ĐI: <span className={isMyTurn ? "text-green-400" : "text-red-400"}>{isMyTurn ? "BẠN" : opponentProfile?.username}</span>
                   </h3>
-                  <p className="text-[7px] text-gray-400">
+                  <p className="text-[12px] text-gray-400">
                     {isMyTurn ? "Click vào lưới đối thủ để khai hoả đạn!" : "Đợi đối thủ nhắm bắn..."}
                   </p>
                 </div>
@@ -1568,7 +1578,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               <div className="flex flex-col space-y-3 w-full md:w-auto md:max-w-xs shrink-0">
                 {/* Thanh tiến trình năng lượng */}
                 <div className="space-y-1">
-                  <div className="flex justify-between text-[7px] font-extrabold text-[#F3E5AB] uppercase tracking-wider">
+                  <div className="flex justify-between text-[12px] font-extrabold text-[#F3E5AB] uppercase tracking-wider">
                     <span>Năng lượng chiến thuật</span>
                     <span className="text-[#FF9F0A]">{currentEnergy}/100</span>
                   </div>
@@ -1593,7 +1603,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                     }`}
                   >
                     <span className="text-[6px] font-extrabold uppercase tracking-wide block">Quét Rada</span>
-                    <div className="flex items-center gap-0.5 text-[7px] font-bold mt-1">
+                    <div className="flex items-center gap-0.5 text-[12px] font-bold mt-1">
                       <Eye className="w-2.5 h-2.5" />
                       <span>30 NL</span>
                     </div>
@@ -1610,7 +1620,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                     }`}
                   >
                     <span className="text-[6px] font-extrabold uppercase tracking-wide block">Thám Thính</span>
-                    <div className="flex items-center gap-0.5 text-[7px] font-bold mt-1">
+                    <div className="flex items-center gap-0.5 text-[12px] font-bold mt-1">
                       <Zap className="w-2.5 h-2.5 text-[#FF9F0A]" />
                       <span>40 NL</span>
                     </div>
@@ -1627,7 +1637,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                     }`}
                   >
                     <span className="text-[6px] font-extrabold uppercase tracking-wide block">Bom Chùm</span>
-                    <div className="flex items-center gap-0.5 text-[7px] font-bold mt-1">
+                    <div className="flex items-center gap-0.5 text-[12px] font-bold mt-1">
                       <Zap className="w-2.5 h-2.5 text-red-500" />
                       <span>50 NL</span>
                     </div>
@@ -1642,10 +1652,10 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               {/* 1. LƯỚI ĐỐI THỦ (NƠI MÌNH BẮN) */}
               <div className="w-full max-w-[420px]">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10px] text-pixel-yellow font-bold uppercase tracking-wider flex items-center gap-1">
+                  <span className="text-[12px] text-pixel-yellow font-bold uppercase tracking-wider flex items-center gap-1">
                     <Target className="w-3.5 h-3.5 text-pixel-yellow" /> Hạm đội đối phương (Lưới tấn công)
                   </span>
-                  <span className="text-[8px] text-red-500 font-bold">
+                  <span className="text-[12px] text-red-500 font-bold">
                     Tàu đã chìm: {currentSunkBot.length}/5
                   </span>
                 </div>
@@ -1660,10 +1670,10 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               {/* 2. LƯỚI CỦA BẢN THÂN (XEM ĐỐI THỦ BẮN MÌNH) */}
               <div className="w-full max-w-[420px]">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[10px] text-pixel-blue font-bold uppercase tracking-wider flex items-center gap-1">
+                  <span className="text-[12px] text-pixel-blue font-bold uppercase tracking-wider flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5 text-pixel-blue" /> Lãnh hải của bạn (Lưới phòng thủ)
                   </span>
-                  <span className="text-[8px] text-red-500 font-bold">
+                  <span className="text-[12px] text-red-500 font-bold">
                     Tàu của bạn chìm: {currentSunkMy.length}/5
                   </span>
                 </div>
@@ -1685,7 +1695,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
         {/* EMOJI QUICK CHAT BAR FOR BATTLESHIP (placement & play) */}
         {mode !== "BOT" && room && room.status !== "FINISHED" && (
           <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 flex gap-2 bg-[#121215] border border-black p-1.5 px-3 rounded-full items-center select-none z-45 shadow-lg">
-            <span className="text-[6.5px] text-gray-500 font-mono uppercase mr-1">Biểu cảm:</span>
+            <span className="text-[12px] text-gray-500 font-mono uppercase mr-1">Biểu cảm:</span>
             {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).map(emojiItem => (
               <button
                 key={emojiItem.id}
@@ -1697,7 +1707,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               </button>
             ))}
             {SHOP_ITEMS.filter(item => item.type === "EMOJI" && (profile.purchasedItems.includes(item.id) || item.price === 0)).length === 0 && (
-              <span className="text-[6.5px] text-gray-400 italic">Chưa sở hữu biểu cảm nào</span>
+              <span className="text-[12px] text-gray-400 italic">Chưa sở hữu biểu cảm nào</span>
             )}
           </div>
         )}
@@ -1710,14 +1720,14 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
           <div className="max-w-4xl mx-auto w-full grid grid-cols-2 gap-6">
             {/* Tàu đối phương */}
             <div className="space-y-2">
-              <span className="block text-[8px] text-gray-400 uppercase tracking-widest">Tình trạng hạm đội địch:</span>
+              <span className="block text-[12px] text-gray-400 uppercase tracking-widest">Tình trạng hạm đội địch:</span>
               <div className="flex flex-wrap gap-2">
                 {BATTLESHIP_SHIPS_CONFIG.map(ship => {
                   const isSunk = currentSunkBot.includes(ship.id);
                   return (
                     <span 
                       key={ship.id}
-                      className={`text-[7px] px-2 py-1 border rounded-sm font-sans flex items-center gap-1 ${
+                      className={`text-[12px] px-2 py-1 border rounded-sm font-sans flex items-center gap-1 ${
                         isSunk 
                           ? "bg-red-950 text-red-400 border-red-800 line-through opacity-70" 
                           : "bg-slate-900 text-slate-300 border-slate-700"
@@ -1732,14 +1742,14 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
             {/* Tàu của mình */}
             <div className="space-y-2">
-              <span className="block text-[8px] text-gray-400 uppercase tracking-widest">Tình trạng tàu của bạn:</span>
+              <span className="block text-[12px] text-gray-400 uppercase tracking-widest">Tình trạng tàu của bạn:</span>
               <div className="flex flex-wrap gap-2">
                 {BATTLESHIP_SHIPS_CONFIG.map(ship => {
                   const isSunk = currentSunkMy.includes(ship.id);
                   return (
                     <span 
                       key={ship.id}
-                      className={`text-[7px] px-2 py-1 border rounded-sm font-sans flex items-center gap-1 ${
+                      className={`text-[12px] px-2 py-1 border rounded-sm font-sans flex items-center gap-1 ${
                         isSunk 
                           ? "bg-red-950 text-red-400 border-red-800 line-through opacity-70" 
                           : "bg-blue-950 text-blue-400 border-blue-800"
@@ -1752,11 +1762,23 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
               </div>
             </div>
           </div>
+          
+          {/* NÚT XEM KẾT QUẢ KHI ẨN MODAL KẾT QUẢ */}
+          {gameResult?.finished && !showResultModal && (
+            <div className="mt-4 flex justify-center z-20">
+              <button
+                onClick={() => setShowResultModal(true)}
+                className="pixel-btn pixel-btn-yellow py-2.5 px-6 text-xs uppercase font-extrabold flex items-center gap-2 shadow-xl animate-bounce"
+              >
+                🏆 Xem Kết Quả Trận Đấu
+              </button>
+            </div>
+          )}
         </section>
       )}
 
       {/* 4. GAME END MODAL OVERLAY */}
-      {gameResult?.finished && (
+      {gameResult?.finished && showResultModal && (
         <div className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 z-50">
           <div className="w-full max-w-sm border-2 border-pixel-yellow bg-[#121216] p-6 rounded-md text-center space-y-6 shadow-2xl relative overflow-hidden">
             
@@ -1769,44 +1791,43 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
                   <h2 className="text-xl font-extrabold text-pixel-yellow uppercase tracking-widest animate-bounce">
                     CHIẾN THẮNG!
                   </h2>
-                  <p className="text-[9px] text-gray-400">
-                    Bắn nát hạm đội đối thủ thành tro bụi!
-                  </p>
+                  <p className="text-[12px] text-gray-400 font-sans">Bạn đã tiêu diệt toàn bộ hạm đội tàu đối thủ!</p>
                 </>
               ) : (
                 <>
-                  <h2 className="text-xl font-extrabold text-red-500 uppercase tracking-widest animate-pulse">
-                    THẤT BẠI
+                  <h2 className="text-xl font-extrabold text-red-500 uppercase tracking-widest">
+                    THẤT BẠI!
                   </h2>
-                  <p className="text-[9px] text-gray-400">
-                    Hạm đội của bạn đã bị chìm sạch xuống đáy đại dương.
-                  </p>
+                  <p className="text-[12px] text-gray-400 font-sans">Hạm đội tàu của bạn đã bị bắn chìm hoàn toàn.</p>
                 </>
               )}
             </div>
 
-            {/* Rewards Card */}
-            <div className="border border-slate-800 bg-[#09090c] p-4 rounded-md space-y-3">
-              <h4 className="text-[8px] text-gray-400 uppercase tracking-widest">Phần thưởng nhận được:</h4>
-              <div className="flex justify-around">
+            {/* Phân đoạn Thưởng nhận được */}
+            <div className="border border-white border-opacity-10 bg-black bg-opacity-40 p-3 rounded-md space-y-2">
+              <span className="block text-[12px] text-gray-400 uppercase tracking-wider font-semibold border-b border-white border-opacity-10 pb-1">
+                Phần thưởng trận đấu
+              </span>
+              <div className="flex justify-around items-center pt-1">
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-1 text-pixel-yellow font-bold text-sm">
-                    <Coins className="w-4 h-4" />
+                    <Coins className="w-4 h-4 fill-pixel-yellow" />
                     <span>+{gameResult.coinsGained || 0}</span>
                   </div>
-                  <span className="text-[7px] text-gray-400 font-sans mt-0.5">Coins</span>
+                  <span className="text-[12px] text-gray-400 font-sans mt-0.5">Trứng cờ (Coin)</span>
                 </div>
+                <div className="w-[1px] h-6 bg-white bg-opacity-10" />
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-1 text-pixel-blue font-bold text-sm">
                     <Award className="w-4 h-4" />
                     <span>+{gameResult.expGained || 0}</span>
                   </div>
-                  <span className="text-[7px] text-gray-400 font-sans mt-0.5">Kinh nghiệm (EXP)</span>
+                  <span className="text-[12px] text-gray-400 font-sans mt-0.5">Kinh nghiệm (EXP)</span>
                 </div>
               </div>
 
               {gameResult.levelUp && (
-                <div className="mt-2 text-[9px] text-pixel-yellow font-extrabold uppercase animate-pulse border border-pixel-yellow border-dashed py-1.5 px-3 bg-pixel-yellow bg-opacity-10 rounded-sm">
+                <div className="mt-2 text-[12px] text-pixel-yellow font-extrabold uppercase animate-pulse border border-pixel-yellow border-dashed py-1.5 px-3 bg-pixel-yellow bg-opacity-10 rounded-sm">
                   ★ THĂNG CẤP (LEVEL UP) ★
                 </div>
               )}
@@ -1815,7 +1836,7 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
             {/* Guest Promo / Reward Box */}
             {profile?.isGuest && (
               <div className="border border-[#D4AF37]/30 bg-gradient-to-br from-[#D4AF37]/10 to-[#FF9F0A]/5 p-4 rounded-md text-center space-y-3 mt-2">
-                <span className="block text-[9px] text-[#FF9F0A] uppercase tracking-widest font-extrabold animate-pulse">
+                <span className="block text-[12px] text-[#FF9F0A] uppercase tracking-widest font-extrabold animate-pulse">
                   🎁 QUÀ LIÊN KẾT GMAIL TÂN THỦ 🎁
                 </span>
                 <p className="text-[9.5px] text-[#F3E5AB]/90 leading-relaxed">
@@ -1832,6 +1853,12 @@ export default function BattleshipView({ mode, details, profile, onBack, refresh
 
             {/* Restart Buttons */}
             <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setShowResultModal(false)}
+                className="w-full bg-white/10 hover:bg-white/20 text-white py-2.5 text-xs uppercase font-bold rounded border border-white/20 flex items-center justify-center gap-2"
+              >
+                🔍 Xem Lại Bàn Cờ
+              </button>
               {mode === "BOT" ? (
                 <button
                   onClick={handleRestartBotMatch}

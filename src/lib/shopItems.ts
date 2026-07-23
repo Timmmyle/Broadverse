@@ -14,7 +14,7 @@ export interface ShopItem {
     skinUrl?: string; // Skin Gà hoặc xúc xắc
     cardBackUrl?: string;
   };
-  isPremiumOnly?: boolean; // Chỉ dành cho Premium mua (Golden Egg)
+  isPremiumOnly?: boolean; // Chỉ dành cho Premium mua
   isEventOnly?: boolean; // Chỉ dành cho Sự kiện đổi
 }
 
@@ -219,10 +219,10 @@ export const SHOP_ITEMS: ShopItem[] = [
   },
   {
     id: "dice_golden_egg",
-    name: "✨ Xúc Xắc Trứng Vàng (VIP)",
+    name: "✨ Xúc Xắc Hoàng Kim (VIP)",
     type: "DICE",
     price: 350,
-    description: "Bộ xúc xắc mô phỏng Trứng Vàng may mắn.",
+    description: "Bộ xúc xắc mạ vàng rực rỡ tượng trưng cho sự may mắn.",
     visuals: { className: "bg-gradient-to-b from-yellow-400 to-yellow-600 text-yellow-950 font-bold" },
     isPremiumOnly: true
   },

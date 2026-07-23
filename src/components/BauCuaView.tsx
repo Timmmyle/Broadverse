@@ -554,7 +554,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         <div className="flex items-center gap-3">
           <button 
             onClick={handleLeaveRoom}
-            className="pixel-btn pixel-btn-gray py-2 px-3 flex items-center justify-center gap-1.5 text-[10px]"
+            className="pixel-btn pixel-btn-gray py-2 px-3 flex items-center justify-center gap-1.5 text-[12px]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Rời phòng
@@ -574,8 +574,8 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
         {/* Room Code Code (If FRIEND mode) */}
         {mode === "FRIEND" && (
           <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-[#D4AF37]/10">
-            <span className="text-[9px] text-[#F3E5AB]/50 font-mono uppercase">Mã mời bạn:</span>
-            <span className="text-[10px] font-mono font-extrabold text-[#F3E5AB]">{roomId?.substring(0, 8).toUpperCase()}</span>
+            <span className="text-[12px] text-[#F3E5AB]/50 font-mono uppercase">Mã mời bạn:</span>
+            <span className="text-[12px] font-mono font-extrabold text-[#F3E5AB]">{roomId?.substring(0, 8).toUpperCase()}</span>
             <button 
               onClick={copyRoomId} 
               className="text-[#FF9F0A] hover:text-[#FF9F0A]/80 active:scale-95 transition"
@@ -601,7 +601,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
               <div className="text-center space-y-3 z-10">
                 <Users className="w-12 h-12 text-[#F3E5AB]/30 mx-auto animate-pulse" />
                 <h3 className="text-xs font-bold text-[#F3E5AB] uppercase tracking-wider">Đang đợi các kỳ thủ sẵn sàng...</h3>
-                <p className="text-[9px] text-gray-500 max-w-sm mx-auto">Vui lòng bấm Sẵn Sàng. Chủ phòng có thể bấm Bắt đầu khi phòng có ít nhất 1 người chơi khác.</p>
+                <p className="text-[12px] text-gray-500 max-w-sm mx-auto">Vui lòng bấm Sẵn Sàng. Chủ phòng có thể bấm Bắt đầu khi phòng có ít nhất 1 người chơi khác.</p>
               </div>
             )}
 
@@ -646,7 +646,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                         <Clock className="w-4 h-4 animate-spin" />
                         Thời gian đặt cược: {timeLeft}s
                       </div>
-                      <span className="text-[9px] text-[#F3E5AB]/50">Vui lòng đặt chip và bấm xác nhận trước khi hết giờ!</span>
+                      <span className="text-[12px] text-[#F3E5AB]/50">Vui lòng đặt chip và bấm xác nhận trước khi hết giờ!</span>
                     </div>
                   )}
                   {isFinished && (
@@ -676,14 +676,14 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
               <div className="pixel-box-nested p-3 flex flex-wrap items-center justify-between gap-3 bg-black/25">
                 <div className="flex items-center gap-2">
                   <Coins className="w-4 h-4 text-[#FF9F0A]" />
-                  <span className="text-[9px] text-[#F3E5AB]/60 uppercase tracking-widest font-extrabold">Chọn Chip cược:</span>
+                  <span className="text-[12px] text-[#F3E5AB]/60 uppercase tracking-widest font-extrabold">Chọn Chip cược:</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {[1, 5, 10, 50, 100].map((val) => (
                     <button
                       key={val}
                       onClick={() => setActiveChip(val)}
-                      className={`w-10 h-10 rounded-full border-2 font-mono text-[10px] font-extrabold transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg ${
+                      className={`w-10 h-10 rounded-full border-2 font-mono text-[12px] font-extrabold transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg ${
                         activeChip === val 
                           ? "bg-[#FF9F0A] border-white text-black shadow-[#FF9F0A]/20" 
                           : "bg-zinc-800 border-zinc-700 text-[#F3E5AB] hover:border-[#FF9F0A]/30"
@@ -726,7 +726,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                     <span className="text-4xl my-2 drop-shadow-md select-none">{animal.icon}</span>
 
                     {/* Dưới: Hiển thị cược của bản thân */}
-                    <div className="w-full bg-black/30 py-1 px-2 rounded flex items-center justify-between text-[9px] font-mono border border-white/5">
+                    <div className="w-full bg-black/30 py-1 px-2 rounded flex items-center justify-between text-[12px] font-mono border border-white/5">
                       <span className="text-gray-400">Bạn cược:</span>
                       <span className={`font-bold ${myLocalBet > 0 ? "text-[#FF9F0A]" : "text-white"}`}>
                         {myLocalBet} {myPlacedBet > 0 && myLocalBet !== myPlacedBet && <span className="text-gray-500">({myPlacedBet})</span>}
@@ -788,11 +788,11 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                       <div className="w-8 h-8 bg-zinc-800 rounded flex items-center justify-center text-base border border-zinc-700 relative">
                         {p.isBot ? "🤖" : "🐔"}
                         {isPlayerHost && (
-                          <span className="absolute -top-1.5 -right-1 text-[8px] bg-[#FF9F0A] text-black px-0.5 rounded font-extrabold select-none leading-none">H</span>
+                          <span className="absolute -top-1.5 -right-1 text-[12px] bg-[#FF9F0A] text-black px-0.5 rounded font-extrabold select-none leading-none">H</span>
                         )}
                       </div>
                       <div className="text-left">
-                        <span className="text-[10px] font-bold text-white block truncate max-w-[120px]">
+                        <span className="text-[12px] font-bold text-white block truncate max-w-[120px]">
                           {p.username} {isSelf && "(Bạn)"}
                         </span>
                         <span className="text-[7.5px] text-gray-500 font-mono">
@@ -858,7 +858,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                     Chơi Tiếp Ván Mới
                   </button>
                 ) : (
-                  <div className="text-center text-[9px] text-[#F3E5AB]/60 uppercase tracking-widest py-3 animate-pulse">
+                  <div className="text-center text-[12px] text-[#F3E5AB]/60 uppercase tracking-widest py-3 animate-pulse">
                     Đợi chủ phòng bắt đầu ván mới...
                   </div>
                 )}
@@ -879,7 +879,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
                   const isLoser = res.profit < 0;
 
                   return (
-                    <div key={res.id} className="flex justify-between items-center text-[10px] font-mono leading-none py-1.5 border-b border-white/5 last:border-0">
+                    <div key={res.id} className="flex justify-between items-center text-[12px] font-mono leading-none py-1.5 border-b border-white/5 last:border-0">
                       <span className="text-gray-400 font-bold truncate max-w-[120px]">
                         @{board.players.find((p: any) => p.id === res.id)?.username || "Kỳ Thủ"}
                       </span>
@@ -908,7 +908,7 @@ export default function BauCuaView({ mode, details, profile, onBack, refreshProf
               <div className="flex flex-col gap-2">
                 {board.history.slice(0, 5).map((roll: number[], i: number) => (
                   <div key={i} className="flex items-center gap-2 bg-black/25 p-2 rounded border border-white/5">
-                    <span className="text-[8px] text-gray-500 font-mono font-bold uppercase min-w-[36px]">Ván {i+1}:</span>
+                    <span className="text-[12px] text-gray-500 font-mono font-bold uppercase min-w-[36px]">Ván {i+1}:</span>
                     <div className="flex gap-1.5">
                       {roll.map((idx, k) => (
                         <span key={k} className="text-base bg-black/40 px-1 py-0.5 rounded leading-none">

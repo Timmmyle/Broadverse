@@ -1145,14 +1145,16 @@ export async function POST(req: Request) {
               }
             });
 
-            return {
-              room: updatedRoom,
-              finished: false,
-            };
+              return {
+                room: updatedRoom,
+                finished: false,
+              };
+            }
           }
         }
-      }
-    });
+      },
+      { timeout: 15000, maxWait: 10000 }
+    );
 
     return NextResponse.json(result);
   } catch (error: any) {

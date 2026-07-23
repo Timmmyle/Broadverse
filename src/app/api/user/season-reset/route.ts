@@ -23,7 +23,6 @@ export async function POST() {
     // 1. Tính toán phần thưởng dựa trên rankTier hiện tại
     const currentTier = profile.rankTier;
     let rewardEggs = 100;
-    let rewardGoldenEggs = 0;
     let rewardFrameId = "";
 
     switch (currentTier) {
@@ -35,24 +34,19 @@ export async function POST() {
         break;
       case 3: // Gà Non
         rewardEggs = 400;
-        rewardGoldenEggs = 50;
         break;
       case 4: // Gà Nhà
         rewardEggs = 600;
-        rewardGoldenEggs = 100;
         break;
       case 5: // Gà Chiến
         rewardEggs = 1000;
-        rewardGoldenEggs = 200;
         break;
       case 6: // Cao Thủ Gà
         rewardEggs = 2000;
-        rewardGoldenEggs = 400;
         rewardFrameId = "frame_gold";
         break;
       case 7: // Phượng Hoàng
         rewardEggs = 5000;
-        rewardGoldenEggs = 1000;
         rewardFrameId = "frame_phoenix";
         break;
     }
@@ -82,7 +76,6 @@ export async function POST() {
       where: { id: user.id },
       data: {
         eggs: { increment: rewardEggs },
-        goldenEggs: { increment: rewardGoldenEggs },
         rankTier: newTier,
         rankDivision: newDivision,
         rankPoints: 0,
@@ -101,12 +94,11 @@ export async function POST() {
       profile: updatedProfile,
       rewards: {
         eggs: rewardEggs,
-        goldenEggs: rewardGoldenEggs,
         frameId: rewardFrameId
       },
       oldTier: currentTier,
       newTier,
-      message: `Chúc mừng bạn đã hoàn thành mùa giải! Nhận được ${rewardEggs} 🥚 và ${rewardGoldenEggs} ✨. Cấp bậc rank mùa mới của bạn là Tier ${newTier}.`
+      message: `Chúc mừng bạn đã hoàn thành mùa giải! Nhận được ${rewardEggs} 🥚. Cấp bậc rank mùa mới của bạn là Tier ${newTier}.`
     });
   } catch (error: any) {
     console.error("Lỗi reset mùa giải:", error);

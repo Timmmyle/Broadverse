@@ -123,7 +123,7 @@ function HomeContent() {
             <h2 className="text-lg font-extrabold uppercase tracking-widest text-white">
               Vuiga<span className="text-[#FF9F0A]">.com</span>
             </h2>
-            <div className="flex items-center justify-center gap-1.5 text-[10px] text-[#FF9F0A] uppercase font-mono tracking-widest animate-pulse">
+            <div className="flex items-center justify-center gap-1.5 text-[12px] text-[#FF9F0A] uppercase font-mono tracking-widest animate-pulse">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
               <span>Đang vào phòng chờ...</span>
             </div>

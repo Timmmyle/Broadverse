@@ -23,29 +23,24 @@ export async function POST(req: Request) {
     }
 
     let rewardCoins = 0;
-    let rewardShells = 0;
     let questName = "";
 
     switch (questId) {
       case "quest_daily":
         questName = "Đăng nhập ngày";
         rewardCoins = 20;
-        rewardShells = 15;
         break;
       case "quest_win_3":
         questName = "Thắng 3 trận cờ";
         rewardCoins = 50;
-        rewardShells = 40;
         break;
       case "quest_play_5":
         questName = "Chơi đủ 5 trận cờ";
         rewardCoins = 40;
-        rewardShells = 30;
         break;
       case "quest_invite":
         questName = "Mời bạn bè";
         rewardCoins = 150;
-        rewardShells = 100;
         break;
       default:
         return NextResponse.json({ error: "Nhiệm vụ không hợp lệ" }, { status: 400 });
@@ -117,8 +112,7 @@ export async function POST(req: Request) {
 
     // Xây dựng dữ liệu cập nhật
     let updateData: any = {
-      coins: { increment: rewardCoins },
-      shells: { increment: rewardShells }
+      coins: { increment: rewardCoins }
     };
 
     if (questId === "quest_daily") {
@@ -141,8 +135,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       profile: updatedProfile,
       rewardCoins,
-      rewardShells,
-      message: `Hoàn thành nhiệm vụ '${questName}'! Nhận được ${rewardShells} Vỏ Sò và ${rewardCoins} Coins.`
+      message: `Hoàn thành nhiệm vụ '${questName}'! Nhận được ${rewardCoins} Trứng.`
     });
   } catch (error: any) {
     console.error("Lỗi nhận thưởng nhiệm vụ:", error);

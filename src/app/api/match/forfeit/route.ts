@@ -232,7 +232,7 @@ export async function POST(req: Request) {
           [loser.id]: { outcome: "LOSE", coins: loserCoinsGained, exp: loserRewards.exp, levelUp: loserNewStats.level > loser.level },
         }
       };
-    });
+    }, { timeout: 15000, maxWait: 10000 });
 
     return NextResponse.json(result);
   } catch (error: any) {

@@ -1457,18 +1457,18 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               
               {/* Event Banner */}
               <div className="pixel-box-nested p-4 bg-gradient-to-br from-[#1C1C18] via-[#141412] to-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="text-left space-y-1">
-                  <span className="bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                <div className="text-left">
+                  <span className="inline-block mb-3 bg-[#FF9F0A]/10 text-[#FF9F0A] border border-[#FF9F0A]/30 text-[12px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
                     Sự Kiện Đặc Biệt
                   </span>
-                  <h3 className="text-base font-extrabold text-white">Đêm Hoàng Kim (Golden Night)</h3>
+                  <h3 className="text-base font-extrabold text-white mb-1">Đêm Hoàng Kim (Golden Night)</h3>
                   <p className="text-[12px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
                     Đổi Visual vàng kim sang trọng, nhân đôi EXP vĩnh viễn cuối tuần, và mở khóa Event Shop vật phẩm đặc chế Obsidian Hoàng Gia.
                   </p>
                 </div>
                 <button
                   onClick={() => setActiveTab("BP")}
-                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-4 rounded-lg uppercase text-[12px] font-extrabold transition shrink-0"
+                  className="bg-[#D4AF37] hover:bg-[#FF9F0A] text-[#141412] py-2 px-4 rounded-lg uppercase text-[12px] font-extrabold transition shrink-0 cursor-pointer"
                 >
                   Khám phá ngay
                 </button>
@@ -1477,11 +1477,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               {/* Banner Liên Kết Gmail cho Tài Khoản Khách */}
               {profile.isGuest && (
                 <div className="pixel-box-nested p-4 bg-gradient-to-r from-[#D4AF37]/20 via-[#141412] to-[#FF9F0A]/10 border border-[#D4AF37]/40 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4 shadow-[0_0_25px_rgba(212,175,55,0.15)]">
-                  <div className="text-left space-y-1">
-                    <span className="bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                  <div className="text-left">
+                    <span className="inline-block mb-3 bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40 text-[12px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider font-mono">
                       🔒 BẢO VỆ TÀI KHOẢN
                     </span>
-                    <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-white flex items-center gap-2 mb-1">
                       <span>📧</span> Đăng Nhập / Liên Kết Gmail Giúp Lưu Lại Tài Khoản
                     </h3>
                     <p className="text-[12px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
@@ -1500,11 +1500,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               {/* Banner Discord cho Người Dùng Đã Đăng Nhập Gmail */}
               {!profile.isGuest && !profile.claimedDiscordReward && (
                 <div className="pixel-box-nested p-4 bg-gradient-to-r from-[#5865F2]/20 via-[#141412] to-[#5865F2]/10 border border-[#5865F2]/40 rounded-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="text-left space-y-1">
-                    <span className="bg-[#5865F2]/20 text-[#8ea1ff] border border-[#5865F2]/40 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                  <div className="text-left">
+                    <span className="inline-block mb-3 bg-[#5865F2]/20 text-[#8ea1ff] border border-[#5865F2]/40 text-[12px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider font-mono">
                       SỰ KIỆN CỘNG ĐỒNG
                     </span>
-                    <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-white flex items-center gap-2 mb-1">
                       <span>👾</span> Mở Khóa Quà Discord (200 🥚 + Skin Gà Discord)
                     </h3>
                     <p className="text-[12px] text-[#F3E5AB]/85 max-w-md leading-relaxed">
@@ -3037,22 +3037,21 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </div>
 
             {/* Days grid */}
-            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+            <div className="grid grid-cols-4 gap-2">
               {[1, 2, 3, 4, 5, 6, 7].map((day) => {
                 const isCurrent = profile.dailyStreakDay === day;
                 const claimCoins = [10, 15, 20, 25, 30, 40, 50][day - 1];
                 return (
                   <div 
                     key={day} 
-                    className={`flex flex-col justify-center items-center py-2 px-0.5 rounded-lg border relative transition ${
+                    className={`flex flex-col justify-center items-center py-2.5 px-1 rounded-xl border relative transition ${
                       isCurrent 
                         ? "bg-[#D4AF37]/20 border-[#D4AF37] text-white font-bold shadow-[0_0_10px_rgba(212,175,55,0.25)]" 
                         : "bg-[#141412] border-[#D4AF37]/10 text-gray-400"
                     }`}
                   >
-                    <span className="text-[10px] text-[#F3E5AB]/70 font-semibold block leading-none mb-1">Ng{day}</span>
-                    <span className="font-mono text-[11px] text-[#FF9F0A] font-bold leading-none mb-0.5">+{claimCoins}</span>
-                    <span className="text-[10px] leading-none">🥚</span>
+                    <span className="text-[11px] text-[#F3E5AB]/80 font-semibold block mb-1">Ngày {day}</span>
+                    <span className="font-mono text-xs text-[#FF9F0A] font-bold">+{claimCoins} 🥚</span>
                   </div>
                 );
               })}
@@ -3373,11 +3372,11 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               <div className="w-16 h-16 bg-[#5865F2] rounded-2xl flex items-center justify-center shadow-lg border border-[#5865F2]/30 shadow-[#5865F2]/20 animate-bounce">
                 <span className="text-4xl">👾</span>
               </div>
-              <div className="space-y-1">
-                <span className="bg-[#5865F2]/15 text-[#5865F2] border border-[#5865F2]/30 text-[12px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+              <div>
+                <span className="inline-block mb-2.5 bg-[#5865F2]/15 text-[#5865F2] border border-[#5865F2]/30 text-[12px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest font-mono">
                   SỰ KIỆN CỘNG ĐỒNG
                 </span>
-                <h3 className="text-base font-extrabold text-white">Gia Nhập Nhóm Discord</h3>
+                <h3 className="text-base font-extrabold text-white mb-1">Gia Nhập Nhóm Discord</h3>
                 <p className="text-[12px] text-[#F3E5AB]/75 px-4 leading-relaxed">
                   Nhận ngay phần quà độc quyền khi tham gia kênh Discord chính thức của vuiga.com!
                 </p>

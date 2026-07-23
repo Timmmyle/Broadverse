@@ -3037,21 +3037,22 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             </div>
 
             {/* Days grid */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
               {[1, 2, 3, 4, 5, 6, 7].map((day) => {
                 const isCurrent = profile.dailyStreakDay === day;
                 const claimCoins = [10, 15, 20, 25, 30, 40, 50][day - 1];
                 return (
                   <div 
                     key={day} 
-                    className={`aspect-square flex flex-col justify-between items-center p-1 rounded border text-[8.5px] relative ${
+                    className={`flex flex-col justify-center items-center py-2 px-0.5 rounded-lg border relative transition ${
                       isCurrent 
-                        ? "bg-[#D4AF37]/15 border-[#D4AF37] text-white font-bold" 
-                        : "bg-[#141412] border-[#D4AF37]/10 text-gray-500"
+                        ? "bg-[#D4AF37]/20 border-[#D4AF37] text-white font-bold shadow-[0_0_10px_rgba(212,175,55,0.25)]" 
+                        : "bg-[#141412] border-[#D4AF37]/10 text-gray-400"
                     }`}
                   >
-                    <span>Ng{day}</span>
-                    <span className="font-mono text-[12px] text-[#D4AF37] font-semibold">+{claimCoins}🥚</span>
+                    <span className="text-[10px] text-[#F3E5AB]/70 font-semibold block leading-none mb-1">Ng{day}</span>
+                    <span className="font-mono text-[11px] text-[#FF9F0A] font-bold leading-none mb-0.5">+{claimCoins}</span>
+                    <span className="text-[10px] leading-none">🥚</span>
                   </div>
                 );
               })}

@@ -41,7 +41,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   };
   
   // Trạng thái lọc Cửa hàng
-  const [shopCategory, setShopCategory] = useState<"ALL" | "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI">("ALL");
+  const [shopCategory, setShopCategory] = useState<"ALL" | "SYMBOL" | "FRAME" | "THEME" | "SFX" | "EMOJI" | "SKIN">("ALL");
 
   // Trạng thái nạp tiền bằng VietQR động
   const [showTopupModal, setShowTopupModal] = useState(false);
@@ -143,6 +143,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [activeInvite, setActiveInvite] = useState<{
     partyId: string;
     senderUsername: string;
+    partyName?: string;
     gameType: string;
     wager: number;
   } | null>(null);
@@ -502,6 +503,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
             payload: {
               partyId: currentPartyId,
               senderUsername: profile.username,
+              partyName: activeParty?.name || `Tổ đội của @${profile.username}`,
               gameType: activeParty?.gameType || "CARO",
               wager: activeParty?.wager || 0
             }
@@ -1341,8 +1343,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
       {/* Top Header */}
       <header className="border-b border-[#D4AF37]/15 py-4 px-6 bg-[#1C1C18] flex justify-between items-center sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded overflow-hidden bg-[#1C1C18] border border-[#D4AF37]/20 flex items-center justify-center">
-            <img src="/logo.png" className="w-full h-full object-cover" alt="Vuiga" />
+          <div className="w-14 h-14 overflow-hidden flex items-center justify-center">
+            <img src="/logo.png" className="w-full h-full object-contain" alt="Vuiga" />
           </div>
           <div>
             <h1 className="text-md font-bold uppercase tracking-wider text-white">vuiga.com</h1>
@@ -1799,24 +1801,33 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               <div className="flex justify-between items-center border-b border-[#D4AF37]/15 pb-3">
                 <h2 className="text-md font-bold uppercase text-white">Cửa Hàng Skin & Soundpack</h2>
                 <div className="flex gap-1.5 flex-wrap">
-                  {["ALL", "SYMBOL", "FRAME", "THEME", "SFX", "EMOJI"].map((cat) => (
+                  {[
+                    { id: "ALL", label: "Tất cả" },
+                    { id: "SYMBOL", label: "Quân cờ" },
+                    { id: "FRAME", label: "Khung ảnh" },
+                    { id: "THEME", label: "Bàn cờ" },
+                    { id: "SFX", label: "Hiệu ứng" },
+                    { id: "EMOJI", label: "Biểu cảm" },
+                    { id: "SKIN", label: "Skin Gà" },
+                  ].map((cat) => (
                     <button
-                      key={cat}
-                      onClick={() => setShopCategory(cat as any)}
+                      key={cat.id}
+                      onClick={() => setShopCategory(cat.id as any)}
                       className={`text-[8.5px] uppercase px-2.5 py-1 rounded transition ${
-                        shopCategory === cat 
+                        shopCategory === cat.id 
                           ? "bg-[#D4AF37] text-[#141412] font-bold" 
                           : "bg-[#1C1C18] text-[#F3E5AB]/60 hover:text-white"
                       }`}
                     >
-                      {cat === "ALL" ? "Tất cả" : cat}
+                      {cat.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {SHOP_ITEMS.filter((item) => (shopCategory === "ALL" || item.type === shopCategory) && item.type !== "DICE" && item.type !== "CARDBACK").map((item) => {
+              {/* Shop Items List / Category Dashboards */}
+              {(() => {
+                const renderShopCard = (item: ShopItem) => {
                   const isOwned = profile.purchasedItems.includes(item.id);
                   const isEquipped = 
                     item.type === "FRAME" ? profile.avatarFrame === item.id :
@@ -1829,7 +1840,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     item.type === "EMOJI" ? isOwned : false;
                   
                   return (
-                    <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                    <div key={item.id} className="bg-[#1C1C18] border border-[#D4AF37]/15 p-4 rounded-xl flex flex-col justify-between space-y-3 shadow-md hover:border-[#D4AF37]/40 transition">
                       <div>
                         <div className="flex justify-between items-start">
                           <span className="text-[12px] bg-[#D4AF37]/10 text-[#D4AF37] px-2 py-0.5 rounded font-bold font-mono">
@@ -1837,6 +1848,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                              item.type === "FRAME" ? "Khung ảnh" :
                              item.type === "THEME" ? "Bàn cờ" :
                              item.type === "SFX" ? "Hiệu ứng" :
+                             item.type === "SKIN" ? "Ngoại hình Gà" :
                              item.type === "EMOJI" ? "Biểu cảm" : item.type}
                           </span>
                           {!isOwned && (
@@ -1894,8 +1906,83 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       </div>
                     </div>
                   );
-                })}
-              </div>
+                };
+
+                if (shopCategory === "ALL") {
+                  const CATEGORY_SECTIONS = [
+                    { id: "SYMBOL", title: "Quân cờ", icon: "⚔️" },
+                    { id: "FRAME", title: "Khung ảnh Avatar", icon: "🖼️" },
+                    { id: "THEME", title: "Giao diện Bàn cờ", icon: "🎨" },
+                    { id: "SFX", title: "Hiệu ứng & Âm thanh", icon: "🔊" },
+                    { id: "EMOJI", title: "Biểu cảm Vui vẻ", icon: "😀" },
+                    { id: "SKIN", title: "Ngoại hình Gà", icon: "🐔" },
+                  ];
+
+                  return (
+                    <div className="space-y-8">
+                      {CATEGORY_SECTIONS.map((sec) => {
+                        const items = SHOP_ITEMS.filter((item) => item.type === sec.id);
+                        if (items.length === 0) return null;
+                        const visibleItems = items.slice(0, 3);
+                        const hasMore = items.length > 3;
+
+                        return (
+                          <div key={sec.id} className="bg-[#181814] border border-[#D4AF37]/20 p-5 rounded-2xl space-y-4 shadow-lg">
+                            <div className="flex justify-between items-center border-b border-[#D4AF37]/10 pb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{sec.icon}</span>
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-white">{sec.title}</h3>
+                                <span className="text-[12px] font-mono text-[#D4AF37]/60">({items.length} vật phẩm)</span>
+                              </div>
+                              <button
+                                onClick={() => setShopCategory(sec.id as any)}
+                                className="text-[11px] font-bold text-[#D4AF37] hover:text-white bg-[#D4AF37]/10 hover:bg-[#D4AF37]/25 px-3 py-1.5 rounded-lg border border-[#D4AF37]/30 transition flex items-center gap-1"
+                              >
+                                Xem thêm {hasMore ? `(+${items.length - 3})` : ""} &rarr;
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                              {visibleItems.map(renderShopCard)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                // Chế độ xem theo danh mục cụ thể
+                const catItems = SHOP_ITEMS.filter((item) => item.type === shopCategory);
+                return (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-[#181814] border border-[#D4AF37]/20 p-4 rounded-xl">
+                      <h3 className="text-sm font-bold uppercase text-[#D4AF37] flex items-center gap-2">
+                        <span>Danh mục:</span>
+                        <span className="text-white">
+                          {shopCategory === "SYMBOL" ? "Quân cờ" :
+                           shopCategory === "FRAME" ? "Khung ảnh" :
+                           shopCategory === "THEME" ? "Giao diện Bàn cờ" :
+                           shopCategory === "SFX" ? "Hiệu ứng & Âm thanh" :
+                           shopCategory === "SKIN" ? "Ngoại hình Gà" :
+                           shopCategory === "EMOJI" ? "Biểu cảm" : shopCategory}
+                        </span>
+                        <span className="text-[12px] font-mono text-[#F3E5AB]/60">({catItems.length} vật phẩm)</span>
+                      </h3>
+                      <button
+                        onClick={() => setShopCategory("ALL")}
+                        className="text-[11px] font-bold text-[#F3E5AB] hover:text-white bg-[#1C1C18] border border-[#D4AF37]/30 hover:border-[#D4AF37] px-3 py-1.5 rounded-lg transition flex items-center gap-1"
+                      >
+                        &larr; Tất cả danh mục
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                      {catItems.map(renderShopCard)}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -3278,12 +3365,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
             <div className="space-y-3">
               <p className="text-xs text-[#F3E5AB] leading-relaxed">
-                Người chơi <span className="text-[#D4AF37] font-bold">@{activeInvite.senderUsername}</span> mời bạn tham gia tổ đội để thi đấu game <span className="text-white font-bold">{activeInvite.gameType === "CARO" ? "Gomoku" : activeInvite.gameType === "BATTLESHIP" ? "Battleship" : "Caro 3x3"}</span>.
+                <span className="text-[#D4AF37] font-bold">@{activeInvite.senderUsername}</span> đã mời bạn vào tổ đội <span className="text-white font-bold">{activeInvite.partyName || `Tổ đội của @${activeInvite.senderUsername}`}</span>.
               </p>
-              <div className="bg-black/30 p-2 rounded border border-[#D4AF37]/10 flex justify-between items-center text-xs">
-                <span className="text-[#F3E5AB]/60">Mức cược tổ đội:</span>
-                <span className="text-yellow-500 font-mono font-bold">{activeInvite.wager} Trứng</span>
-              </div>
             </div>
 
             <div className="flex gap-2">
@@ -3294,7 +3377,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                 }}
                 className="flex-1 pixel-btn pixel-btn-yellow py-2.5 text-xs font-bold transition"
               >
-                Chấp nhận
+                Tham gia
               </button>
               <button
                 onClick={() => setActiveInvite(null)}

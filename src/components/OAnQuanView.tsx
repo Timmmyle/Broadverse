@@ -139,9 +139,19 @@ export default function OAnQuanView({
       const timer = setTimeout(() => {
         setShowResultModal(true);
       }, 700);
+
+      // Cập nhật trạng thái phòng trong Database thành FINISHED để không bị khôi phục phòng chơi cũ khi về Sảnh
+      if (details?.roomId) {
+        fetch("/api/match/forfeit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomId: details.roomId, action: "SURRENDER" }),
+        }).catch((e) => console.error(e));
+      }
+
       return () => clearTimeout(timer);
     }
-  }, [gameState.isGameOver, gameState.winner, gameMode]);
+  }, [gameState.isGameOver, gameState.winner, gameMode, details?.roomId]);
 
   const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
 
@@ -175,7 +185,7 @@ export default function OAnQuanView({
   };
 
   const handleBackToLobby = async () => {
-    if (details?.roomId && !gameState.isGameOver) {
+    if (details?.roomId) {
       try {
         await fetch("/api/match/forfeit", {
           method: "POST",
@@ -183,7 +193,7 @@ export default function OAnQuanView({
           body: JSON.stringify({ roomId: details.roomId, action: "SURRENDER" }),
         });
       } catch (e) {
-        console.error(e);
+        console.error("Lỗi dọn dẹp trạng thái phòng:", e);
       }
     }
     onBack();

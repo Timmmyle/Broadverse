@@ -18,6 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Vuiga.com - Đấu Trí Trại Gà Vui Vẻ",
   description: "Hành trình từ Quả Trứng 🥚 đến Phượng Hoàng Lửa 🔥 - Hệ thống Tiến trình & Xếp hạng Boardgame Kê Vương.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

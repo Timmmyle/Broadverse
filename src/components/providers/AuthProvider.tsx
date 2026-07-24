@@ -64,14 +64,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(session.user);
           await syncUser();
         } else {
-          // Tự động tạo tài khoản khách nếu chưa có tài khoản nào đăng nhập và không phải explicit_logout
-          const isExplicitLogout = localStorage.getItem("explicit_logout") === "true";
-          if (!isExplicitLogout) {
-            await loginGuest();
-          }
+          // Tự động tạo/đăng nhập tài khoản Khách để chuyển thẳng vào Dashboard trang chính
+          await loginGuest();
         }
       } catch (err) {
         console.error("Lỗi checkSession:", err);
+        try {
+          await loginGuest();
+        } catch (e) {
+          console.error("Lỗi loginGuest fallback:", e);
+        }
       } finally {
         setLoading(false);
       }
@@ -85,9 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           setUser(session.user);
           await syncUser();
-        } else {
-          setUser(null);
-          setProfile(null);
+        } else if (event === "SIGNED_OUT") {
+          // Nếu người dùng vừa đăng xuất, chuyển ngay về tài khoản Khách và vào sảnh chính
+          try {
+            await loginGuest();
+          } catch (e) {
+            console.error("Lỗi loginGuest sau khi đăng xuất:", e);
+          }
         }
         setLoading(false);
       }
@@ -150,17 +156,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Đăng xuất
+  // Đăng xuất và tự động trở lại Sảnh chính (Dashboard) bằng tài khoản Khách
   const signOutUser = async () => {
     setLoading(true);
     try {
-      localStorage.setItem("explicit_logout", "true");
+      localStorage.removeItem("explicit_logout");
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setUser(null);
-      setProfile(null);
+      if (error) console.error("Lỗi signOut:", error);
+      await loginGuest();
     } catch (error) {
       console.error("Lỗi đăng xuất:", error);
+      try {
+        await loginGuest();
+      } catch (e) {
+        console.error(e);
+      }
     } finally {
       setLoading(false);
     }

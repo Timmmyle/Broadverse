@@ -28,24 +28,28 @@ export default function OAnQuanView({
   onBack,
   userProfile,
 }: OAnQuanViewProps) {
-  const [startingPlayer, setStartingPlayer] = useState<1 | 2>(() => (Math.random() < 0.5 ? 1 : 2));
-  const [gameState, setGameState] = useState<OAnQuanGameState>(() => createInitialGameState(startingPlayer));
+  const [startingPlayer, setStartingPlayer] = useState<1 | 2>(1);
+  const [gameState, setGameState] = useState<OAnQuanGameState>(() => createInitialGameState(1));
   const [selectedPit, setSelectedPit] = useState<number | null>(null);
   const [animating, setAnimating] = useState(false);
   const [displayedBoard, setDisplayedBoard] = useState<PitState[]>(gameState.board);
   const [displayedP1Score, setDisplayedP1Score] = useState<number>(0);
   const [displayedP2Score, setDisplayedP2Score] = useState<number>(0);
-  const [statusMessage, setStatusMessage] = useState<string>(
-    startingPlayer === 1 ? "🎲 Bốc thăm: Bạn (P1) được ĐI TRƯỚC!" : "🎲 Bốc thăm: Đối thủ (P2) được ĐI TRƯỚC!"
-  );
+  const [statusMessage, setStatusMessage] = useState<string>("🎲 Đang bốc thăm lượt đi ngẫu nhiên...");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [gameMode, setGameMode] = useState<"BOT" | "LOCAL" | "RANDOM" | "FRIEND">(
     mode || "BOT"
   );
   const [diff, setDiff] = useState<"EASY" | "HARD">(botDifficulty);
 
+  // Trạng thái Bốc thăm ngẫu nhiên lượt đi
+  const [isTossing, setIsTossing] = useState(true);
+  const [tossCandidate, setTossCandidate] = useState<1 | 2>(1);
+  const [tossWinner, setTossWinner] = useState<1 | 2 | null>(null);
+
   // Audio Context cho âm thanh Web Audio API
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const isBotThinkingRef = useRef<boolean>(false);
 
   const playSound = (type: "sow" | "pick" | "eat" | "win") => {
     if (!soundEnabled) return;
@@ -258,14 +262,59 @@ export default function OAnQuanView({
     playAnimationSteps(animationSteps, finalState);
   };
 
-  // Tự động cho Bot đi khi đến lượt P2 trong BOT hoặc RANDOM mode
+  // Hiệu ứng Bốc thăm ngẫu nhiên ai đi trước (Random Toss Sequence)
+  useEffect(() => {
+    if (!isTossing) return;
+
+    let candidate: 1 | 2 = 1;
+    const interval = setInterval(() => {
+      candidate = candidate === 1 ? 2 : 1;
+      setTossCandidate(candidate);
+      playSound("pick");
+    }, 90);
+
+    const spinTimer = setTimeout(() => {
+      clearInterval(interval);
+      const chosenPlayer: 1 | 2 = Math.random() < 0.5 ? 1 : 2;
+      setStartingPlayer(chosenPlayer);
+      const freshState = createInitialGameState(chosenPlayer);
+      setGameState(freshState);
+      setDisplayedBoard(freshState.board);
+      setDisplayedP1Score(0);
+      setDisplayedP2Score(0);
+      setSelectedPit(null);
+      setTossWinner(chosenPlayer);
+      playSound("win");
+
+      const closeTimer = setTimeout(() => {
+        setIsTossing(false);
+        const firstText =
+          chosenPlayer === 1
+            ? "🎲 Bốc thăm: Bạn (P1) được ĐI TRƯỚC!"
+            : "🎲 Bốc thăm: Đối thủ (P2) được ĐI TRƯỚC!";
+        setStatusMessage(firstText);
+      }, 1000);
+
+      return () => clearTimeout(closeTimer);
+    }, 1300);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(spinTimer);
+    };
+  }, [isTossing]);
+
+  // Tự động cho Bot đi khi đến lượt P2 trong BOT hoặc RANDOM mode (Đấu Rank)
   useEffect(() => {
     if (
+      !isTossing &&
       (gameMode === "BOT" || gameMode === "RANDOM") &&
       gameState.currentPlayer === 2 &&
       !gameState.isGameOver &&
-      !animating
+      !animating &&
+      !isBotThinkingRef.current
     ) {
+      isBotThinkingRef.current = true;
       const timer = setTimeout(() => {
         const botMove = getBotMove(gameState, diff);
         if (botMove) {
@@ -276,23 +325,21 @@ export default function OAnQuanView({
           );
           playAnimationSteps(animationSteps, finalState);
         }
-      }, 1200);
+        isBotThinkingRef.current = false;
+      }, 500);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+      };
+    } else if (gameState.currentPlayer === 1) {
+      isBotThinkingRef.current = false;
     }
-  }, [gameState.currentPlayer, gameState.isGameOver, animating, gameMode, diff]);
+  }, [isTossing, gameState.currentPlayer, gameState.isGameOver, animating, gameMode, diff]);
 
   const handleResetGame = () => {
-    const nextFirst = Math.random() < 0.5 ? 1 : 2;
-    setStartingPlayer(nextFirst);
-    const freshState = createInitialGameState(nextFirst);
-    setGameState(freshState);
-    setDisplayedBoard(freshState.board);
-    setDisplayedP1Score(0);
-    setDisplayedP2Score(0);
-    setSelectedPit(null);
-    const firstText = nextFirst === 1 ? "🎲 Bốc thăm: Bạn (P1) được ĐI TRƯỚC!" : "🎲 Bốc thăm: Đối thủ (P2) được ĐI TRƯỚC!";
-    setStatusMessage(`Trận mới! ${firstText}`);
+    setShowResultModal(false);
+    setTossWinner(null);
+    setIsTossing(true);
   };
 
   // Render hạt sỏi ngẫu nhiên trong ô để tạo cảm giác tự nhiên sinh động
@@ -343,7 +390,7 @@ export default function OAnQuanView({
     !gameState.isGameOver;
 
   return (
-    <div className="min-h-screen w-full bg-[#0a0c10] text-slate-100 flex flex-col items-center justify-between p-3 sm:p-6 select-none font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full bg-[#0a0c10] text-slate-100 flex flex-col items-center justify-between p-3 sm:p-6 select-none font-sans relative overflow-hidden animate-in fade-in duration-500">
       {/* Dynamic Background Effects */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:3rem_3rem] pointer-events-none" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-amber-500/10 blur-[100px] rounded-full pointer-events-none" />
@@ -675,6 +722,69 @@ export default function OAnQuanView({
       <footer className="w-full max-w-5xl text-center text-[11px] text-slate-500 py-2 border-t border-slate-900">
         💡 Hướng dẫn: Chọn ô dân thuộc phía bạn có sỏi -&gt; Chọn hướng Trái hoặc Phải để rải sỏi. Trò chơi kết thúc khi 2 Quan bị ăn hết.
       </footer>
+
+      {/* ---------------- OVERLAY BỐC THĂM ĐẦU TRẬN (RANDOM TOSS OVERLAY MODAL) ---------------- */}
+      {isTossing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-sm bg-[#181816] border-2 border-amber-500/40 rounded-3xl p-6 shadow-[0_0_40px_rgba(245,158,11,0.25)] text-center space-y-5 relative overflow-hidden">
+            {/* Decorative ambient background */}
+            <div className="absolute -top-12 -left-12 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.25em] text-amber-400/80">
+                🎲 BỐC THĂM LƯỢT ĐI BẮT ĐẦU
+              </span>
+              <h3 className="text-xl font-black text-white tracking-wide">
+                {tossWinner ? "ĐÃ XÁC ĐỊNH LƯỢT ĐI!" : "ĐANG QUAY NGẪU NHIÊN..."}
+              </h3>
+            </div>
+
+            {/* Animated Dice / Coin Container */}
+            <div className="py-3 flex items-center justify-center">
+              <div
+                className={`w-28 h-28 rounded-2xl flex flex-col items-center justify-center p-3 border-2 transition-all duration-200 transform ${
+                  tossWinner === 1
+                    ? "bg-amber-950/90 border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.6)] scale-110"
+                    : tossWinner === 2
+                    ? "bg-purple-950/90 border-purple-400 shadow-[0_0_25px_rgba(168,85,247,0.6)] scale-110"
+                    : tossCandidate === 1
+                    ? "bg-amber-950/40 border-amber-500/50 scale-100 rotate-3"
+                    : "bg-purple-950/40 border-purple-500/50 scale-100 -rotate-3"
+                }`}
+              >
+                <div className="text-4xl mb-1 animate-bounce">
+                  {tossWinner === 1 ? "👤" : tossWinner === 2 ? (gameMode === "BOT" ? "🤖" : "⚔️") : tossCandidate === 1 ? "👤" : (gameMode === "BOT" ? "🤖" : "⚔️")}
+                </div>
+
+                <span className="text-xs font-black uppercase font-mono tracking-wider text-white">
+                  {tossWinner === 1
+                    ? userProfile?.username || "BẠN"
+                    : tossWinner === 2
+                    ? details?.opponentUsername || (gameMode === "BOT" ? "BOT" : "ĐỐI THỦ")
+                    : tossCandidate === 1
+                    ? "BẠN"
+                    : "ĐỐI THỦ"}
+                </span>
+              </div>
+            </div>
+
+            {/* Winner Banner Result */}
+            <div className="h-8 flex items-center justify-center">
+              {tossWinner ? (
+                <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold text-xs tracking-wider uppercase shadow-lg animate-in zoom-in">
+                  {tossWinner === 1 ? "🎉 BẠN ĐƯỢC ĐI TRƯỚC!" : "⚡ ĐỐI THỦ ĐƯỢC ĐI TRƯỚC!"}
+                </div>
+              ) : (
+                <div className="text-xs text-amber-300 font-mono animate-pulse flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                  Đang tung đồng xu xác định lượt...
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---------------- POPUP XÁC NHẬN ĐẦU HÀNG (CUSTOM SURRENDER CONFIRMATION POPUP) ---------------- */}
       {showSurrenderConfirm && (

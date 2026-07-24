@@ -17,7 +17,7 @@ import confetti from "canvas-confetti";
 
 
 interface DashboardProps {
-  onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
+  onSelectGame: (game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA" | "O_AN_QUAN", mode: "BOT" | "FRIEND" | "RANDOM", details: any) => void;
 }
 
 export default function Dashboard({ onSelectGame }: DashboardProps) {
@@ -78,7 +78,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // State tìm kiếm trận ngẫu nhiên
   const [matchmaking, setMatchmaking] = useState<{
     active: boolean;
-    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA";
+    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA" | "O_AN_QUAN";
     wager: number;
   } | null>(null);
 
@@ -104,7 +104,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   const [cashError, setCashError] = useState("");
 
   // Game Options
-  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA">("CARO");
+  const [selectedGame, setSelectedGame] = useState<"TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA" | "O_AN_QUAN">("CARO");
   const [selectedMode, setSelectedMode] = useState<"BOT" | "FRIEND" | "RANDOM">("BOT");
   const [botDifficulty, setBotDifficulty] = useState<"RANDOM" | "EASY" | "HARD">("EASY");
   const [matchWager, setMatchWager] = useState<number>(0);
@@ -863,7 +863,65 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
   // Phép tính kinh nghiệm cần để lên cấp theo công thức mới
   const expNeeded = getExpNeededForLevel(profile.level);
   const expPercent = Math.min(100, Math.floor((profile.exp / expNeeded) * 100));
-  const rankInfo = profile ? getRankFromDb(profile.rankTier, profile.rankDivision, profile.rankPoints) : null;
+  const rankInfo = profile ? getRankFromElo(profile.eloGomoku ?? 100) : null;
+
+  const getGameRankInfo = (game: string) => {
+    let elo = 100;
+    if (game === "CARO") elo = profile?.eloGomoku ?? 100;
+    else if (game === "TIC_TAC_TOE") elo = profile?.eloTicTacToe ?? 100;
+    else if (game === "BATTLESHIP") elo = profile?.eloBattleship ?? 100;
+    else if (game === "BAU_CUA") elo = profile?.eloBauCua ?? 100;
+    else if (game === "O_AN_QUAN") elo = (profile as any)?.eloOAnQuan ?? 100;
+    return { elo, rank: getRankFromElo(elo) };
+  };
+
+  const getRankCardColors = (tier: number) => {
+    switch (tier) {
+      case 1:
+        return {
+          border: "border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.15)]",
+          bg: "bg-gradient-to-r from-amber-950/40 via-[#181816] to-[#141412]",
+          bar: "from-amber-500 to-yellow-400",
+        };
+      case 2:
+        return {
+          border: "border-yellow-500/40 shadow-[0_0_12px_rgba(234,179,8,0.15)]",
+          bg: "bg-gradient-to-r from-yellow-950/40 via-[#181816] to-[#141412]",
+          bar: "from-yellow-500 to-amber-400",
+        };
+      case 3:
+        return {
+          border: "border-orange-500/40 shadow-[0_0_12px_rgba(249,115,22,0.15)]",
+          bg: "bg-gradient-to-r from-orange-950/40 via-[#181816] to-[#141412]",
+          bar: "from-orange-500 to-amber-500",
+        };
+      case 4:
+        return {
+          border: "border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.15)]",
+          bg: "bg-gradient-to-r from-emerald-950/40 via-[#181816] to-[#141412]",
+          bar: "from-emerald-500 to-teal-400",
+        };
+      case 5:
+        return {
+          border: "border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.15)]",
+          bg: "bg-gradient-to-r from-cyan-950/40 via-[#181816] to-[#141412]",
+          bar: "from-cyan-500 to-blue-400",
+        };
+      case 6:
+        return {
+          border: "border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.15)]",
+          bg: "bg-gradient-to-r from-purple-950/40 via-[#181816] to-[#141412]",
+          bar: "from-purple-500 to-pink-500",
+        };
+      case 7:
+      default:
+        return {
+          border: "border-rose-500/50 shadow-[0_0_15px_rgba(244,63,94,0.25)]",
+          bg: "bg-gradient-to-r from-rose-950/50 via-purple-950/30 to-[#141412]",
+          bar: "from-rose-500 via-amber-400 to-yellow-300",
+        };
+    }
+  };
 
   // Tỷ lệ hoàn thành Battle Pass
   const bpExpNeeded = 1000;
@@ -1618,6 +1676,17 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                           >
                             Bầu Cua
                           </button>
+                          <button
+                            onClick={() => {
+                              setSelectedGame("O_AN_QUAN");
+                              setMatchWager(0);
+                            }}
+                            className={`py-2 rounded-lg text-[12px] font-semibold transition border text-center relative overflow-hidden ${selectedGame === "O_AN_QUAN" ? "border-amber-400 bg-amber-950/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.3)]" : "border-amber-500/20 bg-[#1C1C18] text-[#F3E5AB]/80 hover:bg-[#1C1C18]/80 hover:text-white"}`}
+                          >
+                            <span className="relative z-10 flex items-center justify-center gap-1">
+                              Ô Ăn Quan <span className="text-[9px] bg-amber-500 text-slate-950 font-bold px-1 rounded">HOT</span>
+                            </span>
+                          </button>
                         </div>
                       </div>
 
@@ -1714,6 +1783,59 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
 
                       {selectedMode === "RANDOM" && (
                         <div className="space-y-4">
+                          {/* Thẻ hiển thị Xếp Hạng & Tiến Trình Rank phối màu theo Rank Tier */}
+                          {(() => {
+                            const { elo, rank } = getGameRankInfo(selectedGame);
+                            let pts = 0;
+                            if (selectedGame === "CARO") pts = profile?.rankPointsCaro || 0;
+                            else if (selectedGame === "TIC_TAC_TOE") pts = profile?.rankPointsTicTacToe || 0;
+                            else if (selectedGame === "BATTLESHIP") pts = profile?.rankPointsBattleship || 0;
+                            else if (selectedGame === "BAU_CUA") pts = profile?.rankPointsBauCua || 0;
+                            else if (selectedGame === "O_AN_QUAN") pts = (profile as any)?.rankPointsOAnQuan || 0;
+
+                            const gameTitles: Record<string, string> = {
+                              CARO: "Gomoku (Caro 5)",
+                              TIC_TAC_TOE: "Caro 3x3",
+                              BATTLESHIP: "Battleship (Bắn Tàu)",
+                              BAU_CUA: "Bầu Cua Tôm Cá",
+                              O_AN_QUAN: "Ô Ăn Quan",
+                            };
+
+                            const progressPercent = Math.min(100, Math.max(0, pts));
+                            const colors = getRankCardColors(rank.tier);
+
+                            return (
+                              <div className={`p-3.5 rounded-2xl space-y-2.5 shadow-md border ${colors.border} ${colors.bg} transition-all duration-300`}>
+                                <div className="flex items-center justify-between text-xs font-mono">
+                                  <span className="font-extrabold text-[#F3E5AB] tracking-wide">
+                                    {gameTitles[selectedGame] || selectedGame}
+                                  </span>
+                                  <span className="text-[#888880] font-bold">
+                                    ELO: <span className="text-[#F3E5AB]">{elo}</span>
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-base">{rank.icon}</span>
+                                    <span className={`font-bold ${rank.className}`}>{rank.name} {rank.divisionName}</span>
+                                  </div>
+                                  <span className="font-mono text-[11px] font-extrabold text-[#F3E5AB]">
+                                    {pts} / 100 RP
+                                  </span>
+                                </div>
+
+                                {/* Thanh tiến trình phối màu linh hoạt theo Rank Tier */}
+                                <div className="w-full h-2 bg-[#0c0c0b] rounded-full overflow-hidden border border-[#262622] p-0.5">
+                                  <div
+                                    className={`h-full bg-gradient-to-r ${colors.bar} rounded-full transition-all duration-500 shadow-md`}
+                                    style={{ width: `${progressPercent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           {selectedGame !== "BAU_CUA" ? (
                             <div>
                               <span className="block text-[12px] text-[#F3E5AB]/60 font-semibold mb-2">Mức cược trận đấu (Coin):</span>
@@ -2968,10 +3090,8 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
               </button>
             )}
 
-            {/* Mastery Stats / Game Ranks (Hiển thị EXP Rank từng trò) */}
+            {/* Mastery Stats / Game Ranks (Phối màu động theo Rank Tier từng trò) */}
             <div className="border-t border-[#D4AF37]/10 pt-3 space-y-2.5">
-              <span className="text-[12px] text-[#F3E5AB]/70 font-bold block mb-1">Xếp Hạng & Tiến Trình Rank</span>
-              
               <div className="space-y-2">
                 {[
                   {
@@ -2979,37 +3099,45 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                     tier: profile.rankTierTicTacToe || 1,
                     division: profile.rankDivisionTicTacToe || 3,
                     points: profile.rankPointsTicTacToe || 0,
-                    elo: profile.eloTicTacToe || 1000,
+                    elo: profile.eloTicTacToe ?? 100,
                   },
                   {
                     name: "Gomoku (Caro 5)",
                     tier: profile.rankTierCaro || 1,
                     division: profile.rankDivisionCaro || 3,
                     points: profile.rankPointsCaro || 0,
-                    elo: profile.eloGomoku || 1000,
+                    elo: profile.eloGomoku ?? 100,
                   },
                   {
                     name: "Battleship (Bắn Tàu)",
                     tier: profile.rankTierBattleship || 1,
                     division: profile.rankDivisionBattleship || 3,
                     points: profile.rankPointsBattleship || 0,
-                    elo: profile.eloBattleship || 1000,
+                    elo: profile.eloBattleship ?? 100,
                   },
                   {
                     name: "Bầu Cua Tôm Cá",
                     tier: profile.rankTierBauCua || 1,
                     division: profile.rankDivisionBauCua || 3,
                     points: profile.rankPointsBauCua || 0,
-                    elo: profile.eloBauCua || 1000,
+                    elo: profile.eloBauCua ?? 100,
+                  },
+                  {
+                    name: "Ô Ăn Quan",
+                    tier: (profile as any).rankTierOAnQuan || 1,
+                    division: (profile as any).rankDivisionOAnQuan || 3,
+                    points: (profile as any).rankPointsOAnQuan || 0,
+                    elo: (profile as any).eloOAnQuan ?? 100,
                   },
                 ].map((gameRank, idx) => {
-                  const r = getRankFromDb(gameRank.tier, gameRank.division, gameRank.points);
+                  const r = getRankFromElo(gameRank.elo);
                   const rpPercent = Math.min(100, Math.max(0, gameRank.points));
+                  const colors = getRankCardColors(r.tier);
                   return (
-                    <div key={idx} className="bg-[#141412] p-2.5 rounded-xl border border-[#D4AF37]/10 space-y-1.5">
+                    <div key={idx} className={`p-2.5 rounded-xl border ${colors.border} ${colors.bg} space-y-1.5 transition-all duration-300`}>
                       <div className="flex justify-between items-center text-[11px]">
-                        <span className="text-[#F3E5AB]/80 font-bold font-mono">{gameRank.name}</span>
-                        <span className="text-[#F3E5AB]/50 font-mono text-[10px]">ELO: {gameRank.elo}</span>
+                        <span className="text-[#F3E5AB] font-bold font-mono">{gameRank.name}</span>
+                        <span className="text-[#F3E5AB]/60 font-mono text-[10px]">ELO: {gameRank.elo}</span>
                       </div>
                       
                       <div className="flex justify-between items-center">
@@ -3024,7 +3152,7 @@ export default function Dashboard({ onSelectGame }: DashboardProps) {
                       {/* Mini progress bar for game rank */}
                       <div className="w-full bg-black/60 h-2 rounded-full overflow-hidden border border-[#D4AF37]/15">
                         <div 
-                          className="bg-gradient-to-r from-[#D4AF37] to-[#FF9F0A] h-full transition-all duration-300 rounded-full" 
+                          className={`bg-gradient-to-r ${colors.bar} h-full transition-all duration-300 rounded-full`} 
                           style={{ width: `${rpPercent}%` }}
                         ></div>
                       </div>

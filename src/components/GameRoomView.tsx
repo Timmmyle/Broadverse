@@ -9,6 +9,7 @@ import { getTicTacToeBotMove, getCaroBotMove } from "@/lib/botAi";
 import { SHOP_ITEMS } from "@/lib/shopItems";
 import BattleshipView from "./BattleshipView";
 import BauCuaView from "./BauCuaView";
+import OAnQuanView from "./OAnQuanView";
 import { 
   ArrowLeft, Swords, Award, AlertTriangle, Clock, RefreshCw, Copy, Check, Coins
 } from "lucide-react";
@@ -16,7 +17,7 @@ import confetti from "canvas-confetti";
 import { QRCodeSVG } from "qrcode.react";
 
 interface GameRoomViewProps {
-  gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA";
+  gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA" | "O_AN_QUAN";
   mode: "BOT" | "FRIEND" | "RANDOM";
   details: {
     roomId?: string;
@@ -1211,6 +1212,14 @@ export default function GameRoomView({ gameType, mode, details, onBack }: GameRo
             </div>
           </div>
         </div>
+      ) : gameType === "O_AN_QUAN" ? (
+        <OAnQuanView
+          mode={mode}
+          botDifficulty={details.difficulty === "EASY" ? "EASY" : "HARD"}
+          details={{ ...details, opponentUsername: getOpponentUsername() }}
+          onBack={onBack}
+          userProfile={profile}
+        />
       ) : (
         /* GAME BOARD SCREEN (PLAYING & FINISHED) */
         <div className="flex-grow max-w-4xl w-full mx-auto px-4 mt-6 flex flex-col items-center space-y-6">

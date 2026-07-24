@@ -17,7 +17,7 @@ function HomeContent() {
   // Trạng thái màn hình hiện tại: "LOBBY" (Dashboard) hoặc "GAME" (Bàn cờ)
   const [screen, setScreen] = useState<"LOBBY" | "GAME">("LOBBY");
   const [gameConfig, setGameConfig] = useState<{
-    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA";
+    gameType: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA" | "O_AN_QUAN";
     mode: "BOT" | "FRIEND" | "RANDOM";
     details: any;
   } | null>(null);
@@ -156,7 +156,7 @@ function HomeContent() {
 
   // Vào phòng game
   const handleSelectGame = (
-    game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA",
+    game: "TIC_TAC_TOE" | "CARO" | "BATTLESHIP" | "BAU_CUA" | "O_AN_QUAN",
     mode: "BOT" | "FRIEND" | "RANDOM",
     details: any
   ) => {

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const userId = user.id;
     const { gameType, wager, forceBot } = await req.json(); // gameType: "TIC_TAC_TOE", "CARO", "BATTLESHIP" hoặc "BAU_CUA", wager: 0, 10, 50, 100, 999999
 
-    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP", "BAU_CUA"].includes(gameType)) {
+    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP", "BAU_CUA", "O_AN_QUAN"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
     }
 
@@ -221,6 +221,9 @@ export async function POST(req: Request) {
           radarResultsX: [],
           radarResultsO: []
         });
+      } else if (gameType === "O_AN_QUAN") {
+        const { createInitialGameState } = await import("@/lib/oAnQuanEngine");
+        initialBoard = JSON.stringify(createInitialGameState());
       } else {
         const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
         initialBoard = JSON.stringify(Array(boardSize).fill(""));
@@ -349,6 +352,9 @@ export async function POST(req: Request) {
             radarResultsX: [],
             radarResultsO: []
           });
+        } else if (gameType === "O_AN_QUAN") {
+          const { createInitialGameState } = await import("@/lib/oAnQuanEngine");
+          initialBoard = JSON.stringify(createInitialGameState());
         } else {
           const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
           initialBoard = JSON.stringify(Array(boardSize).fill(""));

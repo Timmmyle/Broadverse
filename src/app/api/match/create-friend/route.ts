@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     const creatorId = user.id;
     const { gameType, wager } = await req.json();
 
-    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP", "BAU_CUA"].includes(gameType)) {
+    if (!["TIC_TAC_TOE", "CARO", "BATTLESHIP", "BAU_CUA", "O_AN_QUAN"].includes(gameType)) {
       return NextResponse.json({ error: "Loại game không hợp lệ" }, { status: 400 });
     }
 
@@ -66,6 +66,9 @@ export async function POST(req: Request) {
         dice: [],
         history: []
       });
+    } else if (gameType === "O_AN_QUAN") {
+      const { createInitialGameState } = await import("@/lib/oAnQuanEngine");
+      initialBoard = JSON.stringify(createInitialGameState());
     } else {
       const boardSize = gameType === "TIC_TAC_TOE" ? 9 : 144;
       initialBoard = JSON.stringify(Array(boardSize).fill(""));
